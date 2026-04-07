@@ -3,6 +3,7 @@ declare module '#auth-utils' {
     sub?: string
     email?: string
     name?: string
+    groups?: string[]
   }
 
   interface UserSession {

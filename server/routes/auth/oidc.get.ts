@@ -3,6 +3,7 @@ type OidcUser = {
   email?: string
   name?: string
   preferred_username?: string
+  groups?: string[] | string
 }
 
 type OidcTokens = {
@@ -26,9 +27,26 @@ function sanitizeRedirect(input: unknown): string {
   return value
 }
 
+function normalizeGroups(input: string[] | string | undefined): string[] {
+  if (!input) {
+    return []
+  }
+
+  if (Array.isArray(input)) {
+    return input
+      .map(group => group.trim().toUpperCase())
+      .filter(Boolean)
+  }
+
+  return input
+    .split(/[\s,]+/)
+    .map(group => group.trim().toUpperCase())
+    .filter(Boolean)
+}
+
 export default defineOAuthOidcEventHandler({
   config: {
-    scope: ['openid', 'profile', 'email']
+    scope: ['openid', 'profile', 'email', 'groups']
   },
   async onSuccess(event, { user, tokens }) {
     const oidcUser = user as OidcUser
@@ -42,7 +60,8 @@ export default defineOAuthOidcEventHandler({
       user: {
         sub: oidcUser.sub,
         email: oidcUser.email,
-        name: oidcUser.name ?? oidcUser.preferred_username ?? oidcUser.email ?? oidcUser.sub
+        name: oidcUser.name ?? oidcUser.preferred_username ?? oidcUser.email ?? oidcUser.sub,
+        groups: normalizeGroups(oidcUser.groups)
       },
       loggedInAt: now,
       tokenExpiresAt: expiresAt,

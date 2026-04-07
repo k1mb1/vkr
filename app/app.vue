@@ -63,6 +63,24 @@ useSeoMeta({
         >
           Settings
         </UButton>
+        <UButton
+          to="/groups-demo"
+          variant="ghost"
+          color="neutral"
+          icon="i-lucide-users"
+          size="sm"
+        >
+          Groups Demo
+        </UButton>
+        <UButton
+          to="/admin"
+          variant="ghost"
+          color="neutral"
+          icon="i-lucide-shield"
+          size="sm"
+        >
+          Admin
+        </UButton>
       </template>
 
       <template #right>
