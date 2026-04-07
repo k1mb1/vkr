@@ -1,19 +1,17 @@
 <template>
   <div>
     <UPageHero
-      title="Nuxt Starter Template"
-      description="A production-ready starter template powered by Nuxt UI. Build beautiful, accessible, and performant applications in minutes, not hours."
+      title="Nuxt + Pocket ID OIDC Scaffold"
+      description="Server-first authentication setup with Nuxt UI and nuxt-auth-utils, including protected routes, token refresh endpoint and stub pages."
       :links="[{
-        label: 'Get started',
-        to: 'https://ui.nuxt.com/docs/getting-started/installation/nuxt',
-        target: '_blank',
-        trailingIcon: 'i-lucide-arrow-right',
+        label: 'Sign in',
+        to: '/auth/login',
+        icon: 'i-lucide-log-in',
         size: 'xl'
       }, {
-        label: 'Use this template',
-        to: 'https://github.com/nuxt-ui-templates/starter',
-        target: '_blank',
-        icon: 'i-simple-icons-github',
+        label: 'Open dashboard',
+        to: '/dashboard',
+        icon: 'i-lucide-layout-dashboard',
         size: 'xl',
         color: 'neutral',
         variant: 'subtle'
@@ -22,51 +20,46 @@
 
     <UPageSection
       id="features"
-      title="Everything you need to build modern Nuxt apps"
-      description="Start with a solid foundation. This template includes all the essentials for building production-ready applications with Nuxt UI's powerful component system."
+      title="What is already wired"
+      description="Core OIDC paths and token lifecycle hooks are scaffolded and ready for Pocket ID values."
       :features="[{
-        icon: 'i-lucide-rocket',
-        title: 'Production-ready from day one',
-        description: 'Pre-configured with TypeScript, ESLint, Tailwind CSS, and all the best practices. Focus on building features, not setting up tooling.'
-      }, {
-        icon: 'i-lucide-palette',
-        title: 'Beautiful by default',
-        description: 'Leveraging Nuxt UI\'s design system with automatic dark mode, consistent spacing, and polished components that look great out of the box.'
-      }, {
-        icon: 'i-lucide-zap',
-        title: 'Lightning fast',
-        description: 'Optimized for performance with SSR/SSG support, automatic code splitting, and edge-ready deployment. Your users will love the speed.'
-      }, {
-        icon: 'i-lucide-blocks',
-        title: '100+ components included',
-        description: 'Access Nuxt UI\'s comprehensive component library. From forms to navigation, everything is accessible, responsive, and customizable.'
-      }, {
-        icon: 'i-lucide-code-2',
-        title: 'Developer experience first',
-        description: 'Auto-imports, hot module replacement, and TypeScript support. Write less boilerplate and ship more features.'
-      }, {
         icon: 'i-lucide-shield-check',
-        title: 'Built for scale',
-        description: 'Enterprise-ready architecture with proper error handling, SEO optimization, and security best practices built-in.'
+        title: 'OIDC auth route',
+        description: '/auth/oidc uses defineOAuthOidcEventHandler and stores a minimal user session.'
+      }, {
+        icon: 'i-lucide-refresh-cw',
+        title: 'Client refresh behavior',
+        description: 'A client plugin schedules refresh calls before token expiry and falls back safely on errors.'
+      }, {
+        icon: 'i-lucide-lock-keyhole',
+        title: 'Global protected routes',
+        description: 'All pages are protected by default except / and auth utility routes.'
+      }, {
+        icon: 'i-lucide-layout-dashboard',
+        title: 'Stub pages in place',
+        description: 'Login, callback, dashboard, profile, settings, auth error and logout pages are ready to extend.'
+      }, {
+        icon: 'i-lucide-sliders-horizontal',
+        title: 'Composable API',
+        description: 'useOidcAuth() provides login, logout, refreshNow and session state for UI pages.'
       }]"
     />
 
     <UPageSection>
       <UPageCTA
-        title="Ready to build your next Nuxt app?"
-        description="Join thousands of developers building with Nuxt and Nuxt UI. Get this template and start shipping today."
+        title="Next step: add your Pocket ID credentials"
+        description="Copy env values from .env.example, configure callback URL in provider settings, then test /auth/login flow."
         variant="subtle"
         :links="[{
-          label: 'Start building',
-          to: 'https://ui.nuxt.com/docs/getting-started/installation/nuxt',
-          target: '_blank',
-          trailingIcon: 'i-lucide-arrow-right',
-          color: 'neutral'
+          label: 'Go to login',
+          to: '/auth/login',
+          icon: 'i-lucide-log-in',
+          color: 'neutral',
+          trailingIcon: 'i-lucide-arrow-right'
         }, {
-          label: 'View on GitHub',
-          to: 'https://github.com/nuxt-ui-templates/starter',
-          target: '_blank',
-          icon: 'i-simple-icons-github',
+          label: 'Open profile stub',
+          to: '/profile',
+          icon: 'i-lucide-user',
           color: 'neutral',
           variant: 'outline'
         }]"

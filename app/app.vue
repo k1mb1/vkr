@@ -11,16 +11,19 @@ useHead({
   }
 })
 
-const title = 'Nuxt Starter Template'
-const description = 'A production-ready starter template powered by Nuxt UI. Build beautiful, accessible, and performant applications in minutes, not hours.'
+const title = 'Nuxt OIDC Starter'
+const description = 'Nuxt UI + nuxt-auth-utils scaffold for Pocket ID and OIDC flows with protected pages and token refresh.'
+
+const { loggedIn, user } = useUserSession()
+const { logout } = useOidcAuth()
 
 useSeoMeta({
   title,
   description,
   ogTitle: title,
   ogDescription: description,
-  ogImage: 'https://ui.nuxt.com/assets/templates/nuxt/starter-light.png',
-  twitterImage: 'https://ui.nuxt.com/assets/templates/nuxt/starter-light.png',
+  ogImage: 'https://ui.nuxt.com/assets/cover.jpg',
+  twitterImage: 'https://ui.nuxt.com/assets/cover.jpg',
   twitterCard: 'summary_large_image'
 })
 </script>
@@ -33,17 +36,70 @@ useSeoMeta({
           <AppLogo class="w-auto h-6 shrink-0" />
         </NuxtLink>
 
-        <TemplateMenu />
+        <UButton
+          to="/dashboard"
+          variant="ghost"
+          color="neutral"
+          icon="i-lucide-layout-dashboard"
+          size="sm"
+        >
+          Dashboard
+        </UButton>
+        <UButton
+          to="/profile"
+          variant="ghost"
+          color="neutral"
+          icon="i-lucide-user"
+          size="sm"
+        >
+          Profile
+        </UButton>
+        <UButton
+          to="/settings"
+          variant="ghost"
+          color="neutral"
+          icon="i-lucide-settings"
+          size="sm"
+        >
+          Settings
+        </UButton>
       </template>
 
       <template #right>
+        <UBadge
+          v-if="loggedIn"
+          color="success"
+          variant="soft"
+          class="hidden sm:inline-flex"
+        >
+          {{ user?.email || user?.name || 'Signed in' }}
+        </UBadge>
+
+        <UButton
+          v-if="loggedIn"
+          icon="i-lucide-log-out"
+          color="neutral"
+          variant="soft"
+          @click="logout"
+        >
+          Logout
+        </UButton>
+
+        <UButton
+          v-else
+          to="/auth/login"
+          icon="i-lucide-log-in"
+        >
+          Login
+        </UButton>
+
         <UColorModeButton />
 
         <UButton
-          to="https://github.com/nuxt-ui-templates/starter"
+          to="https://github.com/atinux/nuxt-auth-utils"
           target="_blank"
           icon="i-simple-icons-github"
-          aria-label="GitHub"
+          aria-label="nuxt-auth-utils"
           color="neutral"
           variant="ghost"
         />
@@ -65,10 +121,10 @@ useSeoMeta({
 
       <template #right>
         <UButton
-          to="https://github.com/nuxt-ui-templates/starter"
+          to="https://github.com/atinux/nuxt-auth-utils"
           target="_blank"
           icon="i-simple-icons-github"
-          aria-label="GitHub"
+          aria-label="nuxt-auth-utils"
           color="neutral"
           variant="ghost"
         />

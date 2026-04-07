@@ -1,64 +1,63 @@
-# Nuxt Starter Template
+# Nuxt OIDC Scaffold (Pocket ID Ready)
 
-[![Nuxt UI](https://img.shields.io/badge/Made%20with-Nuxt%20UI-00DC82?logo=nuxt&labelColor=020420)](https://ui.nuxt.com)
+Nuxt 4 starter with:
 
-Use this template to get started with [Nuxt UI](https://ui.nuxt.com) quickly.
-
-- [Live demo](https://starter-template.nuxt.dev/)
-- [Documentation](https://ui.nuxt.com/docs/getting-started/installation/nuxt)
-
-<a href="https://starter-template.nuxt.dev/" target="_blank">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://ui.nuxt.com/assets/templates/nuxt/starter-dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="https://ui.nuxt.com/assets/templates/nuxt/starter-light.png">
-    <img alt="Nuxt Starter Template" src="https://ui.nuxt.com/assets/templates/nuxt/starter-light.png" width="830" height="466">
-  </picture>
-</a>
-
-> The starter template for Vue is on https://github.com/nuxt-ui-templates/starter-vue.
-
-## Quick Start
-
-```bash [Terminal]
-npm create nuxt@latest -- -t ui
-```
-
-## Deploy your own
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-name=starter&repository-url=https%3A%2F%2Fgithub.com%2Fnuxt-ui-templates%2Fstarter&demo-image=https%3A%2F%2Fui.nuxt.com%2Fassets%2Ftemplates%2Fnuxt%2Fstarter-dark.png&demo-url=https%3A%2F%2Fstarter-template.nuxt.dev%2F&demo-title=Nuxt%20Starter%20Template&demo-description=A%20minimal%20template%20to%20get%20started%20with%20Nuxt%20UI.)
+- `@nuxt/ui` for UI components
+- `nuxt-auth-utils` for sealed cookie session auth
+- Generic OIDC flow for Pocket ID (`/auth/oidc`)
+- Token refresh endpoint and client refresh scheduler
+- Protected route middleware and auth stub pages
 
 ## Setup
 
-Make sure to install the dependencies:
+1. Install dependencies
 
 ```bash
 pnpm install
 ```
 
-## Development Server
+2. Create environment file from sample
 
-Start the development server on `http://localhost:3000`:
+```bash
+cp .env.example .env
+```
+
+3. Fill required values in `.env`
+
+```bash
+NUXT_SESSION_PASSWORD=<long-random-value-at-least-32-chars>
+NUXT_OAUTH_OIDC_CLIENT_ID=<client-id>
+NUXT_OAUTH_OIDC_CLIENT_SECRET=<client-secret>
+NUXT_OAUTH_OIDC_OPENID_CONFIG=https://id.example.com/.well-known/openid-configuration
+NUXT_OAUTH_OIDC_REDIRECT_URL=http://localhost:3000/auth/oidc
+```
+
+4. In Pocket ID client settings, set callback URL to:
+
+```text
+http://localhost:3000/auth/oidc
+```
+
+## Run
 
 ```bash
 pnpm dev
 ```
 
-## Production
+Then open:
 
-Build the application for production:
+- `/auth/login` for sign-in
+- `/dashboard` as protected route example
+- `/profile`, `/settings` as protected stubs
 
-```bash
-pnpm build
-```
+## Auth routes
 
-Locally preview production build:
+- `GET /auth/oidc`: starts OIDC flow and handles callback
+- `POST /api/auth/refresh`: refreshes tokens using `refresh_token`
+- `POST /api/auth/logout`: clears local session
 
-```bash
-pnpm preview
-```
+## Notes
 
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
-
-## Renovate integration
-
-Install [Renovate GitHub app](https://github.com/apps/renovate/installations/select_target) on your repository and you are good to go.
+- By default all routes are protected except `/`, `/auth/*`, `/auth-error`, `/logout`.
+- Refresh is scheduled client-side before token expiration.
+- `refresh_token` is stored in server-only secure session data.
