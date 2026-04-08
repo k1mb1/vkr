@@ -14,8 +14,14 @@ export default defineNuxtRouteMiddleware((to) => {
   const hasAccess = hasGroups(requiredGroups, 'any')
 
   if (!hasAccess) {
-    const required = encodeURIComponent(requiredGroups.map(group => group.toUpperCase()).join(','))
-    const from = encodeURIComponent(to.fullPath)
-    return navigateTo(`/forbidden?required=${required}&from=${from}`)
+    throw createError({
+      statusCode: 403,
+      statusMessage: 'Forbidden',
+      message: 'You do not have required group permissions for this page.',
+      data: {
+        from: to.fullPath,
+        requiredGroups: requiredGroups.map(group => group.toUpperCase())
+      }
+    })
   }
 })

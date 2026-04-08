@@ -19,7 +19,7 @@ function sanitizeRedirect(input: unknown): string {
     return '/dashboard'
   }
 
-  const blocked = ['/auth/oidc', '/auth/login', '/auth/callback', '/auth-error', '/logout']
+  const blocked = ['/auth/oidc', '/auth/login', '/auth/callback', '/logout']
   if (blocked.includes(value)) {
     return '/dashboard'
   }
@@ -74,7 +74,13 @@ export default defineOAuthOidcEventHandler({
     return sendRedirect(event, redirectTo)
   },
   onError(event, error) {
-    const message = encodeURIComponent(error?.message || 'OIDC authentication failed')
-    return sendRedirect(event, `/auth-error?message=${message}`)
+    throw createError({
+      statusCode: 401,
+      statusMessage: 'Unauthorized',
+      message: error?.message || 'OIDC authentication failed',
+      data: {
+        from: '/dashboard'
+      }
+    })
   }
 })

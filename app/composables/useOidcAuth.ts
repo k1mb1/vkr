@@ -1,5 +1,4 @@
 export function useOidcAuth() {
-  const route = useRoute()
   const { loggedIn, user, session, fetch, clear } = useUserSession()
 
   const tokenExpiresAt = computed(() => session.value?.tokenExpiresAt as number | undefined)
@@ -11,8 +10,8 @@ export function useOidcAuth() {
     return tokenExpiresAt.value - Date.now()
   })
 
-  function login(target?: string) {
-    const redirect = target ?? (typeof route.query.redirect === 'string' ? route.query.redirect : '/dashboard')
+  function login(target?: string | null) {
+    const redirect = (typeof target === 'string' && target.length > 0) ? target : '/dashboard'
     const redirectQuery = encodeURIComponent(redirect)
 
     return navigateTo(`/auth/oidc?redirect=${redirectQuery}`, {
