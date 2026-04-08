@@ -7,7 +7,9 @@ type NuxtUseFetchOptions = NonNullable<Parameters<typeof useFetch>[1]>
 export type BackendQuery = Record<string, QueryValue>
 
 type SessionWithAccessToken = {
-  accessToken?: string
+  secure?: {
+    accessToken?: string
+  }
 }
 
 export type BackendFetchOptions<
@@ -33,7 +35,11 @@ function resolveAccessToken(override?: string | null): string | undefined {
   const { session } = useOidcAuth()
   const authSession = session.value as SessionWithAccessToken | null | undefined
 
-  return authSession?.accessToken
+  if (import.meta.server) {
+    return authSession?.secure?.accessToken
+  }
+
+  return undefined
 }
 
 export function useBackendFetch<
@@ -45,6 +51,7 @@ export function useBackendFetch<
   options: BackendFetchOptions<Body, Query> = {}
 ) {
   const config = useRuntimeConfig()
+  const route = useRoute()
 
   const {
     headers,
@@ -57,17 +64,74 @@ export function useBackendFetch<
 
   const requestHeaders = buildHeaders(headers)
   const token = resolveAccessToken(accessToken)
+  let retriedAfter401 = false
 
   if (requiresAuth && token) {
     requestHeaders.set('Authorization', `Bearer ${token}`)
   }
+
+  const authAwareFetch = (async (request: unknown, fetchRequestOptions?: unknown) => {
+    const requestOptions = (fetchRequestOptions ?? {}) as {
+      headers?: HeadersInit
+    }
+
+    try {
+      return await $fetch<Response>(request as string, requestOptions)
+    } catch (error) {
+      const statusCode = (error as { response?: { status?: number }, statusCode?: number })?.response?.status
+        ?? (error as { statusCode?: number })?.statusCode
+
+      if (!requiresAuth || statusCode !== 401 || retriedAfter401) {
+        throw error
+      }
+
+      retriedAfter401 = true
+      const ok = await refreshSessionSingleFlight(route.fullPath)
+      if (!ok) {
+        throw error
+      }
+
+      const retryHeaders = buildHeaders(requestOptions.headers)
+      const refreshedToken = resolveAccessToken(accessToken)
+      if (refreshedToken) {
+        retryHeaders.set('Authorization', `Bearer ${refreshedToken}`)
+      }
+
+      return $fetch<Response>(request as string, {
+        ...requestOptions,
+        headers: retryHeaders
+      })
+    }
+  }) as typeof $fetch
+
+  authAwareFetch.raw = $fetch.raw
+  authAwareFetch.create = $fetch.create
 
   const fetchOptions = {
     ...useFetchOptions,
     baseURL: (config.public.backendBaseUrl as string) || undefined,
     headers: requestHeaders,
     query,
-    body
+    body,
+    $fetch: authAwareFetch
+  }
+  if (import.meta.dev) {
+    const authorization = requestHeaders.get('Authorization')
+    const authorizationPreview = authorization
+      ? `${authorization.slice(0, 24)}...`
+      : null
+
+    console.log('[useBackendFetch]', {
+      url: typeof url === 'function' ? url() : url,
+      method: fetchOptions.method ?? 'GET',
+      requiresAuth,
+      hasToken: Boolean(token),
+      hasAuthorizationHeader: Boolean(authorization),
+      authorizationPreview,
+      baseUrl: fetchOptions.baseURL,
+      query: fetchOptions.query,
+      body: fetchOptions.body
+    })
   }
 
   return useFetch<Response>(url, fetchOptions as unknown as Parameters<typeof useFetch<Response>>[1])

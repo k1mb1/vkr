@@ -1,41 +1,16 @@
 export default defineNuxtPlugin(() => {
   const route = useRoute()
-  const { loggedIn, tokenExpiresAt, refreshNow, fetch } = useOidcAuth()
+  const { loggedIn, tokenExpiresAt } = useOidcAuth()
 
   let timer: ReturnType<typeof setTimeout> | undefined
-  let refreshing = false
   let initialRefreshDone = false
 
-  const handleRefreshFailure = () => {
-    if (!route.path.startsWith('/auth/')) {
-      showError(createError({
-        statusCode: 401,
-        statusMessage: 'Unauthorized',
-        message: 'Your session expired. Please sign in again.',
-        fatal: true,
-        data: {
-          from: route.fullPath
-        }
-      }))
-    }
-  }
-
   const runRefresh = async (): Promise<boolean> => {
-    if (refreshing) {
-      return true
+    if (route.path.startsWith('/auth/')) {
+      return false
     }
 
-    refreshing = true
-    try {
-      await refreshNow()
-      await fetch()
-      return true
-    } catch {
-      handleRefreshFailure()
-      return false
-    } finally {
-      refreshing = false
-    }
+    return refreshSessionSingleFlight(route.fullPath)
   }
 
   const scheduleRefresh = () => {
@@ -54,6 +29,9 @@ export default defineNuxtPlugin(() => {
       const ok = await runRefresh()
       if (ok) {
         scheduleRefresh()
+      } else if (timer) {
+        clearTimeout(timer)
+        timer = undefined
       }
     }, msUntilRefresh)
   }

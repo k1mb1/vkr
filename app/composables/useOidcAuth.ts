@@ -19,6 +19,11 @@ export function useOidcAuth() {
     })
   }
 
+  function toLoginPath(target?: string | null) {
+    const redirect = (typeof target === 'string' && target.length > 0) ? target : '/dashboard'
+    return `/auth/login?redirect=${encodeURIComponent(redirect)}`
+  }
+
   async function logout() {
     await $fetch('/api/auth/logout', { method: 'POST' })
     await clear()
@@ -37,6 +42,7 @@ export function useOidcAuth() {
     expiresInMs,
     fetch,
     login,
+    toLoginPath,
     logout,
     refreshNow
   }

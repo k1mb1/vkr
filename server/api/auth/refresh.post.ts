@@ -14,19 +14,31 @@ export default defineEventHandler(async (event) => {
 
   const refreshToken = session.secure?.refreshToken
   if (!refreshToken) {
-    throw createError({ statusCode: 401, statusMessage: 'Missing refresh token' })
+    throw createError({
+      statusCode: 401,
+      statusMessage: 'Missing refresh token',
+      data: { reason: 'missing_refresh_token' }
+    })
   }
 
   const openidConfigUrl = config.oauth?.oidc?.openidConfig
   if (!openidConfigUrl || typeof openidConfigUrl !== 'string') {
-    throw createError({ statusCode: 500, statusMessage: 'OIDC discovery URL is not configured' })
+    throw createError({
+      statusCode: 500,
+      statusMessage: 'OIDC discovery URL is not configured',
+      data: { reason: 'oidc_discovery_not_configured' }
+    })
   }
 
   const discovery = await $fetch<OidcDiscoveryResponse>(openidConfigUrl)
   const tokenEndpoint = discovery?.token_endpoint
 
   if (!tokenEndpoint || typeof tokenEndpoint !== 'string') {
-    throw createError({ statusCode: 500, statusMessage: 'OIDC token endpoint was not discovered' })
+    throw createError({
+      statusCode: 500,
+      statusMessage: 'OIDC token endpoint was not discovered',
+      data: { reason: 'oidc_token_endpoint_missing' }
+    })
   }
 
   const body = new URLSearchParams({
@@ -45,8 +57,23 @@ export default defineEventHandler(async (event) => {
       },
       body
     })
-  } catch {
-    throw createError({ statusCode: 401, statusMessage: 'Refresh token is invalid or expired' })
+  } catch (error) {
+    const statusCode = (error as { response?: { status?: number }, statusCode?: number })?.response?.status
+      ?? (error as { statusCode?: number })?.statusCode
+
+    if (statusCode === 400 || statusCode === 401) {
+      throw createError({
+        statusCode: 401,
+        statusMessage: 'Refresh token is invalid or expired',
+        data: { reason: 'refresh_token_invalid' }
+      })
+    }
+
+    throw createError({
+      statusCode: 503,
+      statusMessage: 'OIDC token endpoint is temporarily unavailable',
+      data: { reason: 'oidc_token_endpoint_unavailable' }
+    })
   }
 
   const now = Date.now()

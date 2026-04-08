@@ -7,6 +7,7 @@ const { user, session, refreshNow } = useOidcAuth()
 
 const refreshing = ref(false)
 const refreshError = ref<string | null>(null)
+const teacherSyncError = useState<string | null>('teacher-sync-error', () => null)
 
 type ApiErrorPayload = {
   statusMessage?: string
@@ -52,6 +53,14 @@ async function runRefresh() {
             variant="soft"
             :description="refreshError"
             title="Refresh error"
+          />
+
+          <UAlert
+            v-if="teacherSyncError"
+            color="warning"
+            variant="soft"
+            :description="teacherSyncError"
+            title="Teacher sync"
           />
 
           <UButton
