@@ -10,11 +10,7 @@ definePageMeta({
     title="Subjects"
   >
     <template #body>
-      <UCard>
-        <p class="text-sm text-muted">
-          Subjects module is ready for integration with useSubjectsApi.
-        </p>
-      </UCard>
+      <UPageCard title="Subjects module is ready for integration with useSubjectsApi." />
     </template>
   </BaseDashboardPanel>
 </template>

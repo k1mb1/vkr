@@ -10,11 +10,7 @@ definePageMeta({
     title="Lessons"
   >
     <template #body>
-      <UCard>
-        <p class="text-sm text-muted">
-          Lessons page placeholder.
-        </p>
-      </UCard>
+      <UPageCard title="Lessons page placeholder." />
     </template>
   </BaseDashboardPanel>
 </template>

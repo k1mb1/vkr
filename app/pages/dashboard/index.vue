@@ -37,13 +37,7 @@ async function runRefresh() {
     title="Dashboard"
   >
     <template #body>
-      <UCard>
-        <template #header>
-          <h2 class="text-lg font-semibold">
-            Session snapshot
-          </h2>
-        </template>
-
+      <UPageCard title="Session snapshot">
         <div class="space-y-4">
           <p class="text-sm text-muted">
             User: {{ user?.name || user?.email || user?.sub }}
@@ -68,7 +62,7 @@ async function runRefresh() {
             Refresh token now
           </UButton>
         </div>
-      </UCard>
+      </UPageCard>
     </template>
   </BaseDashboardPanel>
 </template>

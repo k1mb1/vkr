@@ -11,7 +11,7 @@ definePageMeta({
   >
     <template #body>
       <div class="grid gap-4">
-        <UCard>
+        <UPageCard>
           <template #header>
             <h3 class="font-semibold">
               Admin block
@@ -29,9 +29,9 @@ definePageMeta({
               />
             </template>
           </GroupGate>
-        </UCard>
+        </UPageCard>
 
-        <UCard>
+        <UPageCard>
           <template #header>
             <h3 class="font-semibold">
               Editor or Support block
@@ -52,7 +52,7 @@ definePageMeta({
               />
             </template>
           </GroupGate>
-        </UCard>
+        </UPageCard>
       </div>
     </template>
   </BaseDashboardPanel>
