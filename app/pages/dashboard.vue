@@ -45,7 +45,7 @@ async function runRefresh() {
             User: {{ user?.name || user?.email || user?.sub }}
           </p>
           <p class="text-sm text-muted">
-            Token expires at: {{ session.tokenExpiresAt || 'n/a' }}
+            Token expires at: {{ session?.tokenExpiresAt || 'n/a' }}
           </p>
 
           <UAlert

@@ -1,3 +1,9 @@
+const env = (globalThis as typeof globalThis & {
+  process?: {
+    env?: Record<string, string | undefined>
+  }
+}).process?.env ?? {}
+
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   modules: ['@nuxt/eslint', '@nuxt/ui', 'nuxt-auth-utils'],
@@ -11,16 +17,18 @@ export default defineNuxtConfig({
   runtimeConfig: {
     oauth: {
       oidc: {
-        clientId: process.env.NUXT_OAUTH_OIDC_CLIENT_ID,
-        clientSecret: process.env.NUXT_OAUTH_OIDC_CLIENT_SECRET,
-        openidConfig: process.env.NUXT_OAUTH_OIDC_OPENID_CONFIG,
-        redirectURL: process.env.NUXT_OAUTH_OIDC_REDIRECT_URL
+        clientId: env.NUXT_OAUTH_OIDC_CLIENT_ID,
+        clientSecret: env.NUXT_OAUTH_OIDC_CLIENT_SECRET,
+        openidConfig: env.NUXT_OAUTH_OIDC_OPENID_CONFIG,
+        redirectURL: env.NUXT_OAUTH_OIDC_REDIRECT_URL
       }
     },
     public: {
-      oidcPostLogoutUrl: process.env.NUXT_OIDC_POST_LOGOUT_REDIRECT_URL || ''
+      backendBaseUrl: env.NUXT_PUBLIC_BACKEND_BASE_URL || '',
+      oidcPostLogoutUrl: env.NUXT_OIDC_POST_LOGOUT_REDIRECT_URL || ''
     },
     session: {
+      password: env.NUXT_SESSION_PASSWORD || 'change-me-in-env-min-32-chars',
       maxAge: 60 * 60 * 24 * 7
     }
   },
