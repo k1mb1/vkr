@@ -1,21 +1,3 @@
 <script setup lang="ts">
-const { user } = useOidcAuth()
+await navigateTo('/dashboard/profile', { replace: true })
 </script>
-
-<template>
-  <UPage>
-    <UPageSection
-      title="Profile"
-      description="Protected profile stub"
-    >
-      <UCard>
-        <div class="space-y-2">
-          <p><strong>sub:</strong> {{ user?.sub || 'n/a' }}</p>
-          <p><strong>email:</strong> {{ user?.email || 'n/a' }}</p>
-          <p><strong>name:</strong> {{ user?.name || 'n/a' }}</p>
-          <p><strong>groups:</strong> {{ (user?.groups || []).join(', ') || 'none' }}</p>
-        </div>
-      </UCard>
-    </UPageSection>
-  </UPage>
-</template>

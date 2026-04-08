@@ -58,7 +58,7 @@
           trailingIcon: 'i-lucide-arrow-right'
         }, {
           label: 'Open profile stub',
-          to: '/profile',
+          to: '/dashboard/profile',
           icon: 'i-lucide-user',
           color: 'neutral',
           variant: 'outline'

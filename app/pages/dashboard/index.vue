@@ -1,4 +1,8 @@
 <script setup lang="ts">
+definePageMeta({
+  layout: 'dashboard'
+})
+
 const { user, session, refreshNow } = useOidcAuth()
 
 const refreshing = ref(false)
@@ -28,11 +32,11 @@ async function runRefresh() {
 </script>
 
 <template>
-  <UPage>
-    <UPageSection
-      title="Dashboard"
-      description="Protected page stub"
-    >
+  <BaseDashboardPanel
+    id="dashboard-home"
+    title="Dashboard"
+  >
+    <template #body>
       <UCard>
         <template #header>
           <h2 class="text-lg font-semibold">
@@ -65,6 +69,6 @@ async function runRefresh() {
           </UButton>
         </div>
       </UCard>
-    </UPageSection>
-  </UPage>
+    </template>
+  </BaseDashboardPanel>
 </template>
