@@ -15,6 +15,7 @@ export default defineNuxtConfig({
   css: ['~/assets/css/main.css'],
 
   runtimeConfig: {
+    proxyTimeoutMs: env.NUXT_PROXY_TIMEOUT_MS ? Number(env.NUXT_PROXY_TIMEOUT_MS) : 15000,
     oauth: {
       oidc: {
         clientId: env.NUXT_OAUTH_OIDC_CLIENT_ID,

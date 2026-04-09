@@ -1,9 +1,11 @@
+import { getProxyRequestHeaders, proxyRequest } from 'h3'
 import type { H3Event } from 'h3'
 import { getAccessToken } from '#server/utils/getAccessToken'
 
-const BODY_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'] as const)
 const TRAILING_SLASH_RE = /\/+$/
 const LEADING_SLASH_RE = /^\/+/
+const ABSOLUTE_PROTOCOL_RE = /^[a-z][a-z\d+.-]*:\/\//i
+const DEFAULT_PROXY_TIMEOUT_MS = 15000
 
 type HttpMethod
   = | 'GET'
@@ -49,9 +51,56 @@ function joinUrl(base: string, path: string): string {
   return `${base.replace(TRAILING_SLASH_RE, '')}/${path.replace(LEADING_SLASH_RE, '')}`
 }
 
+function resolveTargetPath(path: unknown): string {
+  if (typeof path !== 'string') {
+    throw createError({ statusCode: 400, message: 'Invalid proxy path' })
+  }
+
+  const normalizedPath = path.trim() || '/'
+  if (normalizedPath.startsWith('//') || ABSOLUTE_PROTOCOL_RE.test(normalizedPath)) {
+    throw createError({ statusCode: 400, message: 'Invalid proxy path' })
+  }
+
+  if (!normalizedPath.startsWith('/')) {
+    throw createError({ statusCode: 400, message: 'Proxy path must start with "/"' })
+  }
+
+  return normalizedPath
+}
+
+function resolveTimeoutMs(value: unknown): number {
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return DEFAULT_PROXY_TIMEOUT_MS
+  }
+  return Math.floor(parsed)
+}
+
+function appendQueryToUrl(targetUrl: string, query: Record<string, unknown>): string {
+  const url = new URL(targetUrl)
+
+  for (const [key, value] of Object.entries(query)) {
+    if (value == null) {
+      continue
+    }
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        if (item != null) {
+          url.searchParams.append(key, String(item))
+        }
+      }
+      continue
+    }
+    url.searchParams.append(key, String(value))
+  }
+
+  return url.toString()
+}
+
 export default defineEventHandler(async (event: H3Event) => {
   const config = useRuntimeConfig(event)
   const backendUrl = (config.backendUrl as string) || (config.public.backendBaseUrl as string)
+  const proxyTimeoutMs = resolveTimeoutMs(config.proxyTimeoutMs)
   const authOptional = getHeader(event, 'x-proxy-auth-optional') === 'true'
 
   if (!backendUrl) {
@@ -67,31 +116,54 @@ export default defineEventHandler(async (event: H3Event) => {
       throw error
     }
   }
+
   const method = normalizeMethod(event.method)
 
   const { path = '/', ...query } = getQuery(event) as Record<string, unknown>
-  const targetUrl = joinUrl(String(backendUrl), String(path))
+  const targetPath = resolveTargetPath(path)
+  const baseTargetUrl = joinUrl(String(backendUrl), targetPath)
+  const targetUrl = appendQueryToUrl(baseTargetUrl, query)
 
-  const body = BODY_METHODS.has(method as 'POST' | 'PUT' | 'PATCH' | 'DELETE')
-    ? await readRawBody(event)
-    : undefined
+  const headers = new Headers(getProxyRequestHeaders(event))
+  headers.delete('x-proxy-auth-optional')
+  if (accessToken) {
+    headers.set('authorization', `Bearer ${accessToken}`)
+  }
+
+  if (import.meta.dev) {
+    console.debug('[proxy]', {
+      method,
+      targetPath,
+      hasAuth: Boolean(accessToken),
+      proxyTimeoutMs
+    })
+  }
 
   try {
-    const response = await $fetch.raw(targetUrl, {
-      method,
-      headers: {
-        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {})
-      },
-      query: Object.keys(query).length > 0 ? query : undefined,
-      body
+    return await proxyRequest(event, targetUrl, {
+      headers,
+      fetchOptions: {
+        signal: AbortSignal.timeout(proxyTimeoutMs),
+        ignoreResponseError: true
+      }
     })
-
-    return response._data
   } catch (error: unknown) {
     const proxyError = error as HttpErrorShape
+
+    if (import.meta.dev) {
+      console.error('[proxy] request failed', {
+        method,
+        targetPath,
+        statusCode: proxyError.statusCode,
+        responseStatus: proxyError.response?.status,
+        message: proxyError.message
+      })
+    }
+
     throw createError({
       statusCode: proxyError.response?.status ?? 502,
-      message: proxyError.data?.message ?? proxyError.message ?? `Proxy request failed: ${method} ${targetUrl}`
+      message: `Proxy request failed: ${method} ${targetPath}`,
+      cause: error
     })
   }
 })
