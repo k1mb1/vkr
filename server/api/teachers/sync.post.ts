@@ -1,4 +1,5 @@
 import type { UpdateTeacherRequest } from '#shared/types/backend'
+import { getAccessToken } from '#server/utils/getAccessToken'
 
 type OidcUserProfile = {
   sub?: string
@@ -38,9 +39,9 @@ function resolveTeacherSyncPayload(profile: OidcUserProfile): {
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
   const profile = session.user as OidcUserProfile | null | undefined
-  const accessToken = session.secure?.accessToken
+  const accessToken = await getAccessToken(event)
 
-  if (!profile || !accessToken) {
+  if (!profile) {
     throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
   }
 

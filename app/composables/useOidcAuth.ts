@@ -1,15 +1,6 @@
 export function useOidcAuth() {
   const { loggedIn, user, session, fetch, clear } = useUserSession()
 
-  const tokenExpiresAt = computed(() => session.value?.tokenExpiresAt as number | undefined)
-  const expiresInMs = computed(() => {
-    if (!tokenExpiresAt.value) {
-      return null
-    }
-
-    return tokenExpiresAt.value - Date.now()
-  })
-
   function login(target?: string | null) {
     const redirect = (typeof target === 'string' && target.length > 0) ? target : '/dashboard'
     const redirectQuery = encodeURIComponent(redirect)
@@ -38,8 +29,6 @@ export function useOidcAuth() {
     loggedIn,
     user,
     session,
-    tokenExpiresAt,
-    expiresInMs,
     fetch,
     login,
     toLoginPath,

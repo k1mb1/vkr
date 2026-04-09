@@ -28,8 +28,8 @@
         description: '/auth/oidc uses defineOAuthOidcEventHandler and stores a minimal user session.'
       }, {
         icon: 'i-lucide-refresh-cw',
-        title: 'Client refresh behavior',
-        description: 'A client plugin schedules refresh calls before token expiry and falls back safely on errors.'
+        title: 'Server-side token refresh',
+        description: 'Backend requests go through /api/proxy, where access tokens are validated and refreshed automatically.'
       }, {
         icon: 'i-lucide-lock-keyhole',
         title: 'Global protected routes',

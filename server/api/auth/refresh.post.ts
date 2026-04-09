@@ -1,96 +1,25 @@
-type OidcRefreshResponse = {
-  access_token: string
-  refresh_token?: string
-  expires_in?: number
-}
-
-type OidcDiscoveryResponse = {
-  token_endpoint?: string
-}
+import { getAccessToken } from '#server/utils/getAccessToken'
 
 export default defineEventHandler(async (event) => {
-  const config = useRuntimeConfig(event)
   const session = await getUserSession(event)
+  const secure = session.secure
 
-  const refreshToken = session.secure?.refreshToken
-  if (!refreshToken) {
+  if (!secure?.refreshToken) {
     throw createError({
       statusCode: 401,
-      statusMessage: 'Missing refresh token',
-      data: { reason: 'missing_refresh_token' }
+      statusMessage: 'No refresh token. Please log in again.'
     })
   }
 
-  const openidConfigUrl = config.oauth?.oidc?.openidConfig
-  if (!openidConfigUrl || typeof openidConfigUrl !== 'string') {
-    throw createError({
-      statusCode: 500,
-      statusMessage: 'OIDC discovery URL is not configured',
-      data: { reason: 'oidc_discovery_not_configured' }
-    })
+  const nowMs = Date.now()
+  if (session.tokenExpiresAt && session.tokenExpiresAt - 30_000 > nowMs) {
+    return { success: true, skipped: true }
   }
 
-  const discovery = await $fetch<OidcDiscoveryResponse>(openidConfigUrl)
-  const tokenEndpoint = discovery?.token_endpoint
-
-  if (!tokenEndpoint || typeof tokenEndpoint !== 'string') {
-    throw createError({
-      statusCode: 500,
-      statusMessage: 'OIDC token endpoint was not discovered',
-      data: { reason: 'oidc_token_endpoint_missing' }
-    })
-  }
-
-  const body = new URLSearchParams({
-    grant_type: 'refresh_token',
-    refresh_token: refreshToken,
-    client_id: config.oauth.oidc.clientId,
-    client_secret: config.oauth.oidc.clientSecret
-  })
-
-  let tokenResponse: OidcRefreshResponse
-  try {
-    tokenResponse = await $fetch<OidcRefreshResponse>(tokenEndpoint, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/x-www-form-urlencoded'
-      },
-      body
-    })
-  } catch (error) {
-    const statusCode = (error as { response?: { status?: number }, statusCode?: number })?.response?.status
-      ?? (error as { statusCode?: number })?.statusCode
-
-    if (statusCode === 400 || statusCode === 401) {
-      throw createError({
-        statusCode: 401,
-        statusMessage: 'Refresh token is invalid or expired',
-        data: { reason: 'refresh_token_invalid' }
-      })
-    }
-
-    throw createError({
-      statusCode: 503,
-      statusMessage: 'OIDC token endpoint is temporarily unavailable',
-      data: { reason: 'oidc_token_endpoint_unavailable' }
-    })
-  }
-
-  const now = Date.now()
-  const tokenExpiresAt = now + (tokenResponse.expires_in ?? 3600) * 1000
-
-  await replaceUserSession(event, {
-    ...session,
-    tokenExpiresAt,
-    secure: {
-      ...session.secure,
-      accessToken: tokenResponse.access_token,
-      refreshToken: tokenResponse.refresh_token ?? refreshToken
-    }
-  })
+  await getAccessToken(event)
 
   return {
-    ok: true,
-    tokenExpiresAt
+    success: true,
+    skipped: false
   }
 })
