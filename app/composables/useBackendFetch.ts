@@ -1,19 +1,27 @@
+import { toValue, type MaybeRefOrGetter } from 'vue'
+
 type QueryPrimitive = string | number | boolean | null | undefined
 type QueryValue = QueryPrimitive | QueryPrimitive[]
 type BackendBody = BodyInit | object | null | undefined
 
-type NuxtUseFetchOptions = NonNullable<Parameters<typeof useFetch>[1]>
+type UseFetchOptionsFor<Response> = NonNullable<Parameters<typeof useFetch<Response>>[1]>
 
 export type BackendQuery = Record<string, QueryValue>
 
+type BackendFetchQueryInput<Query extends BackendQuery> = MaybeRefOrGetter<Query | undefined>
+type BackendFetchBodyInput<Body extends BackendBody> = MaybeRefOrGetter<Body | undefined>
+type BackendFetchHeadersInput = MaybeRefOrGetter<HeadersInit | undefined>
+type BackendFetchRequiresAuthInput = MaybeRefOrGetter<boolean | undefined>
+
 export type BackendFetchOptions<
+  Response,
   Body extends BackendBody,
   Query extends BackendQuery
-> = Omit<NuxtUseFetchOptions, 'query' | 'body' | 'headers'> & {
-  query?: Query
-  body?: Body
-  headers?: HeadersInit
-  requiresAuth?: boolean
+> = Omit<UseFetchOptionsFor<Response>, 'query' | 'body' | 'headers'> & {
+  query?: BackendFetchQueryInput<Query>
+  body?: BackendFetchBodyInput<Body>
+  headers?: BackendFetchHeadersInput
+  requiresAuth?: BackendFetchRequiresAuthInput
 }
 
 function buildHeaders(headers?: HeadersInit): Headers {
@@ -25,51 +33,59 @@ function resolvePath(url: string | (() => string)): string {
   return value.startsWith('/') ? value : `/${value}`
 }
 
+const useProxyFetch = createUseFetch({
+  baseURL: undefined
+})
+
 export function useBackendFetch<
   Response,
   Body extends BackendBody = undefined,
   Query extends BackendQuery = BackendQuery
 >(
   url: string | (() => string),
-  options: BackendFetchOptions<Body, Query> = {}
+  options: BackendFetchOptions<Response, Body, Query> = {}
 ) {
   const {
     headers,
-    requiresAuth = true,
+    requiresAuth,
     query,
     body,
     ...useFetchOptions
   } = options
 
-  const requestHeaders = buildHeaders(headers)
+  const resolvedHeaders = toValue(headers)
+  const resolvedRequiresAuth = toValue(requiresAuth) ?? true
+  const resolvedQuery = toValue(query)
+  const resolvedBody = toValue(body)
+
+  const requestHeaders = buildHeaders(resolvedHeaders)
   const targetPath = resolvePath(url)
-  const requestQuery = {
+  const requestQuery: { path: string } & BackendQuery = {
     path: targetPath,
-    ...(query || {})
+    ...(resolvedQuery || {})
   }
 
-  if (!requiresAuth) {
+  if (!resolvedRequiresAuth) {
     requestHeaders.set('x-proxy-auth-optional', 'true')
   }
 
-  const fetchOptions = {
-    ...useFetchOptions,
-    baseURL: undefined,
-    headers: requestHeaders,
-    query: requestQuery,
-    body,
-    method: useFetchOptions.method
-  }
   if (import.meta.dev) {
     console.log('[useBackendFetch]', {
       url: '/api/proxy',
       targetPath,
-      method: fetchOptions.method ?? 'GET',
-      requiresAuth,
+      method: useFetchOptions.method ?? 'GET',
+      requiresAuth: resolvedRequiresAuth,
       query: requestQuery,
-      body: fetchOptions.body
+      body: resolvedBody
     })
   }
 
-  return useFetch<Response>('/api/proxy', fetchOptions as unknown as Parameters<typeof useFetch<Response>>[1])
+  const fetchOptions: Parameters<typeof useProxyFetch<Response>>[1] = {
+    ...useFetchOptions,
+    headers: requestHeaders,
+    query: requestQuery,
+    body: resolvedBody
+  }
+
+  return useProxyFetch<Response>('/api/proxy', fetchOptions)
 }
