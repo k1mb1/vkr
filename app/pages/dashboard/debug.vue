@@ -1,0 +1,27 @@
+<script setup lang="ts">
+definePageMeta({
+  layout: 'dashboard'
+})
+</script>
+
+<template>
+  <BaseDashboardPanel
+    id="dashboard-debug"
+    title="Backend Debug"
+  >
+    <template #body>
+      <DevOnly>
+        <DashboardDevBackendDebug />
+
+        <template #fallback>
+          <UAlert
+            color="warning"
+            variant="soft"
+            title="Dev only"
+            description="Debug tool is available only in development mode."
+          />
+        </template>
+      </DevOnly>
+    </template>
+  </BaseDashboardPanel>
+</template>

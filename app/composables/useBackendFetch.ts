@@ -33,10 +33,6 @@ function resolvePath(url: string | (() => string)): string {
   return value.startsWith('/') ? value : `/${value}`
 }
 
-const useProxyFetch = createUseFetch({
-  baseURL: undefined
-})
-
 export function useBackendFetch<
   Response,
   Body extends BackendBody = undefined,
@@ -80,12 +76,12 @@ export function useBackendFetch<
     })
   }
 
-  const fetchOptions: Parameters<typeof useProxyFetch<Response>>[1] = {
+  const fetchOptions: UseFetchOptionsFor<Response> = {
     ...useFetchOptions,
     headers: requestHeaders,
     query: requestQuery,
     body: resolvedBody
   }
 
-  return useProxyFetch<Response>('/api/proxy', fetchOptions)
+  return useFetch<Response>('/api/proxy', fetchOptions)
 }
