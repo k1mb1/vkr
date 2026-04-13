@@ -1,5 +1,3 @@
-import type { Subject } from '#shared/types/backend/subjects'
-
 export interface CreateTeacherRequest {
   id: string
   username: string
@@ -17,8 +15,4 @@ export interface TeacherResponse {
   email: string
   createdAt: string
   updatedAt: string
-}
-
-export interface TeacherDetailsResponse extends TeacherResponse {
-  subjects: Subject[]
 }

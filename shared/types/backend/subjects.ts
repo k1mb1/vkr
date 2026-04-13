@@ -1,29 +1,25 @@
-import type { PageRequest, PageResponse } from '#shared/types/backend/pagable'
-
-export interface Subject {
+export interface SubjectResponse {
   id: string
-  code: string
   name: string
-  description?: string | null
-  active: boolean
+  description?: string
+  archived: boolean
+  createdAt: string
+  updatedAt: string
+  archivedAt?: string
 }
-
-export interface SubjectFilter {
-  search?: string
-  active?: boolean
-}
-
-export type SubjectsPageRequest = PageRequest<SubjectFilter>
-export type SubjectsPageResponse = PageResponse<Subject>
 
 export interface CreateSubjectRequest {
-  code: string
   name: string
-  description?: string | null
+  description?: string
+  teacherId: string
+}
+
+export interface FindSubjectsFilter {
+  archived: boolean
 }
 
 export interface UpdateSubjectRequest {
   name?: string
   description?: string | null
-  active?: boolean
+  archived?: boolean
 }
