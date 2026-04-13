@@ -2,13 +2,14 @@ import type {
   CreateSubjectRequest,
   SubjectResponse
 } from '#shared/types/backend'
+import { toValue, type MaybeRefOrGetter } from 'vue'
 import { useBackendFetch } from '~/composables/useBackendFetch'
 
 export function useSubjectsApi() {
-  const create = (payload: CreateSubjectRequest) => {
+  const create = (payload: MaybeRefOrGetter<CreateSubjectRequest>) => {
     return useBackendFetch<SubjectResponse, CreateSubjectRequest>(`/subjects`, {
       method: 'POST',
-      body: payload
+      body: () => toValue(payload)
     })
   }
 

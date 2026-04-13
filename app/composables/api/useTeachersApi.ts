@@ -2,13 +2,17 @@ import type {
   TeacherResponse,
   UpdateTeacherRequest
 } from '#shared/types/backend'
+import { toValue, type MaybeRefOrGetter } from 'vue'
 import { useBackendFetch } from '~/composables/useBackendFetch'
 
 export function useTeachersApi() {
-  const createOrUpdate = (id: string, payload: UpdateTeacherRequest) => {
-    return useBackendFetch<TeacherResponse, UpdateTeacherRequest>(`/teachers/${id}`, {
+  const createOrUpdate = (
+    id: MaybeRefOrGetter<string>,
+    payload: MaybeRefOrGetter<UpdateTeacherRequest>
+  ) => {
+    return useBackendFetch<TeacherResponse, UpdateTeacherRequest>(() => `/teachers/${toValue(id)}`, {
       method: 'PUT',
-      body: payload
+      body: () => toValue(payload)
     })
   }
 

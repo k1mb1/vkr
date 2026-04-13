@@ -7,25 +7,26 @@ import {
   type StudentGroupResponse,
   toPageQuery
 } from '#shared/types/backend'
+import { toValue, type MaybeRefOrGetter } from 'vue'
 import { useBackendFetch } from '~/composables/useBackendFetch'
 
 export function useStudentsGroupsApi() {
-  const findAll = (request: PageRequest = DEFAULT_PAGE_REQUEST) => {
+  const findAll = (request: MaybeRefOrGetter<PageRequest> = DEFAULT_PAGE_REQUEST) => {
     return useBackendFetch<PageResponse<StudentGroupPageResponse>, undefined>(`/groups`, {
       method: 'GET',
-      query: toPageQuery(request)
+      query: () => toPageQuery(toValue(request))
     })
   }
 
-  const create = (payload: CreateGroupRequest) => {
+  const create = (payload: MaybeRefOrGetter<CreateGroupRequest>) => {
     return useBackendFetch<StudentGroupResponse, CreateGroupRequest>(`/groups`, {
       method: 'POST',
-      body: payload
+      body: () => toValue(payload)
     })
   }
 
-  const findById = (groupId: string) => {
-    return useBackendFetch<StudentGroupResponse, undefined>(`/groups/${groupId}`, {
+  const findById = (groupId: MaybeRefOrGetter<string>) => {
+    return useBackendFetch<StudentGroupResponse, undefined>(() => `/groups/${toValue(groupId)}`, {
       method: 'GET'
     })
   }
