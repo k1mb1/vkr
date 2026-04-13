@@ -1,7 +1,14 @@
 import type { NavigationMenuItem } from '@nuxt/ui'
 
+function createSection(
+  items: NavigationMenuItem[],
+  condition = true
+): NavigationMenuItem[][] {
+  return condition ? [items] : []
+}
+
 export function useDashboardNavigation() {
-  const dashboardLinks: NavigationMenuItem[] = [
+  const mainLinks: NavigationMenuItem[] = [
     {
       label: 'Главная',
       icon: 'i-lucide-house',
@@ -25,27 +32,28 @@ export function useDashboardNavigation() {
     }
   ]
 
-  if (import.meta.dev) {
-    dashboardLinks.push({
+  const debugLinks: NavigationMenuItem[] = [
+    {
       label: 'Debug',
       icon: 'i-lucide-flask-conical',
       to: '/dashboard/debug'
-    })
-  }
-
-  const links: NavigationMenuItem[][] = [
-    [
-      ...dashboardLinks
-    ],
-    [
-      {
-        label: 'Feedback',
-        icon: 'i-lucide-message-circle',
-        to: 'https://k1mbb.t.me',
-        target: '_blank'
-      }
-    ]
+    }
   ]
 
-  return { links }
+  const externalLinks: NavigationMenuItem[] = [
+    {
+      label: 'Feedback',
+      icon: 'i-lucide-message-circle',
+      to: 'https://k1mbb.t.me',
+      target: '_blank'
+    }
+  ]
+
+  const sections: NavigationMenuItem[][] = [
+    ...createSection(mainLinks),
+    ...createSection(debugLinks, import.meta.dev),
+    ...createSection(externalLinks)
+  ]
+
+  return { links: sections }
 }
