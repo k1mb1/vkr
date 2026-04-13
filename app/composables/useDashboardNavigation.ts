@@ -19,16 +19,6 @@ export function useDashboardNavigation() {
       label: 'Subjects',
       icon: 'i-lucide-book-open',
       to: '/dashboard/subjects'
-    },
-    {
-      label: 'Lessons',
-      icon: 'i-lucide-calendar-days',
-      to: '/dashboard/lessons'
-    },
-    {
-      label: 'Groups',
-      icon: 'i-lucide-users',
-      to: '/dashboard/groups'
     }
   ]
 

@@ -7,10 +7,13 @@ definePageMeta({
 <template>
   <BaseDashboardPanel
     id="dashboard-subjects"
-    title="Subjects"
+    :items="[
+      { label: 'Dashboard', to: '/dashboard' },
+      { label: 'Subjects', to: '/dashboard/subjects' }
+    ]"
   >
     <template #body>
-      <UPageCard title="Subjects module is ready for integration with useSubjectsApi." />
+      <NuxtPage />
     </template>
   </BaseDashboardPanel>
 </template>

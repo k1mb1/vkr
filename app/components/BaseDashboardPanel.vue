@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import type { DashboardPanelProps } from '@nuxt/ui'
+import type { DashboardPanelProps, BreadcrumbItem } from '@nuxt/ui'
 
 interface Props {
   id: string
   title?: string
+  items?: BreadcrumbItem[]
   panelProps?: Partial<DashboardPanelProps>
 }
 
@@ -19,10 +20,20 @@ const slots = useSlots()
     <template #header>
       <slot name="header">
         <UDashboardNavbar
-          v-if="props.title"
+          v-if="props.title || props.items?.length"
           :title="props.title"
           :ui="{ right: 'gap-3' }"
         >
+          <template #title>
+            <slot name="title">
+              <UBreadcrumb
+                v-if="props.items?.length"
+                :items="props.items"
+              />
+              <span v-else>{{ props.title }}</span>
+            </slot>
+          </template>
+
           <template #leading>
             <UDashboardSidebarCollapse />
           </template>
