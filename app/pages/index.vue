@@ -56,12 +56,6 @@
           icon: 'i-lucide-log-in',
           color: 'neutral',
           trailingIcon: 'i-lucide-arrow-right',
-        }, {
-          label: 'Open profile stub',
-          to: '/dashboard/profile',
-          icon: 'i-lucide-user',
-          color: 'neutral',
-          variant: 'outline',
         }]"
       />
     </UPageSection>
