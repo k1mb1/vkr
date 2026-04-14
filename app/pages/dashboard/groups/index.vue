@@ -74,9 +74,25 @@ function onRefreshClick() {
         @select="onSelect"
       >
         <template #empty>
-          <div class="py-8 text-center text-sm text-muted">
-            No groups found.
-          </div>
+          <UEmpty
+            icon="i-lucide-users"
+            title="No groups found"
+            description="Try refreshing or create your first group."
+            variant="naked"
+            class="py-8"
+          >
+            <template #actions>
+              <UButton
+                color="neutral"
+                variant="outline"
+                icon="i-lucide-refresh-cw"
+                :loading="pending"
+                @click="onRefreshClick"
+              >
+                Refresh
+              </UButton>
+            </template>
+          </UEmpty>
         </template>
       </UTable>
     </UPageCard>
