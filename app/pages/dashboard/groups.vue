@@ -1,27 +1,10 @@
 <script setup lang="ts">
 import CreateGroupToolbarForm from '~/components/groups/CreateGroupToolbarForm.vue'
+import { provideGroupsBreadcrumbLabel, useGroupsBreadcrumbItems } from '~/composables/useGroupsBreadcrumbItems'
 
-const route = useRoute()
 const groupsListRefreshHandler = useState<null | (() => void | Promise<void>)>('groups-list-refresh-handler', () => null)
-const activeGroupName = useState<string | null>('groups-active-name', () => null)
-
-const breadcrumbItems = computed(() => {
-  const items = [
-    { label: 'Dashboard', to: '/dashboard' },
-    { label: 'Groups', to: '/dashboard/groups' }
-  ]
-
-  const uuid = route.params.uuid
-
-  if (typeof uuid === 'string' && uuid.length > 0) {
-    items.push({
-      label: activeGroupName.value || uuid,
-      to: `/dashboard/groups/${uuid}`
-    })
-  }
-
-  return items
-})
+const activeGroupName = provideGroupsBreadcrumbLabel()
+const breadcrumbItems = useGroupsBreadcrumbItems(activeGroupName)
 
 function refreshGroupsList() {
   void groupsListRefreshHandler.value?.()
