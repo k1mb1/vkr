@@ -2,7 +2,7 @@
 import CreateGroupToolbarForm from '~/components/groups/CreateGroupToolbarForm.vue'
 
 const route = useRoute()
-const groupsListRefreshKey = useState<number>('groups-list-refresh-key', () => 0)
+const groupsListRefreshHandler = useState<null | (() => void | Promise<void>)>('groups-list-refresh-handler', () => null)
 const activeGroupName = useState<string | null>('groups-active-name', () => null)
 
 const breadcrumbItems = computed(() => {
@@ -24,24 +24,36 @@ const breadcrumbItems = computed(() => {
 })
 
 function refreshGroupsList() {
-  groupsListRefreshKey.value += 1
+  void groupsListRefreshHandler.value?.()
 }
 </script>
 
 <template>
   <NuxtLayout name="dashboard">
-    <BaseDashboardPanel
+    <UDashboardPanel
       id="dashboard-groups"
-      :panel-props="{ ui: { body: 'h-full p-0 sm:p-0' } }"
-      :items="breadcrumbItems"
+      :ui="{ body: 'h-full p-0 sm:p-0' }"
     >
-      <template #actions>
-        <CreateGroupToolbarForm :after-create="refreshGroupsList" />
+      <template #header>
+        <UDashboardNavbar :ui="{ right: 'gap-3' }">
+          <template #title>
+            <UBreadcrumb :items="breadcrumbItems" />
+          </template>
+
+          <template #leading>
+            <UDashboardSidebarCollapse />
+          </template>
+
+          <template #right>
+            <CreateGroupToolbarForm :after-create="refreshGroupsList" />
+            <UColorModeButton />
+          </template>
+        </UDashboardNavbar>
       </template>
 
       <template #body>
         <NuxtPage />
       </template>
-    </BaseDashboardPanel>
+    </UDashboardPanel>
   </NuxtLayout>
 </template>

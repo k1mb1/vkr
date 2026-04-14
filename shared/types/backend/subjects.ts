@@ -1,4 +1,4 @@
-export interface SubjectResponse {
+interface SubjectResponse {
   id: string
   name: string
   description?: string
@@ -8,18 +8,25 @@ export interface SubjectResponse {
   archivedAt?: string
 }
 
-export interface CreateSubjectRequest {
+interface CreateSubjectRequest {
   name: string
   description?: string
   teacherId: string
 }
 
-export interface FindSubjectsFilter {
+interface FindSubjectsFilter {
   archived: boolean
 }
 
-export interface UpdateSubjectRequest {
+interface UpdateSubjectRequest {
   name?: string
   description?: string | null
   archived?: boolean
+}
+
+export type {
+  SubjectResponse,
+  CreateSubjectRequest,
+  FindSubjectsFilter,
+  UpdateSubjectRequest
 }

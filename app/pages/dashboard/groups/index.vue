@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import type { TableColumn, TableRow } from '@nuxt/ui'
-import type { StudentGroupPageResponse } from '#shared/types/backend'
+import { PAGE_DEFAULTS, type StudentGroupPageResponse } from '#shared/types/backend'
 import { useStudentsGroupsApi } from '~/composables/api/useStudentsGroups'
 
-const page = ref(1)
-const pageSize = 10
+const page = ref(PAGE_DEFAULTS.number + 1)
+const pageSize = PAGE_DEFAULTS.size
 
 const { findAll } = useStudentsGroupsApi()
 
@@ -20,10 +20,16 @@ const {
   refresh
 } = findAll(request)
 
-const groupsListRefreshKey = useState<number>('groups-list-refresh-key', () => 0)
+const groupsListRefreshHandler = useState<null | (() => void | Promise<void>)>('groups-list-refresh-handler', () => null)
 
-watch(groupsListRefreshKey, () => {
-  void refresh()
+onMounted(() => {
+  groupsListRefreshHandler.value = async () => {
+    await refresh()
+  }
+})
+
+onBeforeUnmount(() => {
+  groupsListRefreshHandler.value = null
 })
 
 const rows = computed(() => data.value?.content ?? [])
@@ -42,6 +48,10 @@ const columns: TableColumn<StudentGroupPageResponse>[] = [
 
 function onSelect(_event: Event, row: TableRow<StudentGroupPageResponse>) {
   navigateTo(`/dashboard/groups/${row.original.id}`)
+}
+
+function onRefreshClick() {
+  void refresh()
 }
 </script>
 
@@ -82,7 +92,7 @@ function onSelect(_event: Event, row: TableRow<StudentGroupPageResponse>) {
           variant="outline"
           icon="i-lucide-refresh-cw"
           :loading="pending"
-          @click="() => refresh()"
+          @click="onRefreshClick"
         >
           Refresh
         </UButton>

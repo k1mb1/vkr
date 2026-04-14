@@ -1,28 +1,36 @@
-export interface CreateGroupRequest {
+interface CreateGroupRequest {
   groupName: string
   studentNames: string[][]
 }
 
-export interface StudentGroupPageResponse {
+interface StudentGroupPageResponse {
   id: string
   name: string
   subgroupCount: number
 }
 
-export interface StudentEntryResponse {
+interface StudentEntryResponse {
   id: string
   name: string
 }
 
-export interface StudentGroupResponse {
+interface StudentGroupResponse {
   id: string
   name: string
   students: StudentEntryResponse[]
   subgroups: SubgroupResponse[]
 }
 
-export interface SubgroupResponse {
+interface SubgroupResponse {
   id: string
   name: string
   students: StudentEntryResponse[]
+}
+
+export type {
+  CreateGroupRequest,
+  StudentGroupPageResponse,
+  StudentEntryResponse,
+  StudentGroupResponse,
+  SubgroupResponse
 }

@@ -1,18 +1,24 @@
-export interface CreateTeacherRequest {
+interface CreateTeacherRequest {
   id: string
   username: string
   email: string
 }
 
-export interface UpdateTeacherRequest {
+interface UpdateTeacherRequest {
   username: string
   email: string
 }
 
-export interface TeacherResponse {
+interface TeacherResponse {
   id: string
   username: string
   email: string
   createdAt: string
   updatedAt: string
+}
+
+export type {
+  CreateTeacherRequest,
+  UpdateTeacherRequest,
+  TeacherResponse
 }
