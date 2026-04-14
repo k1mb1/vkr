@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { StudentGroupResponse } from '#shared/types/backend'
-import type { TabsItem } from '@nuxt/ui'
+import type { TableColumn, TabsItem } from '@nuxt/ui'
 import { useStudentsGroupsApi } from '~/composables/api/useStudentsGroups'
 import { useGroupsBreadcrumbLabel } from '~/composables/useGroupsBreadcrumbItems'
 
@@ -19,62 +19,121 @@ const group = computed<StudentGroupResponse | null>(() => data.value ?? null)
 const studentsCount = computed(() => group.value?.students?.length ?? 0)
 const subgroupTabPrefix = 'subgroup:'
 
-type Subgroup = NonNullable<StudentGroupResponse['subgroups']>[number]
-type GroupTabValue = 'students' | `${typeof subgroupTabPrefix}${string}`
+type SortDirection = 'asc' | 'desc'
 
-const activeTab = ref<GroupTabValue>('students')
+interface StudentTableRow {
+  key: string
+  index: number
+  username: string
+}
 
-const subgroupTabMap = computed<Record<string, Subgroup>>(() => {
-  return Object.fromEntries(
-    (group.value?.subgroups ?? []).map(subgroup => [
-      `${subgroupTabPrefix}${String(subgroup.id)}`,
-      subgroup,
-    ]),
-  )
+const activeTab = ref('students')
+const sortDirection = ref<SortDirection>('asc')
+
+const sortDirectionLabel = computed(() => {
+  return sortDirection.value === 'asc' ? 'по возрастанию' : 'по убыванию'
 })
 
-const groupTabs = computed<TabsItem[]>(() => {
-  const tabs: TabsItem[] = []
+function toggleNameSort(): void {
+  sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
+}
+
+const usernameCollator = new Intl.Collator('ru-RU', {
+  sensitivity: 'base',
+  numeric: true,
+})
+
+const tableColumns: TableColumn<StudentTableRow>[] = [
+  {
+    accessorKey: 'index',
+    header: '№',
+  },
+  {
+    accessorKey: 'username',
+    header: 'Имя',
+  },
+]
+
+const tabsData = computed(() => {
+  const tabs: Array<{
+    value: string
+    label: string
+    icon: string
+    title: string
+    emptyTitle: string
+    emptyDescription: string
+    rows: Array<{ key: string, username: string }>
+  }> = []
 
   if (studentsCount.value > 0) {
+    const studentsRows = (group.value?.students ?? []).map((student, localIndex) => ({
+      key: `students:${String(student.id ?? `${student.username}:${localIndex}`)}`,
+      username: student.username,
+    }))
+
     tabs.push({
+      value: 'students',
       label: `Студенты (${studentsCount.value})`,
       icon: 'i-lucide-users-round',
-      value: 'students',
+      title: 'Основные студенты',
+      emptyTitle: 'Нет студентов',
+      emptyDescription: 'В этой вкладке пока нет студентов.',
+      rows: studentsRows,
     })
   }
 
   for (const subgroup of group.value?.subgroups ?? []) {
+    const tabValue = `${subgroupTabPrefix}${String(subgroup.id)}`
+    const subgroupRows = subgroup.students.map((student, localIndex) => ({
+      key: `${tabValue}:${String(student.id ?? `${student.username}:${localIndex}`)}`,
+      username: student.username,
+    }))
+
     tabs.push({
+      value: tabValue,
       label: `${subgroup.name} (${subgroup.students.length})`,
       icon: 'i-lucide-git-fork',
-      value: `${subgroupTabPrefix}${String(subgroup.id)}`,
+      title: subgroup.name,
+      emptyTitle: 'Подгруппа пуста',
+      emptyDescription: 'Студенты для этой подгруппы пока не назначены.',
+      rows: subgroupRows,
     })
   }
 
   return tabs
 })
 
-const preferredTab = computed<GroupTabValue | null>(() => {
-  if (studentsCount.value > 0) {
-    return 'students'
+const groupTabs = computed<TabsItem[]>(() => {
+  return tabsData.value.map(tab => ({
+    value: tab.value,
+    label: tab.label,
+    icon: tab.icon,
+  }))
+})
+const availableTabValues = computed<string[]>(() => tabsData.value.map(tab => tab.value))
+
+const activeTabData = computed(() => {
+  const tab = tabsData.value.find(item => item.value === activeTab.value)
+  if (tab) {
+    return tab
   }
 
-  const firstSubgroup = group.value?.subgroups?.[0]
-  if (!firstSubgroup) {
-    return null
-  }
-
-  return `${subgroupTabPrefix}${String(firstSubgroup.id)}`
+  return tabsData.value[0] ?? null
 })
 
-function getSubgroupFromTabValue(value: string | number | undefined): Subgroup | null {
-  if (value === undefined) {
-    return null
-  }
+const activeTabRows = computed<StudentTableRow[]>(() => {
+  const sourceRows = activeTabData.value?.rows ?? []
+  const sortedRows = [...sourceRows].sort((left, right) => {
+    return sortDirection.value === 'asc'
+      ? usernameCollator.compare(left.username, right.username)
+      : usernameCollator.compare(right.username, left.username)
+  })
 
-  return subgroupTabMap.value[String(value)] ?? null
-}
+  return sortedRows.map((row, index) => ({
+    ...row,
+    index: index + 1,
+  }))
+})
 
 watch(groupId, () => {
   activeGroupName.value = null
@@ -84,23 +143,24 @@ watch(group, (value) => {
   activeGroupName.value = value?.name ?? null
 }, { immediate: true })
 
-watch(groupTabs, (tabs) => {
-  const availableValues = tabs.map(item => String(item.value))
-
-  if (!availableValues.length) {
+watch(availableTabValues, (values) => {
+  if (!values.length) {
     activeTab.value = 'students'
     return
   }
 
-  if (!activeTab.value || !availableValues.includes(activeTab.value)) {
-    activeTab.value = preferredTab.value ?? (availableValues[0] as GroupTabValue)
+  if (!activeTab.value || !values.includes(activeTab.value)) {
+    const firstValue = values[0]
+    if (firstValue) {
+      activeTab.value = firstValue
+    }
   }
 }, { immediate: true })
 </script>
 
 <template>
-  <div class="flex h-full flex-col gap-4 p-4 sm:p-6">
-    <div v-if="pending" class="space-y-4">
+  <div class="p-4">
+    <div v-if="pending && !group" class="space-y-4">
       <USkeleton class="h-8 w-1/3" />
       <USkeleton class="h-36 w-full" />
       <USkeleton class="h-36 w-full" />
@@ -123,73 +183,50 @@ watch(groupTabs, (tabs) => {
         variant="link"
         :ui="{ trigger: 'grow' }"
         class="w-full"
-      >
-        <template #content="{ item }">
-          <UCard
-            v-if="item.value === 'students'"
-            class="mt-4"
-          >
-            <template #header>
-              <div class="flex items-center justify-between gap-3">
-                <h3 class="text-lg font-semibold">
-                  Студенты
-                </h3>
-                <UBadge color="neutral" variant="soft">
-                  {{ studentsCount }}
-                </UBadge>
-              </div>
-            </template>
+      />
 
-            <ul class="list-disc list-inside space-y-1.5">
-              <li
-                v-for="(student, index) in group.students"
-                :key="student.id || index"
-                class="text-sm text-muted"
-              >
-                {{ student.username }}
-              </li>
-            </ul>
-          </UCard>
-
-          <UCard
-            v-else-if="getSubgroupFromTabValue(item.value)"
-            class="mt-4"
-          >
-            <template #header>
-              <div class="flex items-center justify-between gap-3">
-                <h4 class="font-medium">
-                  {{ getSubgroupFromTabValue(item.value)?.name }}
-                </h4>
-                <UBadge color="neutral" variant="subtle">
-                  {{ getSubgroupFromTabValue(item.value)?.students.length ?? 0 }}
-                </UBadge>
-              </div>
-            </template>
-
-            <ul
-              v-if="(getSubgroupFromTabValue(item.value)?.students.length ?? 0) > 0"
-              class="list-disc list-inside space-y-1.5"
-            >
-              <li
-                v-for="(student, index) in getSubgroupFromTabValue(item.value)?.students ?? []"
-                :key="student.id || index"
-                class="text-sm text-muted"
-              >
-                {{ student.username }}
-              </li>
-            </ul>
-
-            <UEmpty
-              v-else
-              icon="i-lucide-users-round"
-              title="Подгруппа пуста"
-              description="Студенты для этой подгруппы пока не назначены."
-              variant="naked"
-              class="py-3"
-            />
-          </UCard>
+      <UCard v-if="groupTabs.length && activeTabData">
+        <template #header>
+          <div class="flex items-center gap-2">
+            <h3 class="text-lg font-semibold">
+              {{ activeTabData.title }}
+            </h3>
+            <UBadge color="neutral" variant="soft">
+              {{ activeTabRows.length }}
+            </UBadge>
+          </div>
         </template>
-      </UTabs>
+
+        <UTable
+          :data="activeTabRows"
+          :columns="tableColumns"
+          :loading="pending"
+          loading-animation="carousel"
+          sticky="header"
+        >
+          <template #username-header>
+            <UButton
+              color="neutral"
+              variant="ghost"
+              :icon="sortDirection === 'asc' ? 'i-lucide-arrow-up-narrow-wide' : 'i-lucide-arrow-down-wide-narrow'"
+              :aria-label="`Сортировать по имени (${sortDirectionLabel})`"
+              @click="toggleNameSort"
+            >
+              Имя
+            </UButton>
+          </template>
+
+          <template #empty>
+            <UEmpty
+              icon="i-lucide-users-round"
+              :title="activeTabData.emptyTitle"
+              :description="activeTabData.emptyDescription"
+              variant="naked"
+              class="py-6"
+            />
+          </template>
+        </UTable>
+      </UCard>
 
       <UEmpty
         v-else
