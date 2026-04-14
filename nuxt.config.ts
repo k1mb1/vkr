@@ -34,6 +34,14 @@ export default defineNuxtConfig({
     '/': { prerender: true },
   },
 
+  vite: {
+    optimizeDeps: {
+      include: [
+        'zod',
+      ],
+    },
+  },
+
   compatibilityDate: '2025-01-15',
 
   typescript: {

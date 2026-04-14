@@ -1,23 +1,8 @@
 <script setup lang="ts">
-import type { CreateSubjectRequest, SubjectResponse } from '#shared/types/backend'
-import { z } from 'zod'
+import type { CreateSubjectFormData, SubjectResponse } from '#shared/types/backend'
+import { createSubjectFormSchema, toCreateSubjectRequestPayload } from '#shared/types/backend'
 import { useSubjectsApi } from '~/composables/api/useSubjectsApi'
 
-const createSubjectSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(1, 'Name is required')
-    .max(120, 'Name must be 120 characters or less'),
-  description: z
-    .string()
-    .trim()
-    .max(500, 'Description must be 500 characters or less')
-    .optional()
-    .or(z.literal('')),
-})
-
-type CreateSubjectFormData = z.output<typeof createSubjectSchema>
 interface ApiErrorPayload {
   statusMessage?: string
   message?: string
@@ -83,12 +68,7 @@ async function onSubmit(event: { data: CreateSubjectFormData }, close: () => voi
     return
   }
 
-  const normalizedDescription = event.data.description?.trim()
-  const payload: CreateSubjectRequest = {
-    name: event.data.name.trim(),
-    teacherId: teacherId.value,
-    ...(normalizedDescription ? { description: normalizedDescription } : {}),
-  }
+  const payload = toCreateSubjectRequestPayload(event.data, teacherId.value)
 
   pending.value = true
 
@@ -141,7 +121,7 @@ async function onSubmit(event: { data: CreateSubjectFormData }, close: () => voi
 
     <template #body="{ close }">
       <UForm
-        :schema="createSubjectSchema"
+        :schema="createSubjectFormSchema"
         :state="state"
         class="space-y-4"
         @submit="onSubmit($event, close)"

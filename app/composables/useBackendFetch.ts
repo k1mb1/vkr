@@ -1,4 +1,5 @@
 import type { MaybeRefOrGetter } from 'vue'
+import type { ZodType } from 'zod'
 import { toValue } from 'vue'
 
 type QueryPrimitive = string | number | boolean | null | undefined
@@ -12,6 +13,7 @@ export type BackendQuery = Record<string, QueryValue>
 
 type BackendFetchQueryInput<Query extends BackendQuery> = MaybeRefOrGetter<Query | undefined>
 type BackendFetchBodyInput<Body extends BackendBody> = MaybeRefOrGetter<Body | undefined>
+type BackendFetchBodySchemaInput<Body extends BackendBody> = MaybeRefOrGetter<ZodType<Body> | undefined>
 type BackendFetchHeadersInput = MaybeRefOrGetter<HeadersInit | undefined>
 type BackendFetchRequiresAuthInput = MaybeRefOrGetter<boolean | undefined>
 
@@ -22,8 +24,34 @@ export type BackendFetchOptions<
 > = Omit<UseFetchOptionsFor<Response>, 'query' | 'body' | 'headers'> & {
   query?: BackendFetchQueryInput<Query>
   body?: BackendFetchBodyInput<Body>
+  bodySchema?: BackendFetchBodySchemaInput<Body>
   headers?: BackendFetchHeadersInput
   requiresAuth?: BackendFetchRequiresAuthInput
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return Object.prototype.toString.call(value) === '[object Object]'
+}
+
+function validateObjectBody<Body extends BackendBody>(
+  body: Body | undefined,
+  bodySchema: ZodType<Body> | undefined,
+): Body | undefined {
+  if (!bodySchema || !isPlainObject(body)) {
+    return body
+  }
+
+  const parsed = bodySchema.safeParse(body)
+
+  if (!parsed.success) {
+    const issues = parsed.error.issues
+      .map(issue => `${issue.path.join('.') || '(root)'}: ${issue.message}`)
+      .join('; ')
+
+    throw new TypeError(`Invalid request body: ${issues}`)
+  }
+
+  return parsed.data
 }
 
 function buildHeaders(headers?: HeadersInit): Headers {
@@ -48,6 +76,7 @@ export function useBackendFetch<
     requiresAuth,
     query,
     body,
+    bodySchema,
     ...useFetchOptions
   } = options
 
@@ -55,6 +84,8 @@ export function useBackendFetch<
   const resolvedRequiresAuth = toValue(requiresAuth) ?? true
   const resolvedQuery = toValue(query)
   const resolvedBody = toValue(body)
+  const resolvedBodySchema = toValue(bodySchema)
+  const validatedBody = validateObjectBody(resolvedBody, resolvedBodySchema)
 
   const requestHeaders = buildHeaders(resolvedHeaders)
   const targetPath = resolvePath(url)
@@ -71,7 +102,7 @@ export function useBackendFetch<
     ...useFetchOptions,
     headers: requestHeaders,
     query: requestQuery,
-    body: resolvedBody,
+    body: validatedBody,
   }
 
   return useFetch<Response>('/api/proxy', fetchOptions)

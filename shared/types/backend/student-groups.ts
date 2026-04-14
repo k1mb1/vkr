@@ -1,3 +1,5 @@
+import { z } from 'zod'
+
 interface CreateGroupRequest {
   groupName: string
   studentNames: string[][]
@@ -27,10 +29,22 @@ interface SubgroupResponse {
   students: StudentEntryResponse[]
 }
 
+const createGroupRequestSchema: z.ZodType<CreateGroupRequest> = z.object({
+  groupName: z.string(),
+  studentNames: z.array(z.array(z.string())),
+})
+
+type CreateGroupRequestPayload = z.output<typeof createGroupRequestSchema>
+
 export type {
   CreateGroupRequest,
+  CreateGroupRequestPayload,
   StudentEntryResponse,
   StudentGroupPageResponse,
   StudentGroupResponse,
   SubgroupResponse,
+}
+
+export {
+  createGroupRequestSchema,
 }

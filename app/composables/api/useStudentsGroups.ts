@@ -1,12 +1,7 @@
-import type { CreateGroupRequest, PageRequest, PageResponse, StudentGroupPageResponse, StudentGroupResponse } from '#shared/types/backend'
+import type { CreateGroupRequestPayload, PageRequest, PageResponse, StudentGroupPageResponse, StudentGroupResponse } from '#shared/types/backend'
 import type { MaybeRefOrGetter } from 'vue'
 import type { BackendFetchResult } from '~/composables/useBackendFetch'
-import {
-
-  DEFAULT_PAGE_REQUEST,
-
-  toPageQuery,
-} from '#shared/types/backend'
+import { createGroupRequestSchema, DEFAULT_PAGE_REQUEST, toPageQuery } from '#shared/types/backend'
 import { toValue } from 'vue'
 import { useBackendFetch } from '~/composables/useBackendFetch'
 
@@ -21,11 +16,12 @@ export function useStudentsGroupsApi() {
   }
 
   const create = (
-    payload: MaybeRefOrGetter<CreateGroupRequest>,
+    payload: MaybeRefOrGetter<CreateGroupRequestPayload>,
   ): BackendFetchResult<StudentGroupResponse> => {
-    return useBackendFetch<StudentGroupResponse, CreateGroupRequest>(`/groups`, {
+    return useBackendFetch<StudentGroupResponse, CreateGroupRequestPayload>(`/groups`, {
       method: 'POST',
       body: () => toValue(payload),
+      bodySchema: createGroupRequestSchema,
     })
   }
 
