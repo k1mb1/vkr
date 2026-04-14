@@ -47,10 +47,22 @@ const tableColumns: TableColumn<StudentTableRow>[] = [
   {
     accessorKey: 'index',
     header: '№',
+    meta: {
+      class: {
+        th: 'w-16 text-left',
+        td: 'w-16 text-left',
+      },
+    },
   },
   {
     accessorKey: 'username',
     header: 'Имя',
+    meta: {
+      class: {
+        th: 'text-left',
+        td: 'text-left',
+      },
+    },
   },
 ]
 
@@ -208,6 +220,7 @@ watch(availableTabValues, (values) => {
             <UButton
               color="neutral"
               variant="ghost"
+              class="justify-start px-0"
               :icon="sortDirection === 'asc' ? 'i-lucide-arrow-up-narrow-wide' : 'i-lucide-arrow-down-wide-narrow'"
               :aria-label="`Сортировать по имени (${sortDirectionLabel})`"
               @click="toggleNameSort"
