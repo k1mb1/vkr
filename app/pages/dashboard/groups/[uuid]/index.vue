@@ -2,10 +2,6 @@
 import type { StudentGroupResponse } from '#shared/types/backend'
 import { useStudentsGroupsApi } from '~/composables/api/useStudentsGroups'
 
-definePageMeta({
-  layout: 'dashboard'
-})
-
 const route = useRoute()
 const groupId = computed(() => String(route.params.uuid ?? ''))
 
@@ -18,6 +14,7 @@ const {
 } = findById(groupId)
 
 const group = computed<StudentGroupResponse | null>(() => data.value ?? null)
+const activeGroupName = useState<string | null>('groups-active-name', () => null)
 const activeSubgroupId = ref('')
 
 const groupStudents = computed(() => group.value?.students ?? [])
@@ -62,183 +59,178 @@ watch(
   { immediate: true }
 )
 
-const breadcrumbItems = computed(() => [
-  { label: 'Dashboard', to: '/dashboard' },
-  { label: 'Groups', to: '/dashboard/groups' },
-  { label: group.value?.name ?? groupId.value }
-])
+watchEffect(() => {
+  activeGroupName.value = group.value?.name ?? null
+})
+
+onBeforeUnmount(() => {
+  activeGroupName.value = null
+})
 </script>
 
 <template>
-  <BaseDashboardPanel
-    id="dashboard-group-details"
-    :items="breadcrumbItems"
-  >
-    <template #body>
-      <div class="flex h-full min-h-0 flex-col gap-4 p-4 sm:p-6">
-        <UAlert
-          v-if="error"
-          color="error"
-          variant="soft"
-          title="Failed to load group"
-          :description="error.message"
-        />
+  <div class="flex h-full min-h-0 flex-col gap-4 p-4 sm:p-6">
+    <UAlert
+      v-if="error"
+      color="error"
+      variant="soft"
+      title="Failed to load group"
+      :description="error.message"
+    />
 
-        <UPageCard
-          v-else-if="pending"
-          class="space-y-3"
+    <UPageCard
+      v-else-if="pending"
+      class="space-y-3"
+    >
+      <USkeleton class="h-8 w-56" />
+      <USkeleton class="h-5 w-40" />
+      <USkeleton class="h-28 w-full" />
+    </UPageCard>
+
+    <template v-else-if="group">
+      <UPageCard>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 class="text-lg font-semibold text-highlighted">
+              {{ group.name }}
+            </h2>
+            <p class="text-sm text-muted">
+              Group ID: {{ group.id }}
+            </p>
+          </div>
+
+          <UBadge
+            color="neutral"
+            variant="soft"
+          >
+            {{ group.subgroups.length }} subgroups
+          </UBadge>
+        </div>
+      </UPageCard>
+
+      <UPageCard>
+        <template #header>
+          <div class="flex items-center justify-between gap-3">
+            <h3 class="text-base font-semibold text-highlighted">
+              Students
+            </h3>
+            <span class="text-sm text-muted">{{ groupStudents.length }} total</span>
+          </div>
+        </template>
+
+        <div
+          v-if="groupStudents.length"
+          class="flex flex-wrap gap-2"
         >
-          <USkeleton class="h-8 w-56" />
-          <USkeleton class="h-5 w-40" />
-          <USkeleton class="h-28 w-full" />
-        </UPageCard>
+          <UBadge
+            v-for="student in groupStudents"
+            :key="student.id"
+            color="neutral"
+            variant="outline"
+          >
+            {{ student.name }}
+          </UBadge>
+        </div>
+      </UPageCard>
 
-        <template v-else-if="group">
-          <UPageCard>
-            <div class="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h2 class="text-lg font-semibold text-highlighted">
-                  {{ group.name }}
-                </h2>
-                <p class="text-sm text-muted">
-                  Group ID: {{ group.id }}
-                </p>
-              </div>
+      <UPageCard v-if="subgroupsWithStudents.length">
+        <template #header>
+          <div class="flex items-center justify-between gap-3">
+            <h3 class="text-base font-semibold text-highlighted">
+              Subgroups
+            </h3>
+            <span class="text-sm text-muted">{{ subgroupsWithStudents.length }} with students</span>
+          </div>
+        </template>
 
-              <UBadge
-                color="neutral"
-                variant="soft"
-              >
-                {{ group.subgroups.length }} subgroups
-              </UBadge>
+        <div class="space-y-4">
+          <UTabs
+            v-model="activeSubgroupId"
+            :items="subgroupTabItems"
+            :content="false"
+            color="neutral"
+            variant="link"
+            class="w-full"
+          />
+
+          <UAlert
+            v-if="!activeSubgroup"
+            color="neutral"
+            variant="soft"
+            title="Select subgroup"
+          />
+
+          <div
+            v-else
+            class="space-y-3"
+          >
+            <div class="flex items-center justify-between gap-3">
+              <p class="font-medium text-default">
+                {{ activeSubgroup.name }}
+              </p>
+              <span class="text-sm text-muted">
+                {{ activeSubgroup.students.length }} students
+              </span>
             </div>
-          </UPageCard>
 
-          <UPageCard>
-            <template #header>
-              <div class="flex items-center justify-between gap-3">
-                <h3 class="text-base font-semibold text-highlighted">
-                  Students
-                </h3>
-                <span class="text-sm text-muted">{{ groupStudents.length }} total</span>
-              </div>
-            </template>
-
-            <div
-              v-if="groupStudents.length"
-              class="flex flex-wrap gap-2"
-            >
+            <div class="flex flex-wrap gap-2">
               <UBadge
-                v-for="student in groupStudents"
+                v-for="student in activeSubgroup.students"
                 :key="student.id"
                 color="neutral"
-                variant="outline"
+                variant="subtle"
               >
                 {{ student.name }}
               </UBadge>
             </div>
-          </UPageCard>
-
-          <UPageCard v-if="subgroupsWithStudents.length">
-            <template #header>
-              <div class="flex items-center justify-between gap-3">
-                <h3 class="text-base font-semibold text-highlighted">
-                  Subgroups
-                </h3>
-                <span class="text-sm text-muted">{{ subgroupsWithStudents.length }} with students</span>
-              </div>
-            </template>
-
-            <div class="space-y-4">
-              <UTabs
-                v-model="activeSubgroupId"
-                :items="subgroupTabItems"
-                :content="false"
-                color="neutral"
-                variant="link"
-                class="w-full"
-              />
-
-              <UAlert
-                v-if="!activeSubgroup"
-                color="neutral"
-                variant="soft"
-                title="Select subgroup"
-              />
-
-              <div
-                v-else
-                class="space-y-3"
-              >
-                <div class="flex items-center justify-between gap-3">
-                  <p class="font-medium text-default">
-                    {{ activeSubgroup.name }}
-                  </p>
-                  <span class="text-sm text-muted">
-                    {{ activeSubgroup.students.length }} students
-                  </span>
-                </div>
-
-                <div class="flex flex-wrap gap-2">
-                  <UBadge
-                    v-for="student in activeSubgroup.students"
-                    :key="student.id"
-                    color="neutral"
-                    variant="subtle"
-                  >
-                    {{ student.name }}
-                  </UBadge>
-                </div>
-              </div>
-            </div>
-          </UPageCard>
-
-          <UAlert
-            v-if="!groupStudents.length"
-            color="neutral"
-            variant="soft"
-            title="No group students"
-            description="This group has no students yet."
-          />
-
-          <UAlert
-            v-if="!subgroupsWithStudents.length"
-            color="neutral"
-            variant="soft"
-            title="No subgroup students"
-            description="Subgroups without students are hidden."
-          />
-        </template>
-
-        <UAlert
-          v-else
-          color="warning"
-          variant="soft"
-          title="Group was not found"
-          :description="`No data returned for ${groupId}.`"
-        />
-
-        <div class="flex items-center justify-between gap-2">
-          <UButton
-            color="neutral"
-            variant="outline"
-            icon="i-lucide-arrow-left"
-            to="/dashboard/groups"
-          >
-            Back to groups
-          </UButton>
-
-          <UButton
-            color="neutral"
-            variant="ghost"
-            icon="i-lucide-refresh-cw"
-            :loading="pending"
-            @click="() => refresh()"
-          >
-            Refresh
-          </UButton>
+          </div>
         </div>
-      </div>
+      </UPageCard>
+
+      <UAlert
+        v-if="!groupStudents.length"
+        color="neutral"
+        variant="soft"
+        title="No group students"
+        description="This group has no students yet."
+      />
+
+      <UAlert
+        v-if="!subgroupsWithStudents.length"
+        color="neutral"
+        variant="soft"
+        title="No subgroup students"
+        description="Subgroups without students are hidden."
+      />
     </template>
-  </BaseDashboardPanel>
+
+    <UAlert
+      v-else
+      color="warning"
+      variant="soft"
+      title="Group was not found"
+      :description="`No data returned for ${groupId}.`"
+    />
+
+    <div class="flex items-center justify-between gap-2">
+      <UButton
+        color="neutral"
+        variant="outline"
+        icon="i-lucide-arrow-left"
+        to="/dashboard/groups"
+      >
+        Back to groups
+      </UButton>
+
+      <UButton
+        color="neutral"
+        variant="ghost"
+        icon="i-lucide-refresh-cw"
+        :loading="pending"
+        @click="() => refresh()"
+      >
+        Refresh
+      </UButton>
+    </div>
+  </div>
 </template>
