@@ -23,11 +23,14 @@ useSeoMeta({
   twitterImage: 'https://ui.nuxt.com/assets/cover.jpg',
   twitterCard: 'summary_large_image'
 })
+
+const route = useRoute()
+const rootLayout = computed(() => route.path.startsWith('/dashboard') ? false : 'landing')
 </script>
 
 <template>
   <UApp>
-    <NuxtLayout>
+    <NuxtLayout :name="rootLayout">
       <NuxtPage />
     </NuxtLayout>
   </UApp>

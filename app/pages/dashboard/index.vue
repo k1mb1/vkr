@@ -1,8 +1,4 @@
 <script setup lang="ts">
-definePageMeta({
-  layout: 'dashboard'
-})
-
 const { user, session, refreshNow } = useOidcAuth()
 
 const refreshing = ref(false)
@@ -33,45 +29,47 @@ async function runRefresh() {
 </script>
 
 <template>
-  <BaseDashboardPanel
-    id="dashboard-home"
-    title="Dashboard"
-  >
-    <template #body>
-      <UPageCard title="Session snapshot">
-        <div class="space-y-4">
-          <p class="text-sm text-muted">
-            User: {{ user?.name || user?.email || user?.sub }}
-          </p>
-          <p class="text-sm text-muted">
-            Token expires at: {{ session?.tokenExpiresAt || 'n/a' }}
-          </p>
+  <NuxtLayout name="dashboard">
+    <BaseDashboardPanel
+      id="dashboard-home"
+      title="Dashboard"
+    >
+      <template #body>
+        <UPageCard title="Session snapshot">
+          <div class="space-y-4">
+            <p class="text-sm text-muted">
+              User: {{ user?.name || user?.email || user?.sub }}
+            </p>
+            <p class="text-sm text-muted">
+              Token expires at: {{ session?.tokenExpiresAt || 'n/a' }}
+            </p>
 
-          <UAlert
-            v-if="refreshError"
-            color="error"
-            variant="soft"
-            :description="refreshError"
-            title="Refresh error"
-          />
+            <UAlert
+              v-if="refreshError"
+              color="error"
+              variant="soft"
+              :description="refreshError"
+              title="Refresh error"
+            />
 
-          <UAlert
-            v-if="teacherSyncError"
-            color="warning"
-            variant="soft"
-            :description="teacherSyncError"
-            title="Teacher sync"
-          />
+            <UAlert
+              v-if="teacherSyncError"
+              color="warning"
+              variant="soft"
+              :description="teacherSyncError"
+              title="Teacher sync"
+            />
 
-          <UButton
-            :loading="refreshing"
-            icon="i-lucide-refresh-cw"
-            @click="runRefresh"
-          >
-            Refresh token now
-          </UButton>
-        </div>
-      </UPageCard>
-    </template>
-  </BaseDashboardPanel>
+            <UButton
+              :loading="refreshing"
+              icon="i-lucide-refresh-cw"
+              @click="runRefresh"
+            >
+              Refresh token now
+            </UButton>
+          </div>
+        </UPageCard>
+      </template>
+    </BaseDashboardPanel>
+  </NuxtLayout>
 </template>

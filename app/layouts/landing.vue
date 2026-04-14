@@ -16,7 +16,6 @@ const { logout } = useOidcAuth()
           variant="ghost"
           color="neutral"
           icon="i-lucide-layout-dashboard"
-          size="sm"
         >
           Dashboard
         </UButton>
