@@ -13,7 +13,7 @@ interface StudentGroupPageResponse {
 
 interface StudentEntryResponse {
   id: string
-  name: string
+  username: string
 }
 
 interface StudentGroupResponse {
