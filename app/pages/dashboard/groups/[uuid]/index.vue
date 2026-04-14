@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { StudentGroupResponse } from '#shared/types/backend'
+import type { TabsItem } from '@nuxt/ui'
 import { useStudentsGroupsApi } from '~/composables/api/useStudentsGroups'
 import { useGroupsBreadcrumbLabel } from '~/composables/useGroupsBreadcrumbItems'
 
@@ -16,7 +17,64 @@ const {
 
 const group = computed<StudentGroupResponse | null>(() => data.value ?? null)
 const studentsCount = computed(() => group.value?.students?.length ?? 0)
-const subgroupsCount = computed(() => group.value?.subgroups?.length ?? 0)
+const subgroupTabPrefix = 'subgroup:'
+
+type Subgroup = NonNullable<StudentGroupResponse['subgroups']>[number]
+type GroupTabValue = 'students' | `${typeof subgroupTabPrefix}${string}`
+
+const activeTab = ref<GroupTabValue>('students')
+
+const subgroupTabMap = computed<Record<string, Subgroup>>(() => {
+  return Object.fromEntries(
+    (group.value?.subgroups ?? []).map(subgroup => [
+      `${subgroupTabPrefix}${String(subgroup.id)}`,
+      subgroup,
+    ]),
+  )
+})
+
+const groupTabs = computed<TabsItem[]>(() => {
+  const tabs: TabsItem[] = []
+
+  if (studentsCount.value > 0) {
+    tabs.push({
+      label: `Студенты (${studentsCount.value})`,
+      icon: 'i-lucide-users-round',
+      value: 'students',
+    })
+  }
+
+  for (const subgroup of group.value?.subgroups ?? []) {
+    tabs.push({
+      label: `${subgroup.name} (${subgroup.students.length})`,
+      icon: 'i-lucide-git-fork',
+      value: `${subgroupTabPrefix}${String(subgroup.id)}`,
+    })
+  }
+
+  return tabs
+})
+
+const preferredTab = computed<GroupTabValue | null>(() => {
+  if (studentsCount.value > 0) {
+    return 'students'
+  }
+
+  const firstSubgroup = group.value?.subgroups?.[0]
+  if (!firstSubgroup) {
+    return null
+  }
+
+  return `${subgroupTabPrefix}${String(firstSubgroup.id)}`
+})
+
+function getSubgroupFromTabValue(value: string | number | undefined): Subgroup | null {
+  if (value === undefined) {
+    return null
+  }
+
+  return subgroupTabMap.value[String(value)] ?? null
+}
 
 watch(groupId, () => {
   activeGroupName.value = null
@@ -24,6 +82,19 @@ watch(groupId, () => {
 
 watch(group, (value) => {
   activeGroupName.value = value?.name ?? null
+}, { immediate: true })
+
+watch(groupTabs, (tabs) => {
+  const availableValues = tabs.map(item => String(item.value))
+
+  if (!availableValues.length) {
+    activeTab.value = 'students'
+    return
+  }
+
+  if (!activeTab.value || !availableValues.includes(activeTab.value)) {
+    activeTab.value = preferredTab.value ?? (availableValues[0] as GroupTabValue)
+  }
 }, { immediate: true })
 </script>
 
@@ -44,57 +115,63 @@ watch(group, (value) => {
     />
 
     <template v-else-if="group">
-      <UCard v-if="studentsCount">
-        <template #header>
-          <div class="flex items-center justify-between gap-3">
-            <h3 class="text-lg font-semibold">
-              Студенты
-            </h3>
-            <UBadge color="neutral" variant="soft">
-              {{ studentsCount }}
-            </UBadge>
-          </div>
-        </template>
-
-        <ul class="list-disc list-inside space-y-1.5">
-          <li
-            v-for="(student, index) in group.students"
-            :key="student.id || index"
-            class="text-sm text-muted"
+      <UTabs
+        v-if="groupTabs.length"
+        v-model="activeTab"
+        :items="groupTabs"
+        color="neutral"
+        variant="link"
+        :ui="{ trigger: 'grow' }"
+        class="w-full"
+      >
+        <template #content="{ item }">
+          <UCard
+            v-if="item.value === 'students'"
+            class="mt-4"
           >
-            {{ student.username }}
-          </li>
-        </ul>
-      </UCard>
-
-      <template v-if="subgroupsCount || !studentsCount">
-        <USeparator v-if="studentsCount" />
-
-        <div class="flex items-center justify-between gap-3">
-          <h3 class="text-lg font-semibold">
-            Подгруппы
-          </h3>
-          <UBadge color="neutral" variant="soft">
-            {{ subgroupsCount }}
-          </UBadge>
-        </div>
-
-        <div v-if="subgroupsCount" class="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <UCard v-for="subgroup in group.subgroups" :key="subgroup.id">
             <template #header>
               <div class="flex items-center justify-between gap-3">
-                <h4 class="font-medium">
-                  {{ subgroup.name }}
-                </h4>
-                <UBadge color="neutral" variant="subtle">
-                  {{ subgroup.students.length }}
+                <h3 class="text-lg font-semibold">
+                  Студенты
+                </h3>
+                <UBadge color="neutral" variant="soft">
+                  {{ studentsCount }}
                 </UBadge>
               </div>
             </template>
 
-            <ul v-if="subgroup.students?.length" class="list-disc list-inside space-y-1.5">
+            <ul class="list-disc list-inside space-y-1.5">
               <li
-                v-for="(student, index) in subgroup.students"
+                v-for="(student, index) in group.students"
+                :key="student.id || index"
+                class="text-sm text-muted"
+              >
+                {{ student.username }}
+              </li>
+            </ul>
+          </UCard>
+
+          <UCard
+            v-else-if="getSubgroupFromTabValue(item.value)"
+            class="mt-4"
+          >
+            <template #header>
+              <div class="flex items-center justify-between gap-3">
+                <h4 class="font-medium">
+                  {{ getSubgroupFromTabValue(item.value)?.name }}
+                </h4>
+                <UBadge color="neutral" variant="subtle">
+                  {{ getSubgroupFromTabValue(item.value)?.students.length ?? 0 }}
+                </UBadge>
+              </div>
+            </template>
+
+            <ul
+              v-if="(getSubgroupFromTabValue(item.value)?.students.length ?? 0) > 0"
+              class="list-disc list-inside space-y-1.5"
+            >
+              <li
+                v-for="(student, index) in getSubgroupFromTabValue(item.value)?.students ?? []"
                 :key="student.id || index"
                 class="text-sm text-muted"
               >
@@ -111,17 +188,17 @@ watch(group, (value) => {
               class="py-3"
             />
           </UCard>
-        </div>
+        </template>
+      </UTabs>
 
-        <UEmpty
-          v-else
-          icon="i-lucide-users"
-          title="Подгрупп пока нет"
-          description="Создайте подгруппы, чтобы распределить студентов."
-          variant="naked"
-          class="rounded-lg border border-default py-8"
-        />
-      </template>
+      <UEmpty
+        v-else
+        icon="i-lucide-users"
+        title="В группе пока нет студентов и подгрупп"
+        description="Добавьте студентов в группу или создайте подгруппы."
+        variant="naked"
+        class="rounded-lg border border-default py-8"
+      />
     </template>
 
     <UEmpty
