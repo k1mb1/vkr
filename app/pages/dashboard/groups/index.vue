@@ -1,12 +1,8 @@
 <script setup lang="ts">
-import type { TableColumn } from '@nuxt/ui'
+import type { TableColumn, TableRow } from '@nuxt/ui'
 import type { StudentGroupPageResponse } from '#shared/types/backend'
 import CreateGroupToolbarForm from '~/components/groups/CreateGroupToolbarForm.vue'
 import { useStudentsGroupsApi } from '~/composables/api/useStudentsGroups'
-
-definePageMeta({
-  layout: 'dashboard'
-})
 
 const page = ref(1)
 const pageSize = 10
@@ -38,6 +34,10 @@ const columns: TableColumn<StudentGroupPageResponse>[] = [
     header: 'Subgroups'
   }
 ]
+
+function onSelect(_event: Event, row: TableRow<StudentGroupPageResponse>) {
+  navigateTo(`/dashboard/groups/${row.original.id}`)
+}
 </script>
 
 <template>
@@ -69,6 +69,7 @@ const columns: TableColumn<StudentGroupPageResponse>[] = [
             :columns="columns"
             :loading="pending"
             class="h-full"
+            @select="onSelect"
           >
             <template #empty>
               <div class="py-8 text-center text-sm text-muted">
