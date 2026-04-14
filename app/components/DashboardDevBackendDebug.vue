@@ -6,13 +6,13 @@ type DebugRequestBody = BodyInit | object | null | undefined
 
 type QueryRecord = Record<string, string | number | boolean | null | undefined | Array<string | number | boolean | null | undefined>>
 
-type ApiErrorPayload = {
+interface ApiErrorPayload {
   statusCode?: number
   statusMessage?: string
   message?: string
 }
 
-type ApiErrorShape = {
+interface ApiErrorShape {
   message?: string
   data?: ApiErrorPayload
 }
@@ -21,13 +21,13 @@ const tabItems: TabsItem[] = [
   {
     label: 'Request',
     icon: 'i-lucide-send',
-    value: 'request'
+    value: 'request',
   },
   {
     label: 'History',
     icon: 'i-lucide-history',
-    value: 'history'
-  }
+    value: 'history',
+  },
 ]
 
 const methodItems: TabsItem[] = [
@@ -35,7 +35,7 @@ const methodItems: TabsItem[] = [
   { label: 'POST', value: 'POST' },
   { label: 'PUT', value: 'PUT' },
   { label: 'PATCH', value: 'PATCH' },
-  { label: 'DELETE', value: 'DELETE' }
+  { label: 'DELETE', value: 'DELETE' },
 ]
 
 const activeTab = ref<string>('request')
@@ -60,7 +60,7 @@ function formatTimestamp(timestamp: number): string {
     minute: '2-digit',
     second: '2-digit',
     day: '2-digit',
-    month: '2-digit'
+    month: '2-digit',
   }).format(timestamp)
 }
 
@@ -141,7 +141,8 @@ async function executeRequest() {
   try {
     query = parseQuery(queryText.value)
     body = parseBody(bodyText.value)
-  } catch (error: unknown) {
+  }
+  catch (error: unknown) {
     parseError.value = getErrorMessage(error)
     return
   }
@@ -161,7 +162,7 @@ async function executeRequest() {
       },
       onResponseError(context) {
         statusCode = context.response.status
-      }
+      },
     })
 
     const durationMs = Date.now() - startedAt
@@ -181,9 +182,10 @@ async function executeRequest() {
       response: response.data.value,
       statusCode,
       durationMs,
-      error: errorMessage
+      error: errorMessage,
     })
-  } catch (error: unknown) {
+  }
+  catch (error: unknown) {
     const durationMs = Date.now() - startedAt
     const errorMessage = getErrorMessage(error)
 
@@ -201,9 +203,10 @@ async function executeRequest() {
       response: null,
       statusCode,
       durationMs,
-      error: errorMessage
+      error: errorMessage,
     })
-  } finally {
+  }
+  finally {
     loading.value = false
   }
 }

@@ -30,6 +30,6 @@ export function useGroupAccess() {
   return {
     userGroups,
     hasGroups,
-    isAdmin
+    isAdmin,
   }
 }

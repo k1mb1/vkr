@@ -25,8 +25,8 @@ interface UpdateSubjectRequest {
 }
 
 export type {
-  SubjectResponse,
   CreateSubjectRequest,
   FindSubjectsFilter,
-  UpdateSubjectRequest
+  SubjectResponse,
+  UpdateSubjectRequest,
 }

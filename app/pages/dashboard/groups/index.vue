@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import type { StudentGroupPageResponse } from '#shared/types/backend'
 import type { TableColumn, TableRow } from '@nuxt/ui'
-import { PAGE_DEFAULTS, type StudentGroupPageResponse } from '#shared/types/backend'
+import { PAGE_DEFAULTS } from '#shared/types/backend'
 import { useStudentsGroupsApi } from '~/composables/api/useStudentsGroups'
 
 const page = ref(PAGE_DEFAULTS.number + 1)
@@ -10,7 +11,7 @@ const { findAll } = useStudentsGroupsApi()
 
 const { data, pending, error, refresh } = findAll(computed(() => ({
   page: page.value - 1,
-  size: pageSize
+  size: pageSize,
 })))
 
 const rows = computed(() => data.value?.content ?? [])
@@ -18,11 +19,12 @@ const total = computed(() => data.value?.page.totalElements ?? 0)
 
 const columns: TableColumn<StudentGroupPageResponse>[] = [
   { accessorKey: 'name', header: 'Name' },
-  { accessorKey: 'subgroupCount', header: 'Subgroups' }
+  { accessorKey: 'subgroupCount', header: 'Subgroups' },
 ]
 
-const onSelect = (_: Event, row: TableRow<StudentGroupPageResponse>) =>
-  navigateTo(`/dashboard/groups/${row.original.id}`)
+function onSelect(_: Event, row: TableRow<StudentGroupPageResponse>) {
+  return navigateTo(`/dashboard/groups/${row.original.id}`)
+}
 
 const onRefresh = () => refresh()
 </script>

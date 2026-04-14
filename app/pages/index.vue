@@ -7,14 +7,14 @@
         label: 'Sign in',
         to: '/auth/login',
         icon: 'i-lucide-log-in',
-        size: 'xl'
+        size: 'xl',
       }, {
         label: 'Open dashboard',
         to: '/dashboard',
         icon: 'i-lucide-layout-dashboard',
         size: 'xl',
         color: 'neutral',
-        variant: 'subtle'
+        variant: 'subtle',
       }]"
     />
 
@@ -25,23 +25,23 @@
       :features="[{
         icon: 'i-lucide-shield-check',
         title: 'OIDC auth route',
-        description: '/auth/oidc uses defineOAuthOidcEventHandler and stores a minimal user session.'
+        description: '/auth/oidc uses defineOAuthOidcEventHandler and stores a minimal user session.',
       }, {
         icon: 'i-lucide-refresh-cw',
         title: 'Server-side token refresh',
-        description: 'Backend requests go through /api/proxy, where access tokens are validated and refreshed automatically.'
+        description: 'Backend requests go through /api/proxy, where access tokens are validated and refreshed automatically.',
       }, {
         icon: 'i-lucide-lock-keyhole',
         title: 'Global protected routes',
-        description: 'All pages are protected by default except / and auth utility routes.'
+        description: 'All pages are protected by default except / and auth utility routes.',
       }, {
         icon: 'i-lucide-layout-dashboard',
         title: 'Stub pages in place',
-        description: 'Login, callback, dashboard, profile, settings, auth error and logout pages are ready to extend.'
+        description: 'Login, callback, dashboard, profile, settings, auth error and logout pages are ready to extend.',
       }, {
         icon: 'i-lucide-sliders-horizontal',
         title: 'Composable API',
-        description: 'useOidcAuth() provides login, logout, refreshNow and session state for UI pages.'
+        description: 'useOidcAuth() provides login, logout, refreshNow and session state for UI pages.',
       }]"
     />
 
@@ -55,13 +55,13 @@
           to: '/auth/login',
           icon: 'i-lucide-log-in',
           color: 'neutral',
-          trailingIcon: 'i-lucide-arrow-right'
+          trailingIcon: 'i-lucide-arrow-right',
         }, {
           label: 'Open profile stub',
           to: '/dashboard/profile',
           icon: 'i-lucide-user',
           color: 'neutral',
-          variant: 'outline'
+          variant: 'outline',
         }]"
       />
     </UPageSection>

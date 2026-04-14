@@ -8,7 +8,7 @@ const REDACTED_KEYS = new Set([
   'password',
   'secret',
   'api_key',
-  'apikey'
+  'apikey',
 ])
 
 type SafeValue = string | number | boolean | null | undefined | SafeValue[] | { [key: string]: SafeValue }
@@ -90,7 +90,7 @@ export function useDebugBackendRequests() {
       response: input.response === undefined ? undefined : sanitizeValue(input.response),
       statusCode: input.statusCode ?? null,
       durationMs: input.durationMs,
-      error: normalizeError(input.error)
+      error: normalizeError(input.error),
     }
 
     history.value = [entry, ...history.value].slice(0, DEBUG_HISTORY_LIMIT)
@@ -103,6 +103,6 @@ export function useDebugBackendRequests() {
   return {
     history,
     addEntry,
-    clearHistory
+    clearHistory,
   }
 }

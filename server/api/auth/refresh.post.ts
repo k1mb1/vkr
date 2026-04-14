@@ -7,7 +7,7 @@ export default defineEventHandler(async (event) => {
   if (!secure?.refreshToken) {
     throw createError({
       statusCode: 401,
-      statusMessage: 'No refresh token. Please log in again.'
+      statusMessage: 'No refresh token. Please log in again.',
     })
   }
 
@@ -20,6 +20,6 @@ export default defineEventHandler(async (event) => {
 
   return {
     success: true,
-    skipped: false
+    skipped: false,
   }
 })

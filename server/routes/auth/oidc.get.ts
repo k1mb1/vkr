@@ -1,4 +1,4 @@
-type OidcUser = {
+interface OidcUser {
   sub?: string
   email?: string
   name?: string
@@ -6,7 +6,7 @@ type OidcUser = {
   groups?: string[] | string
 }
 
-type OidcTokens = {
+interface OidcTokens {
   access_token?: string
   refresh_token?: string
   expires_in?: number
@@ -46,7 +46,7 @@ function normalizeGroups(input: string[] | string | undefined): string[] {
 
 export default defineOAuthOidcEventHandler({
   config: {
-    scope: ['openid', 'profile', 'email', 'groups']
+    scope: ['openid', 'profile', 'email', 'groups'],
   },
   async onSuccess(event, { user, tokens }) {
     const oidcUser = user as OidcUser
@@ -61,14 +61,14 @@ export default defineOAuthOidcEventHandler({
         sub: oidcUser.sub,
         email: oidcUser.email,
         name: oidcUser.name ?? oidcUser.preferred_username ?? oidcUser.email ?? oidcUser.sub,
-        groups: normalizeGroups(oidcUser.groups)
+        groups: normalizeGroups(oidcUser.groups),
       },
       loggedInAt: now,
       tokenExpiresAt: expiresAt,
       secure: {
         accessToken: oidcTokens.access_token,
-        refreshToken: oidcTokens.refresh_token
-      }
+        refreshToken: oidcTokens.refresh_token,
+      },
     })
 
     return sendRedirect(event, redirectTo)
@@ -79,8 +79,8 @@ export default defineOAuthOidcEventHandler({
       statusMessage: 'Unauthorized',
       message: error?.message || 'OIDC authentication failed',
       data: {
-        from: '/dashboard'
-      }
+        from: '/dashboard',
+      },
     })
-  }
+  },
 })

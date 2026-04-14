@@ -1,6 +1,6 @@
-import { getProxyRequestHeaders, proxyRequest } from 'h3'
 import type { H3Event } from 'h3'
 import { getAccessToken } from '#server/utils/getAccessToken'
+import { getProxyRequestHeaders, proxyRequest } from 'h3'
 
 const TRAILING_SLASH_RE = /\/+$/
 const LEADING_SLASH_RE = /^\/+/
@@ -18,7 +18,7 @@ type HttpMethod
     | 'OPTIONS'
     | 'TRACE'
 
-type HttpErrorShape = {
+interface HttpErrorShape {
   statusCode?: number
   message?: string
   data?: {
@@ -110,7 +110,8 @@ export default defineEventHandler(async (event: H3Event) => {
   let accessToken: string | null = null
   try {
     accessToken = await getAccessToken(event)
-  } catch (error: unknown) {
+  }
+  catch (error: unknown) {
     const authError = error as HttpErrorShape
     if (!authOptional || (authError.statusCode && authError.statusCode !== 401)) {
       throw error
@@ -131,11 +132,11 @@ export default defineEventHandler(async (event: H3Event) => {
   }
 
   if (import.meta.dev) {
-    console.debug('[proxy]', {
+    console.warn('[proxy]', {
       method,
       targetPath,
       hasAuth: Boolean(accessToken),
-      proxyTimeoutMs
+      proxyTimeoutMs,
     })
   }
 
@@ -144,10 +145,11 @@ export default defineEventHandler(async (event: H3Event) => {
       headers,
       fetchOptions: {
         signal: AbortSignal.timeout(proxyTimeoutMs),
-        ignoreResponseError: true
-      }
+        ignoreResponseError: true,
+      },
     })
-  } catch (error: unknown) {
+  }
+  catch (error: unknown) {
     const proxyError = error as HttpErrorShape
 
     if (import.meta.dev) {
@@ -156,14 +158,14 @@ export default defineEventHandler(async (event: H3Event) => {
         targetPath,
         statusCode: proxyError.statusCode,
         responseStatus: proxyError.response?.status,
-        message: proxyError.message
+        message: proxyError.message,
       })
     }
 
     throw createError({
       statusCode: proxyError.response?.status ?? 502,
       message: `Proxy request failed: ${method} ${targetPath}`,
-      cause: error
+      cause: error,
     })
   }
 })

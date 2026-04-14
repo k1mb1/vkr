@@ -18,7 +18,7 @@ export function useGroupsBreadcrumbItems(activeGroupName: Ref<string | null>) {
   return computed(() => {
     const items = [
       { label: 'Dashboard', to: '/dashboard' },
-      { label: 'Groups', to: '/dashboard/groups' }
+      { label: 'Groups', to: '/dashboard/groups' },
     ]
 
     const uuid = route.params.uuid
@@ -26,7 +26,7 @@ export function useGroupsBreadcrumbItems(activeGroupName: Ref<string | null>) {
     if (typeof uuid === 'string' && uuid.length > 0) {
       items.push({
         label: activeGroupName.value || 'Group',
-        to: `/dashboard/groups/${uuid}`
+        to: `/dashboard/groups/${uuid}`,
       })
     }
 

@@ -1,11 +1,11 @@
 import { useTeachersApi } from '~/composables/api/useTeachersApi'
 
-type ApiErrorPayload = {
+interface ApiErrorPayload {
   message?: string
   statusMessage?: string
 }
 
-type ApiError = {
+interface ApiError {
   data?: ApiErrorPayload
   message?: string
 }
@@ -51,7 +51,7 @@ export default defineNuxtPlugin(() => {
     try {
       const request = await createOrUpdate(teacherId, {
         username,
-        email
+        email,
       })
 
       if (request.error.value) {
@@ -59,14 +59,16 @@ export default defineNuxtPlugin(() => {
       }
 
       syncedUserSub.value = teacherId
-    } catch (error: unknown) {
+    }
+    catch (error: unknown) {
       const apiError = error as ApiError
       teacherSyncError.value = apiError.data?.message || apiError.data?.statusMessage || apiError.message || 'Teacher sync failed'
       console.warn('[teacher-sync] createOrUpdate failed', {
         teacherId,
-        error: teacherSyncError.value
+        error: teacherSyncError.value,
       })
-    } finally {
+    }
+    finally {
       syncInFlight.value = false
     }
   }

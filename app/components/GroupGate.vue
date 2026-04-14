@@ -6,7 +6,7 @@ const props = withDefaults(defineProps<{
   mode?: GroupGateMode
 }>(), {
   requiredGroups: () => [],
-  mode: 'any'
+  mode: 'any',
 })
 
 const { hasGroups } = useGroupAccess()

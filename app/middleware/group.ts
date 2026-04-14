@@ -1,4 +1,4 @@
-type RouteMetaWithGroups = {
+interface RouteMetaWithGroups {
   requiredGroups?: string[]
 }
 
@@ -20,8 +20,8 @@ export default defineNuxtRouteMiddleware((to) => {
       message: 'You do not have required group permissions for this page.',
       data: {
         from: to.fullPath,
-        requiredGroups: requiredGroups.map(group => group.toUpperCase())
-      }
+        requiredGroups: requiredGroups.map(group => group.toUpperCase()),
+      },
     })
   }
 })

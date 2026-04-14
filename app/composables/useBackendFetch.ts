@@ -1,11 +1,12 @@
-import { toValue, type MaybeRefOrGetter } from 'vue'
+import type { MaybeRefOrGetter } from 'vue'
+import { toValue } from 'vue'
 
 type QueryPrimitive = string | number | boolean | null | undefined
 type QueryValue = QueryPrimitive | QueryPrimitive[]
 type BackendBody = BodyInit | object | null | undefined
 
 type UseFetchOptionsFor<Response> = NonNullable<Parameters<typeof useFetch<Response>>[1]>
-type UseBackendFetchReturn<Response> = ReturnType<typeof useFetch<Response>>
+export type BackendFetchResult<Response> = ReturnType<typeof useFetch<Response>>
 
 export type BackendQuery = Record<string, QueryValue>
 
@@ -17,7 +18,7 @@ type BackendFetchRequiresAuthInput = MaybeRefOrGetter<boolean | undefined>
 export type BackendFetchOptions<
   Response,
   Body extends BackendBody,
-  Query extends BackendQuery
+  Query extends BackendQuery,
 > = Omit<UseFetchOptionsFor<Response>, 'query' | 'body' | 'headers'> & {
   query?: BackendFetchQueryInput<Query>
   body?: BackendFetchBodyInput<Body>
@@ -37,11 +38,11 @@ function resolvePath(url: string | (() => string)): string {
 export function useBackendFetch<
   Response,
   Body extends BackendBody = undefined,
-  Query extends BackendQuery = BackendQuery
+  Query extends BackendQuery = BackendQuery,
 >(
   url: string | (() => string),
-  options: BackendFetchOptions<Response, Body, Query> = {}
-): UseBackendFetchReturn<Response> {
+  options: BackendFetchOptions<Response, Body, Query> = {},
+): BackendFetchResult<Response> {
   const {
     headers,
     requiresAuth,
@@ -59,29 +60,18 @@ export function useBackendFetch<
   const targetPath = resolvePath(url)
   const requestQuery: { path: string } & BackendQuery = {
     path: targetPath,
-    ...(resolvedQuery || {})
+    ...(resolvedQuery || {}),
   }
 
   if (!resolvedRequiresAuth) {
     requestHeaders.set('x-proxy-auth-optional', 'true')
   }
 
-  if (import.meta.dev) {
-    console.log('[useBackendFetch]', {
-      url: '/api/proxy',
-      targetPath,
-      method: useFetchOptions.method ?? 'GET',
-      requiresAuth: resolvedRequiresAuth,
-      query: requestQuery,
-      body: resolvedBody
-    })
-  }
-
   const fetchOptions: UseFetchOptionsFor<Response> = {
     ...useFetchOptions,
     headers: requestHeaders,
     query: requestQuery,
-    body: resolvedBody
+    body: resolvedBody,
   }
 
   return useFetch<Response>('/api/proxy', fetchOptions)

@@ -17,8 +17,8 @@ const providers = computed<ButtonProps[]>(() => [
     block: true,
     onClick: async () => {
       await login(redirectTo.value)
-    }
-  }
+    },
+  },
 ])
 
 if (loggedIn.value) {

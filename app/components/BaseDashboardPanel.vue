@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { DashboardPanelProps, BreadcrumbItem } from '@nuxt/ui'
+import type { BreadcrumbItem, DashboardPanelProps } from '@nuxt/ui'
 
 interface Props {
   id: string

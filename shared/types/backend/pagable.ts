@@ -27,12 +27,12 @@ interface PageRequest<TFilter = undefined> {
 
 const PAGE_DEFAULTS = {
   number: 0,
-  size: 20
+  size: 20,
 } as const
 
 const DEFAULT_PAGE_REQUEST: Required<Omit<PageRequest<never>, 'filter' | 'sort'>> = {
   page: PAGE_DEFAULTS.number,
-  size: PAGE_DEFAULTS.size
+  size: PAGE_DEFAULTS.size,
 }
 
 type PageQuery = Record<string, QueryValue>
@@ -74,12 +74,12 @@ function addFilterToQuery(query: PageQuery, filter: unknown, prefix = 'filter') 
 function toPageQuery<TFilter>(request: PageRequest<TFilter> = {}): PageQuery {
   const withDefaults: PageRequest<TFilter> = {
     ...DEFAULT_PAGE_REQUEST,
-    ...request
+    ...request,
   }
 
   const query: PageQuery = {
     page: withDefaults.page,
-    size: withDefaults.size
+    size: withDefaults.size,
   }
 
   const sort = toSortQuery(withDefaults.sort)
@@ -93,15 +93,15 @@ function toPageQuery<TFilter>(request: PageRequest<TFilter> = {}): PageQuery {
 }
 
 export {
-  PAGE_DEFAULTS,
   DEFAULT_PAGE_REQUEST,
-  toPageQuery
+  PAGE_DEFAULTS,
+  toPageQuery,
 }
 
 export type {
-  SortingState,
   PageInfo,
-  PageResponse,
+  PageQuery,
   PageRequest,
-  PageQuery
+  PageResponse,
+  SortingState,
 }

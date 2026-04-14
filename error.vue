@@ -6,7 +6,7 @@ const props = defineProps<{
   error: NuxtError
 }>()
 
-type ErrorData = {
+interface ErrorData {
   from?: string
   requiredGroups?: string[]
 }
@@ -55,11 +55,11 @@ const message = computed(() => {
   return errorMessage.value
 })
 
-const goHome = async () => {
+async function goHome() {
   await clearError({ redirect: '/' })
 }
 
-const goBack = async () => {
+async function goBack() {
   await clearError({ redirect: fallbackFrom.value })
 }
 </script>
@@ -91,7 +91,7 @@ const goBack = async () => {
       :error="{
         statusCode,
         statusMessage: title,
-        message
+        message,
       }"
     >
       <template #links>

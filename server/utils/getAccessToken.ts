@@ -1,10 +1,10 @@
 import type { H3Event } from 'h3'
 
-type OidcDiscoveryResponse = {
+interface OidcDiscoveryResponse {
   token_endpoint?: string
 }
 
-type OidcRefreshResponse = {
+interface OidcRefreshResponse {
   access_token: string
   refresh_token?: string
   expires_in?: number
@@ -67,19 +67,19 @@ export async function getAccessToken(event: H3Event): Promise<string> {
       grant_type: 'refresh_token',
       refresh_token: secure.refreshToken,
       client_id: String(config.oauth.oidc.clientId),
-      client_secret: String(config.oauth.oidc.clientSecret)
-    }).toString()
+      client_secret: String(config.oauth.oidc.clientSecret),
+    }).toString(),
   }).catch((error) => {
     throw createError({
       statusCode: 401,
-      message: `Token refresh failed: ${error?.data?.error_description ?? error?.data?.error ?? error?.message}`
+      message: `Token refresh failed: ${error?.data?.error_description ?? error?.data?.error ?? error?.message}`,
     })
   })
 
   if (newTokens.error || !newTokens.access_token) {
     throw createError({
       statusCode: 401,
-      message: `Token refresh failed: ${newTokens.error_description ?? newTokens.error ?? 'invalid refresh response'}`
+      message: `Token refresh failed: ${newTokens.error_description ?? newTokens.error ?? 'invalid refresh response'}`,
     })
   }
 
@@ -92,8 +92,8 @@ export async function getAccessToken(event: H3Event): Promise<string> {
     secure: {
       ...secure,
       accessToken: newTokens.access_token,
-      refreshToken: newTokens.refresh_token ?? secure.refreshToken
-    }
+      refreshToken: newTokens.refresh_token ?? secure.refreshToken,
+    },
   })
 
   return newTokens.access_token

@@ -14,13 +14,13 @@ const displayEmail = computed(() => user.value?.email || 'No email')
 
 const avatar = computed(() => ({
   src: `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(displayName.value)}`,
-  alt: displayName.value
+  alt: displayName.value,
 }))
 
 function mockSelect(label: string) {
   return (e: Event) => {
     e.preventDefault()
-    console.info(`[mock] ${label}`)
+    console.warn(`[mock] ${label}`)
   }
 }
 
@@ -29,16 +29,16 @@ const items = computed<DropdownMenuItem[][]>(() => ([
     type: 'label',
     label: displayName.value,
     avatar: avatar.value,
-    description: displayEmail.value
+    description: displayEmail.value,
   }],
   [{
     label: 'Profile',
     icon: 'i-lucide-user',
-    onSelect: mockSelect('Profile')
+    onSelect: mockSelect('Profile'),
   }, {
     label: 'Settings',
     icon: 'i-lucide-settings',
-    onSelect: mockSelect('Settings')
+    onSelect: mockSelect('Settings'),
   }],
   [{
     label: 'Appearance',
@@ -51,7 +51,7 @@ const items = computed<DropdownMenuItem[][]>(() => ([
       onSelect(e: Event) {
         e.preventDefault()
         colorMode.preference = 'light'
-      }
+      },
     }, {
       label: 'Dark',
       icon: 'i-lucide-moon',
@@ -60,7 +60,7 @@ const items = computed<DropdownMenuItem[][]>(() => ([
       onSelect(e: Event) {
         e.preventDefault()
         colorMode.preference = 'dark'
-      }
+      },
     }, {
       label: 'System',
       icon: 'i-lucide-monitor',
@@ -69,30 +69,30 @@ const items = computed<DropdownMenuItem[][]>(() => ([
       onSelect(e: Event) {
         e.preventDefault()
         colorMode.preference = 'system'
-      }
-    }]
+      },
+    }],
   }, {
     label: 'Language (mock)',
     icon: 'i-lucide-languages',
-    onSelect: mockSelect('Language')
+    onSelect: mockSelect('Language'),
   }, {
     label: 'Notifications (mock)',
     icon: 'i-lucide-bell',
-    onSelect: mockSelect('Notifications')
+    onSelect: mockSelect('Notifications'),
   }],
   [{
     label: 'Documentation',
     icon: 'i-lucide-book-open',
     to: 'https://ui.nuxt.com/docs/getting-started/installation/nuxt',
-    target: '_blank'
+    target: '_blank',
   }, {
     label: 'Help center (mock)',
     icon: 'i-lucide-life-buoy',
-    onSelect: mockSelect('Help center')
+    onSelect: mockSelect('Help center'),
   }, {
     label: 'Send feedback (mock)',
     icon: 'i-lucide-message-square',
-    onSelect: mockSelect('Send feedback')
+    onSelect: mockSelect('Send feedback'),
   }],
   [{
     label: 'Log out',
@@ -101,8 +101,8 @@ const items = computed<DropdownMenuItem[][]>(() => ([
     async onSelect(e: Event) {
       e.preventDefault()
       await logout()
-    }
-  }]
+    },
+  }],
 ]))
 </script>
 

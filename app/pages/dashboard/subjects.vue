@@ -8,7 +8,7 @@ import CreateSubjectToolbarForm from '~/components/subjects/CreateSubjectToolbar
       id="dashboard-subjects"
       :items="[
         { label: 'Dashboard', to: '/dashboard' },
-        { label: 'Subjects', to: '/dashboard/subjects' }
+        { label: 'Subjects', to: '/dashboard/subjects' },
       ]"
     >
       <template #actions>

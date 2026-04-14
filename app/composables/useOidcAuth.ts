@@ -6,7 +6,7 @@ export function useOidcAuth() {
     const redirectQuery = encodeURIComponent(redirect)
 
     return navigateTo(`/auth/oidc?redirect=${redirectQuery}`, {
-      external: true
+      external: true,
     })
   }
 
@@ -33,6 +33,6 @@ export function useOidcAuth() {
     login,
     toLoginPath,
     logout,
-    refreshNow
+    refreshNow,
   }
 }

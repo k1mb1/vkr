@@ -20,26 +20,26 @@ const createGroupSchema = z.object({
         .trim()
         .min(1, 'Add at least one student to subgroup')
         .refine(value => parseSubgroupStudents(value).length > 0, {
-          message: 'Add at least one student to subgroup'
-        })
+          message: 'Add at least one student to subgroup',
+        }),
     )
-    .min(1, 'Add at least one subgroup')
+    .min(1, 'Add at least one subgroup'),
 })
 
 type CreateGroupFormData = z.output<typeof createGroupSchema>
-type ApiErrorPayload = {
+interface ApiErrorPayload {
   statusMessage?: string
   message?: string
 }
 
-type ApiErrorShape = {
+interface ApiErrorShape {
   message?: string
   data?: ApiErrorPayload
 }
 
 const state = reactive<CreateGroupFormData>({
   groupName: '',
-  subgroupInputs: ['']
+  subgroupInputs: [''],
 })
 
 const pending = ref(false)
@@ -108,14 +108,14 @@ async function onSubmit(event: { data: CreateGroupFormData }, close: () => void)
       title: 'Cannot create group',
       description: 'Add at least one subgroup and one student name.',
       color: 'error',
-      icon: 'i-lucide-circle-alert'
+      icon: 'i-lucide-circle-alert',
     })
     return
   }
 
   const payload: CreateGroupRequest = {
     groupName: event.data.groupName.trim(),
-    studentNames
+    studentNames,
   }
 
   pending.value = true
@@ -133,7 +133,7 @@ async function onSubmit(event: { data: CreateGroupFormData }, close: () => void)
       title: 'Group created',
       description: `"${createdGroup.name}" is ready.`,
       color: 'success',
-      icon: 'i-lucide-check'
+      icon: 'i-lucide-check',
     })
 
     close()
@@ -142,14 +142,16 @@ async function onSubmit(event: { data: CreateGroupFormData }, close: () => void)
     if (props.afterCreate) {
       await props.afterCreate()
     }
-  } catch (error: unknown) {
+  }
+  catch (error: unknown) {
     toast.add({
       title: 'Create failed',
       description: getErrorMessage(error),
       color: 'error',
-      icon: 'i-lucide-circle-alert'
+      icon: 'i-lucide-circle-alert',
     })
-  } finally {
+  }
+  finally {
     pending.value = false
   }
 }
@@ -173,7 +175,7 @@ async function onSubmit(event: { data: CreateGroupFormData }, close: () => void)
         :schema="createGroupSchema"
         :state="state"
         class="space-y-4"
-        @submit="(event) => onSubmit(event, close)"
+        @submit="onSubmit($event, close)"
       >
         <UFormField
           name="groupName"

@@ -14,23 +14,23 @@ const createSubjectSchema = z.object({
     .trim()
     .max(500, 'Description must be 500 characters or less')
     .optional()
-    .or(z.literal(''))
+    .or(z.literal('')),
 })
 
 type CreateSubjectFormData = z.output<typeof createSubjectSchema>
-type ApiErrorPayload = {
+interface ApiErrorPayload {
   statusMessage?: string
   message?: string
 }
 
-type ApiErrorShape = {
+interface ApiErrorShape {
   message?: string
   data?: ApiErrorPayload
 }
 
 const state = reactive<CreateSubjectFormData>({
   name: '',
-  description: ''
+  description: '',
 })
 
 const pending = ref(false)
@@ -78,7 +78,7 @@ async function onSubmit(event: { data: CreateSubjectFormData }, close: () => voi
       title: 'Cannot create subject',
       description: 'Teacher id was not found in the current OIDC session.',
       color: 'error',
-      icon: 'i-lucide-circle-alert'
+      icon: 'i-lucide-circle-alert',
     })
     return
   }
@@ -87,7 +87,7 @@ async function onSubmit(event: { data: CreateSubjectFormData }, close: () => voi
   const payload: CreateSubjectRequest = {
     name: event.data.name.trim(),
     teacherId: teacherId.value,
-    ...(normalizedDescription ? { description: normalizedDescription } : {})
+    ...(normalizedDescription ? { description: normalizedDescription } : {}),
   }
 
   pending.value = true
@@ -105,20 +105,22 @@ async function onSubmit(event: { data: CreateSubjectFormData }, close: () => voi
       title: 'Subject created',
       description: `"${createdSubject.name}" is ready.`,
       color: 'success',
-      icon: 'i-lucide-check'
+      icon: 'i-lucide-check',
     })
 
     close()
     resetForm()
     await navigateTo(`/dashboard/subjects/${createdSubject.id}`)
-  } catch (error: unknown) {
+  }
+  catch (error: unknown) {
     toast.add({
       title: 'Create failed',
       description: getErrorMessage(error),
       color: 'error',
-      icon: 'i-lucide-circle-alert'
+      icon: 'i-lucide-circle-alert',
     })
-  } finally {
+  }
+  finally {
     pending.value = false
   }
 }
@@ -142,7 +144,7 @@ async function onSubmit(event: { data: CreateSubjectFormData }, close: () => voi
         :schema="createSubjectSchema"
         :state="state"
         class="space-y-4"
-        @submit="(event) => onSubmit(event, close)"
+        @submit="onSubmit($event, close)"
       >
         <UFormField
           name="name"

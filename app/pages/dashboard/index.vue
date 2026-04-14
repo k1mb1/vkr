@@ -5,11 +5,11 @@ const refreshing = ref(false)
 const refreshError = ref<string | null>(null)
 const teacherSyncError = useState<string | null>('teacher-sync-error', () => null)
 
-type ApiErrorPayload = {
+interface ApiErrorPayload {
   statusMessage?: string
 }
 
-type ApiError = {
+interface ApiError {
   data?: ApiErrorPayload
 }
 
@@ -19,10 +19,12 @@ async function runRefresh() {
 
   try {
     await refreshNow()
-  } catch (error: unknown) {
+  }
+  catch (error: unknown) {
     const apiError = error as ApiError
     refreshError.value = apiError.data?.statusMessage || 'Refresh failed'
-  } finally {
+  }
+  finally {
     refreshing.value = false
   }
 }

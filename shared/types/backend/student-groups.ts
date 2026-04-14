@@ -29,8 +29,8 @@ interface SubgroupResponse {
 
 export type {
   CreateGroupRequest,
-  StudentGroupPageResponse,
   StudentEntryResponse,
+  StudentGroupPageResponse,
   StudentGroupResponse,
-  SubgroupResponse
+  SubgroupResponse,
 }
