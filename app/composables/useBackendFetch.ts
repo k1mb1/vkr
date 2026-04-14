@@ -5,6 +5,7 @@ type QueryValue = QueryPrimitive | QueryPrimitive[]
 type BackendBody = BodyInit | object | null | undefined
 
 type UseFetchOptionsFor<Response> = NonNullable<Parameters<typeof useFetch<Response>>[1]>
+type UseBackendFetchReturn<Response> = ReturnType<typeof useFetch<Response>>
 
 export type BackendQuery = Record<string, QueryValue>
 
@@ -40,7 +41,7 @@ export function useBackendFetch<
 >(
   url: string | (() => string),
   options: BackendFetchOptions<Response, Body, Query> = {}
-) {
+): UseBackendFetchReturn<Response> {
   const {
     headers,
     requiresAuth,
