@@ -20,6 +20,10 @@ interface FindSubjectsFilter {
   archived: boolean
 }
 
+const DEFAULT_FIND_SUBJECTS_FILTER: FindSubjectsFilter = {
+  archived: false,
+}
+
 const subjectNameSchema = z
   .string()
   .trim()
@@ -49,4 +53,5 @@ export type {
 
 export {
   createSubjectRequestSchema,
+  DEFAULT_FIND_SUBJECTS_FILTER,
 }

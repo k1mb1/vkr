@@ -1,6 +1,6 @@
+import type { PageRequest } from '#shared/types/backend'
 import type { MaybeRefOrGetter } from 'vue'
 import type { ZodType } from 'zod'
-import type { PageRequest } from '#shared/types/backend'
 import { toPageQuery } from '#shared/types/backend'
 import { toValue } from 'vue'
 
