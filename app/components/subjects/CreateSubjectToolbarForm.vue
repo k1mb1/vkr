@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { CreateSubjectFormData, SubjectResponse } from '#shared/types/backend'
-import { createSubjectFormSchema, toCreateSubjectRequestPayload } from '#shared/types/backend'
+import type { CreateSubjectRequestPayload, SubjectResponse } from '#shared/types/backend'
+import { createSubjectRequestSchema } from '#shared/types/backend'
 import { useSubjectsApi } from '~/composables/api/useSubjectsApi'
 
 interface ApiErrorPayload {
@@ -13,9 +13,10 @@ interface ApiErrorShape {
   data?: ApiErrorPayload
 }
 
-const state = reactive<CreateSubjectFormData>({
+const state = reactive<CreateSubjectRequestPayload>({
   name: '',
   description: '',
+  teacherId: '',
 })
 
 const pending = ref(false)
@@ -28,6 +29,10 @@ const teacherId = computed(() => {
   const value = user.value?.sub
   return typeof value === 'string' && value.length > 0 ? value : null
 })
+
+watch(teacherId, (value) => {
+  state.teacherId = value ?? ''
+}, { immediate: true })
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) {
@@ -45,6 +50,7 @@ function getErrorMessage(error: unknown): string {
 function resetForm() {
   state.name = ''
   state.description = ''
+  state.teacherId = ''
 }
 
 function onAfterLeave() {
@@ -53,7 +59,7 @@ function onAfterLeave() {
   }
 }
 
-async function onSubmit(event: { data: CreateSubjectFormData }, close: () => void) {
+async function onSubmit(event: { data: CreateSubjectRequestPayload }, close: () => void) {
   if (pending.value) {
     return
   }
@@ -68,18 +74,24 @@ async function onSubmit(event: { data: CreateSubjectFormData }, close: () => voi
     return
   }
 
-  const payload = toCreateSubjectRequestPayload(event.data, teacherId.value)
+  const payload: CreateSubjectRequestPayload = {
+    ...event.data,
+    teacherId: teacherId.value,
+  }
 
   pending.value = true
 
   try {
-    const response = await create(payload)
+    const {
+      data,
+      error,
+    } = await create(payload)
 
-    if (response.error.value || !response.data.value) {
-      throw response.error.value || new Error('Subject was not returned by API')
+    if (error.value || !data.value) {
+      throw error.value || new Error('Subject was not returned by API')
     }
 
-    const createdSubject: SubjectResponse = response.data.value
+    const createdSubject: SubjectResponse = data.value
 
     toast.add({
       title: 'Subject created',
@@ -121,7 +133,7 @@ async function onSubmit(event: { data: CreateSubjectFormData }, close: () => voi
 
     <template #body="{ close }">
       <UForm
-        :schema="createSubjectFormSchema"
+        :schema="createSubjectRequestSchema"
         :state="state"
         class="space-y-4"
         @submit="onSubmit($event, close)"

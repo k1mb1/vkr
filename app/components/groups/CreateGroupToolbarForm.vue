@@ -1,32 +1,12 @@
 <script setup lang="ts">
-import type { CreateGroupRequest, StudentGroupResponse } from '#shared/types/backend'
-import { z } from 'zod'
+import type { CreateGroupRequestPayload, StudentGroupResponse } from '#shared/types/backend'
+import { createGroupRequestSchema } from '#shared/types/backend'
 import { useStudentsGroupsApi } from '~/composables/api/useStudentsGroups'
 
 const props = defineProps<{
   afterCreate?: () => void | Promise<void>
 }>()
 
-const createGroupSchema = z.object({
-  groupName: z
-    .string()
-    .trim()
-    .min(1, 'Group name is required')
-    .max(120, 'Group name must be 120 characters or less'),
-  subgroupInputs: z
-    .array(
-      z
-        .string()
-        .trim()
-        .min(1, 'Add at least one student to subgroup')
-        .refine(value => parseSubgroupStudents(value).length > 0, {
-          message: 'Add at least one student to subgroup',
-        }),
-    )
-    .min(1, 'Add at least one subgroup'),
-})
-
-type CreateGroupFormData = z.output<typeof createGroupSchema>
 interface ApiErrorPayload {
   statusMessage?: string
   message?: string
@@ -37,9 +17,9 @@ interface ApiErrorShape {
   data?: ApiErrorPayload
 }
 
-const state = reactive<CreateGroupFormData>({
+const state = reactive<CreateGroupRequestPayload>({
   groupName: '',
-  subgroupInputs: [''],
+  studentNames: [['']],
 })
 
 const pending = ref(false)
@@ -54,22 +34,24 @@ function parseSubgroupStudents(value: string): string[] {
     .filter(name => name.length > 0)
 }
 
-function parseStudentNamesMatrix(subgroupInputs: string[]): string[][] {
-  return subgroupInputs
-    .map(parseSubgroupStudents)
-    .filter(subgroup => subgroup.length > 0)
+function formatSubgroupStudents(value: string[]): string {
+  return value.join('\n')
+}
+
+function updateSubgroupStudents(index: number, value: string) {
+  state.studentNames[index] = parseSubgroupStudents(value)
 }
 
 function addSubgroup() {
-  state.subgroupInputs.push('')
+  state.studentNames.push([''])
 }
 
 function removeSubgroup(index: number) {
-  if (state.subgroupInputs.length <= 1) {
+  if (state.studentNames.length <= 1) {
     return
   }
 
-  state.subgroupInputs.splice(index, 1)
+  state.studentNames.splice(index, 1)
 }
 
 function getErrorMessage(error: unknown): string {
@@ -87,7 +69,7 @@ function getErrorMessage(error: unknown): string {
 
 function resetForm() {
   state.groupName = ''
-  state.subgroupInputs = ['']
+  state.studentNames = [['']]
 }
 
 function onAfterLeave() {
@@ -96,38 +78,26 @@ function onAfterLeave() {
   }
 }
 
-async function onSubmit(event: { data: CreateGroupFormData }, close: () => void) {
+async function onSubmit(event: { data: CreateGroupRequestPayload }, close: () => void) {
   if (pending.value) {
     return
   }
 
-  const studentNames = parseStudentNamesMatrix(event.data.subgroupInputs)
-
-  if (studentNames.length === 0) {
-    toast.add({
-      title: 'Cannot create group',
-      description: 'Add at least one subgroup and one student name.',
-      color: 'error',
-      icon: 'i-lucide-circle-alert',
-    })
-    return
-  }
-
-  const payload: CreateGroupRequest = {
-    groupName: event.data.groupName.trim(),
-    studentNames,
-  }
+  const payload: CreateGroupRequestPayload = event.data
 
   pending.value = true
 
   try {
-    const response = await create(payload)
+    const {
+      data,
+      error,
+    } = await create(payload)
 
-    if (response.error.value || !response.data.value) {
-      throw response.error.value || new Error('Group was not returned by API')
+    if (error.value || !data.value) {
+      throw error.value || new Error('Group was not returned by API')
     }
 
-    const createdGroup: StudentGroupResponse = response.data.value
+    const createdGroup: StudentGroupResponse = data.value
 
     toast.add({
       title: 'Group created',
@@ -172,7 +142,7 @@ async function onSubmit(event: { data: CreateGroupFormData }, close: () => void)
 
     <template #body="{ close }">
       <UForm
-        :schema="createGroupSchema"
+        :schema="createGroupRequestSchema"
         :state="state"
         class="space-y-4"
         @submit="onSubmit($event, close)"
@@ -191,13 +161,13 @@ async function onSubmit(event: { data: CreateGroupFormData }, close: () => void)
         </UFormField>
 
         <UFormField
-          name="subgroupInputs"
+          name="studentNames"
           label="Subgroups"
           required
         >
           <div class="space-y-3">
             <div
-              v-for="(subgroupInput, index) in state.subgroupInputs"
+              v-for="(subgroupStudents, index) in state.studentNames"
               :key="index"
               class="space-y-2"
             >
@@ -211,7 +181,7 @@ async function onSubmit(event: { data: CreateGroupFormData }, close: () => void)
                   variant="ghost"
                   size="xs"
                   icon="i-lucide-trash-2"
-                  :disabled="pending || state.subgroupInputs.length <= 1"
+                  :disabled="pending || state.studentNames.length <= 1"
                   @click="removeSubgroup(index)"
                 >
                   Remove
@@ -219,14 +189,15 @@ async function onSubmit(event: { data: CreateGroupFormData }, close: () => void)
               </div>
 
               <UFormField
-                :name="`subgroupInputs.${index}`"
+                :name="`studentNames.${index}`"
               >
                 <UTextarea
-                  v-model="state.subgroupInputs[index]"
+                  :model-value="formatSubgroupStudents(subgroupStudents)"
                   :rows="4"
                   :disabled="pending"
                   placeholder="Alice\nBob"
                   class="w-full"
+                  @update:model-value="updateSubgroupStudents(index, String($event ?? ''))"
                 />
               </UFormField>
             </div>
