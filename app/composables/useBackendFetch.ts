@@ -1,5 +1,7 @@
 import type { MaybeRefOrGetter } from 'vue'
 import type { ZodType } from 'zod'
+import type { PageRequest } from '#shared/types/backend'
+import { toPageQuery } from '#shared/types/backend'
 import { toValue } from 'vue'
 
 type QueryPrimitive = string | number | boolean | null | undefined
@@ -7,9 +9,10 @@ type QueryValue = QueryPrimitive | QueryPrimitive[]
 type BackendBody = BodyInit | object | null | undefined
 
 type UseFetchOptionsFor<Response> = NonNullable<Parameters<typeof useFetch<Response>>[1]>
-export type BackendFetchResult<Response> = ReturnType<typeof useFetch<Response>>
+type BackendFetchResult<Response> = ReturnType<typeof useFetch<Response>>
 
-export type BackendQuery = Record<string, QueryValue>
+type BackendQuery = object
+type BackendQueryRecord = Record<string, QueryValue>
 
 type BackendFetchQueryInput<Query extends BackendQuery> = MaybeRefOrGetter<Query | undefined>
 type BackendFetchBodyInput<Body extends BackendBody> = MaybeRefOrGetter<Body | undefined>
@@ -17,7 +20,7 @@ type BackendFetchBodySchemaInput<Body extends BackendBody> = MaybeRefOrGetter<Zo
 type BackendFetchHeadersInput = MaybeRefOrGetter<HeadersInit | undefined>
 type BackendFetchRequiresAuthInput = MaybeRefOrGetter<boolean | undefined>
 
-export type BackendFetchOptions<
+type BackendFetchOptions<
   Response,
   Body extends BackendBody,
   Query extends BackendQuery,
@@ -58,12 +61,50 @@ function buildHeaders(headers?: HeadersInit): Headers {
   return new Headers(headers)
 }
 
+function isQueryPrimitive(value: unknown): value is QueryPrimitive {
+  return value === null || value === undefined || ['string', 'number', 'boolean'].includes(typeof value)
+}
+
+function toQueryValue(value: unknown): QueryValue {
+  if (isQueryPrimitive(value)) {
+    return value
+  }
+
+  if (Array.isArray(value) && value.every(isQueryPrimitive)) {
+    return value
+  }
+
+  return JSON.stringify(value)
+}
+
+function isPageRequestQuery(query: BackendQuery | undefined): query is PageRequest<unknown> {
+  if (!query || typeof query !== 'object' || Array.isArray(query)) {
+    return false
+  }
+
+  return 'page' in query || 'size' in query || 'filter' in query || 'sort' in query
+}
+
+function toRequestQueryRecord(query: BackendQuery | undefined): BackendQueryRecord {
+  if (!query || typeof query !== 'object' || Array.isArray(query)) {
+    return {}
+  }
+
+  if (isPageRequestQuery(query)) {
+    return toPageQuery(query)
+  }
+
+  return Object.fromEntries(
+    Object.entries(query).map(([key, value]) => [key, toQueryValue(value)]),
+  )
+}
+
 function resolvePath(url: string | (() => string)): string {
   const value = typeof url === 'function' ? url() : url
   return value.startsWith('/') ? value : `/${value}`
 }
 
-export function useBackendFetch<
+function useBackendFetch<
   Response,
   Body extends BackendBody = undefined,
   Query extends BackendQuery = BackendQuery,
@@ -89,9 +130,9 @@ export function useBackendFetch<
 
   const requestHeaders = buildHeaders(resolvedHeaders)
   const targetPath = resolvePath(url)
-  const requestQuery: { path: string } & BackendQuery = {
+  const requestQuery: { path: string } & Record<string, QueryValue> = {
     path: targetPath,
-    ...(resolvedQuery || {}),
+    ...toRequestQueryRecord(resolvedQuery),
   }
 
   if (!resolvedRequiresAuth) {
@@ -106,4 +147,14 @@ export function useBackendFetch<
   }
 
   return useFetch<Response>('/api/proxy', fetchOptions)
+}
+
+export {
+  useBackendFetch,
+}
+
+export type {
+  BackendFetchOptions,
+  BackendFetchResult,
+  BackendQuery,
 }

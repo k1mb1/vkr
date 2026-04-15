@@ -55,7 +55,7 @@ function addFilterToQuery(query: PageQuery, filter: unknown, prefix = 'filter') 
   }
 
   for (const [key, value] of Object.entries(filter as Record<string, unknown>)) {
-    const queryKey = `${prefix}.${key}`
+    const queryKey = prefix ? `${prefix}.${key}` : key
 
     if (isQueryPrimitive(value)) {
       query[queryKey] = value

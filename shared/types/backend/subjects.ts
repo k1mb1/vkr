@@ -20,12 +20,6 @@ interface FindSubjectsFilter {
   archived: boolean
 }
 
-interface UpdateSubjectRequest {
-  name?: string
-  description?: string | null
-  archived?: boolean
-}
-
 const subjectNameSchema = z
   .string()
   .trim()
@@ -51,7 +45,6 @@ export type {
   CreateSubjectRequestPayload,
   FindSubjectsFilter,
   SubjectResponse,
-  UpdateSubjectRequest,
 }
 
 export {
