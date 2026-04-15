@@ -70,6 +70,7 @@ const tabsData = computed(() => {
   const tabs: Array<{
     value: string
     label: string
+    count: number
     icon: string
     title: string
     emptyTitle: string
@@ -85,7 +86,8 @@ const tabsData = computed(() => {
 
     tabs.push({
       value: 'students',
-      label: `Студенты (${studentsCount.value})`,
+      label: 'Студенты',
+      count: studentsCount.value,
       icon: 'i-lucide-users-round',
       title: 'Основные студенты',
       emptyTitle: 'Нет студентов',
@@ -103,7 +105,8 @@ const tabsData = computed(() => {
 
     tabs.push({
       value: tabValue,
-      label: `${subgroup.name} (${subgroup.students.length})`,
+      label: subgroup.name,
+      count: subgroup.students.length,
       icon: 'i-lucide-git-fork',
       title: subgroup.name,
       emptyTitle: 'Подгруппа пуста',
@@ -120,6 +123,9 @@ const groupTabs = computed<TabsItem[]>(() => {
     value: tab.value,
     label: tab.label,
     icon: tab.icon,
+    badge: {
+      label: tab.count,
+    }
   }))
 })
 const availableTabValues = computed<string[]>(() => tabsData.value.map(tab => tab.value))
@@ -191,10 +197,6 @@ watch(availableTabValues, (values) => {
         v-if="groupTabs.length"
         v-model="activeTab"
         :items="groupTabs"
-        color="neutral"
-        variant="link"
-        :ui="{ trigger: 'grow' }"
-        class="w-full"
       />
 
       <UCard v-if="groupTabs.length && activeTabData">

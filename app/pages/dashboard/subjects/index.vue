@@ -174,7 +174,6 @@ async function onRefreshArchived() {
             <UButton
               color="neutral"
               variant="outline"
-              size="sm"
               icon="i-lucide-arrow-right"
               @click="openSubject(subject.id)"
             >
