@@ -1,3 +1,8 @@
+import {
+  optionalTrimmedStringWithMaxSchema,
+  requiredTrimmedStringWithMaxSchema,
+  uuidV4Schema,
+} from '#shared/types/backend/zod-utils'
 import { z } from 'zod'
 
 interface SubjectResponse {
@@ -24,22 +29,18 @@ const DEFAULT_FIND_SUBJECTS_FILTER: FindSubjectsFilter = {
   archived: false,
 }
 
-const subjectNameSchema = z
-  .string()
-  .trim()
-  .min(1, 'Name is required')
-  .max(120, 'Name must be 120 characters or less')
+const subjectNameSchema = requiredTrimmedStringWithMaxSchema(
+  'Name is required',
+  120,
+  'Name must be 120 characters or less',
+)
 
-const subjectDescriptionRequestSchema = z
-  .string()
-  .trim()
-  .max(500)
-  .optional()
+const subjectDescriptionRequestSchema = optionalTrimmedStringWithMaxSchema(500)
 
 const createSubjectRequestSchema: z.ZodType<CreateSubjectRequest> = z.object({
   name: subjectNameSchema,
   description: subjectDescriptionRequestSchema,
-  teacherId: z.string().trim().min(1),
+  teacherId: uuidV4Schema('Teacher ID must be a valid UUID v4'),
 })
 
 type CreateSubjectRequestPayload = z.output<typeof createSubjectRequestSchema>

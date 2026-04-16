@@ -125,7 +125,7 @@ const groupTabs = computed<TabsItem[]>(() => {
     icon: tab.icon,
     badge: {
       label: tab.count,
-    }
+    },
   }))
 })
 const availableTabValues = computed<string[]>(() => tabsData.value.map(tab => tab.value))

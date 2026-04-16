@@ -1,8 +1,8 @@
-interface CreateTeacherRequest {
-  id: string
-  username: string
-  email: string
-}
+import {
+  emailSchema,
+  requiredTrimmedStringWithMaxSchema,
+} from '#shared/types/backend/zod-utils'
+import { z } from 'zod'
 
 interface UpdateTeacherRequest {
   username: string
@@ -17,8 +17,27 @@ interface TeacherResponse {
   updatedAt: string
 }
 
+const teacherUsernameSchema = requiredTrimmedStringWithMaxSchema(
+  'Username is required',
+  120,
+  'Username must be 120 characters or less',
+)
+
+const teacherEmailSchema = emailSchema('Email must be a valid email address')
+
+const updateTeacherRequestSchema: z.ZodType<UpdateTeacherRequest> = z.object({
+  username: teacherUsernameSchema,
+  email: teacherEmailSchema,
+})
+
+type UpdateTeacherRequestPayload = z.output<typeof updateTeacherRequestSchema>
+
 export type {
-  CreateTeacherRequest,
   TeacherResponse,
   UpdateTeacherRequest,
+  UpdateTeacherRequestPayload,
+}
+
+export {
+  updateTeacherRequestSchema,
 }

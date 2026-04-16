@@ -1,3 +1,7 @@
+import {
+  requiredTrimmedStringSchema,
+  requiredTrimmedStringWithMaxSchema,
+} from '#shared/types/backend/zod-utils'
 import { z } from 'zod'
 
 interface CreateGroupRequest {
@@ -31,16 +35,15 @@ interface SubgroupResponse {
 
 const studentNamesSchema = z.array(
   z.array(
-    z.string()
-      .trim()
-      .min(1, { message: 'Student name cannot be empty' }),
+    requiredTrimmedStringSchema('Student name cannot be empty'),
   ).min(1, { message: 'Each subgroup must contain at least one student' }),
 ).min(1, { message: 'Add at least one subgroup' })
 
-const groupNameSchema = z.string()
-  .trim()
-  .min(1, { message: 'Group name is required' })
-  .max(120, { message: 'Group name must be 120 characters or less' })
+const groupNameSchema = requiredTrimmedStringWithMaxSchema(
+  'Group name is required',
+  120,
+  'Group name must be 120 characters or less',
+)
 
 const createGroupRequestSchema: z.ZodType<CreateGroupRequest> = z.object({
   groupName: groupNameSchema,
