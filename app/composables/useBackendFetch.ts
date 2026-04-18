@@ -28,7 +28,8 @@ type BackendFetchOptions<
   Response,
   Body extends BackendBody,
   Query extends BackendQuery,
-> = Omit<UseFetchOptionsFor<Response>, 'query' | 'body' | 'headers'> & {
+> = Omit<UseFetchOptionsFor<Response>, 'query' | 'body' | 'headers' | 'method'> & {
+  method?: MaybeRefOrGetter<string>
   query?: BackendFetchQueryInput<Query>
   body?: BackendFetchBodyInput<Body>
   bodySchema?: BackendFetchBodySchemaInput<Body>
@@ -144,7 +145,7 @@ function useBackendFetch<
   }
 
   const fetchOptions: UseFetchOptionsFor<Response> = {
-    ...useFetchOptions,
+    ...(useFetchOptions as Omit<UseFetchOptionsFor<Response>, 'query' | 'body' | 'headers'>),
     headers: requestHeaders,
     query: requestQuery,
     body: validatedBody,

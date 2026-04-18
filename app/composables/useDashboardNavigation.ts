@@ -1,5 +1,5 @@
-import type { NavigationMenuItem } from '@nuxt/ui'
 import type { FindSubjectsFilter } from '#shared/types/backend'
+import type { NavigationMenuItem } from '@nuxt/ui'
 import { useSubjectsApi } from '~/composables/api/useSubjectsApi'
 
 function createSection(

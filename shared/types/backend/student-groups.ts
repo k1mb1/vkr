@@ -22,9 +22,15 @@ interface StudentEntryResponse {
   username: string
 }
 
+interface GroupSubjectResponse {
+  id: string
+  name: string
+}
+
 interface StudentGroupResponse {
   id: string
   name: string
+  subjects: GroupSubjectResponse[]
   students: StudentEntryResponse[]
   subgroups: SubgroupResponse[]
 }
@@ -33,6 +39,14 @@ interface SubgroupResponse {
   id: string
   name: string
   students: StudentEntryResponse[]
+}
+
+interface FindGroupsFilter {
+  name?: string
+}
+
+interface UpdateGroupRequest {
+  name: string
 }
 
 const studentNamesSchema = v.pipe(
@@ -56,17 +70,27 @@ const createGroupRequestSchema: SchemaFor<CreateGroupRequest> = v.object({
   studentNames: studentNamesSchema,
 })
 
+const updateGroupRequestSchema: SchemaFor<UpdateGroupRequest> = v.object({
+  name: groupNameSchema,
+})
+
 type CreateGroupRequestPayload = InferOutput<typeof createGroupRequestSchema>
+type UpdateGroupRequestPayload = InferOutput<typeof updateGroupRequestSchema>
 
 export type {
   CreateGroupRequest,
   CreateGroupRequestPayload,
+  FindGroupsFilter,
+  GroupSubjectResponse,
   StudentEntryResponse,
   StudentGroupPageResponse,
   StudentGroupResponse,
   SubgroupResponse,
+  UpdateGroupRequest,
+  UpdateGroupRequestPayload,
 }
 
 export {
   createGroupRequestSchema,
+  updateGroupRequestSchema,
 }
