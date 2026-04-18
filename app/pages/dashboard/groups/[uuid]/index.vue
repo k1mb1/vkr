@@ -2,17 +2,22 @@
 import type { StudentGroupResponse } from '#shared/types/backend'
 import type { TableColumn, TabsItem } from '@nuxt/ui'
 import { useStudentsGroupsApi } from '~/composables/api/useStudentsGroups'
+import { useStudentsApi } from '~/composables/api/useStudentsApi'
 import { useGroupsBreadcrumbLabel } from '~/composables/useGroupsBreadcrumbItems'
 
 const route = useRoute()
 const groupId = computed(() => String(route.params.uuid ?? ''))
 const activeGroupName = useGroupsBreadcrumbLabel()
+const toast = useToast()
 
 const { findById } = useStudentsGroupsApi()
+const studentsApi = useStudentsApi()
+
 const {
   data,
   pending,
   error,
+  refresh,
 } = findById(groupId)
 
 const group = computed<StudentGroupResponse | null>(() => data.value ?? null)
@@ -23,6 +28,7 @@ type SortDirection = 'asc' | 'desc'
 
 interface StudentTableRow {
   key: string
+  id: string
   index: number
   username: string
 }
@@ -64,6 +70,16 @@ const tableColumns: TableColumn<StudentTableRow>[] = [
       },
     },
   },
+  {
+    id: 'actions',
+    header: '',
+    meta: {
+      class: {
+        th: 'w-12',
+        td: 'w-12',
+      },
+    },
+  },
 ]
 
 const tabsData = computed(() => {
@@ -75,12 +91,13 @@ const tabsData = computed(() => {
     title: string
     emptyTitle: string
     emptyDescription: string
-    rows: Array<{ key: string, username: string }>
+    rows: Array<{ key: string, id: string, username: string }>
   }> = []
 
   if (studentsCount.value > 0) {
     const studentsRows = (group.value?.students ?? []).map((student, localIndex) => ({
       key: `students:${String(student.id ?? `${student.username}:${localIndex}`)}`,
+      id: student.id,
       username: student.username,
     }))
 
@@ -100,6 +117,7 @@ const tabsData = computed(() => {
     const tabValue = `${subgroupTabPrefix}${String(subgroup.id)}`
     const subgroupRows = subgroup.students.map((student, localIndex) => ({
       key: `${tabValue}:${String(student.id ?? `${student.username}:${localIndex}`)}`,
+      id: student.id,
       username: student.username,
     }))
 
@@ -174,6 +192,113 @@ watch(availableTabValues, (values) => {
     }
   }
 }, { immediate: true })
+
+// Student actions
+const editingStudent = ref<{ id: string, username: string } | null>(null)
+const editUsername = ref('')
+const editPending = ref(false)
+
+const removingStudentId = ref<string | null>(null)
+const removePending = ref(false)
+
+const deletingStudentId = ref<string | null>(null)
+const deletePending = ref(false)
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message
+  if (typeof error === 'string') return error
+  const e = error as { data?: { statusMessage?: string, message?: string }, message?: string }
+  return e.data?.statusMessage || e.data?.message || e.message || 'Что-то пошло не так'
+}
+
+function openEditStudent(student: { id: string, username: string }) {
+  editingStudent.value = { ...student }
+  editUsername.value = student.username
+}
+
+function closeEditStudent() {
+  editingStudent.value = null
+  editUsername.value = ''
+}
+
+async function onRenameStudent() {
+  if (!editingStudent.value || editPending.value) return
+  editPending.value = true
+  try {
+    const { error: err } = await studentsApi.update(editingStudent.value.id, { name: editUsername.value.trim() })
+    if (err.value) throw err.value
+    toast.add({ title: 'Студент переименован', color: 'success', icon: 'i-lucide-check' })
+    closeEditStudent()
+    await refresh()
+  }
+  catch (e) {
+    toast.add({ title: 'Ошибка', description: getErrorMessage(e), color: 'error', icon: 'i-lucide-circle-alert' })
+  }
+  finally {
+    editPending.value = false
+  }
+}
+
+async function onRemoveFromGroup() {
+  if (!removingStudentId.value || removePending.value) return
+  removePending.value = true
+  try {
+    const { error: err } = await studentsApi.update(removingStudentId.value, { groupId: null })
+    if (err.value) throw err.value
+    toast.add({ title: 'Студент убран из группы', color: 'success', icon: 'i-lucide-check' })
+    removingStudentId.value = null
+    await refresh()
+  }
+  catch (e) {
+    toast.add({ title: 'Ошибка', description: getErrorMessage(e), color: 'error', icon: 'i-lucide-circle-alert' })
+  }
+  finally {
+    removePending.value = false
+  }
+}
+
+async function onDeleteStudent() {
+  if (!deletingStudentId.value || deletePending.value) return
+  deletePending.value = true
+  try {
+    const { error: err } = await studentsApi.remove(deletingStudentId.value)
+    if (err.value) throw err.value
+    toast.add({ title: 'Студент удалён', color: 'success', icon: 'i-lucide-check' })
+    deletingStudentId.value = null
+    await refresh()
+  }
+  catch (e) {
+    toast.add({ title: 'Ошибка', description: getErrorMessage(e), color: 'error', icon: 'i-lucide-circle-alert' })
+  }
+  finally {
+    deletePending.value = false
+  }
+}
+
+function getStudentActions(row: StudentTableRow) {
+  return [
+    [
+      {
+        label: 'Переименовать',
+        icon: 'i-lucide-pencil',
+        onSelect: () => openEditStudent({ id: row.id, username: row.username }),
+      },
+      {
+        label: 'Убрать из группы',
+        icon: 'i-lucide-user-minus',
+        onSelect: () => { removingStudentId.value = row.id },
+      },
+    ],
+    [
+      {
+        label: 'Удалить',
+        icon: 'i-lucide-trash-2',
+        color: 'error' as const,
+        onSelect: () => { deletingStudentId.value = row.id },
+      },
+    ],
+  ]
+}
 </script>
 
 <template>
@@ -231,6 +356,17 @@ watch(availableTabValues, (values) => {
             </UButton>
           </template>
 
+          <template #actions-cell="{ row }">
+            <UDropdownMenu :items="getStudentActions(row.original)">
+              <UButton
+                icon="i-lucide-ellipsis-vertical"
+                color="neutral"
+                variant="ghost"
+                :aria-label="`Действия со студентом ${row.original.username}`"
+              />
+            </UDropdownMenu>
+          </template>
+
           <template #empty>
             <UEmpty
               icon="i-lucide-users-round"
@@ -261,5 +397,118 @@ watch(availableTabValues, (values) => {
       variant="naked"
       class="h-full"
     />
+
+    <!-- Rename student modal -->
+    <UModal
+      :open="!!editingStudent"
+      title="Переименовать студента"
+      @update:open="(v) => { if (!v) closeEditStudent() }"
+    >
+      <template #body="{ close }">
+        <div class="space-y-4">
+          <UFormField label="Имя" required>
+            <UInput
+              v-model="editUsername"
+              placeholder="Введите имя"
+              :disabled="editPending"
+              class="w-full"
+              @keydown.enter="onRenameStudent"
+            />
+          </UFormField>
+
+          <div class="flex justify-end gap-2">
+            <UButton
+              color="neutral"
+              variant="soft"
+              :disabled="editPending"
+              @click="close()"
+            >
+              Отмена
+            </UButton>
+
+            <UButton
+              icon="i-lucide-check"
+              :loading="editPending"
+              :disabled="editPending || !editUsername.trim()"
+              @click="onRenameStudent"
+            >
+              Сохранить
+            </UButton>
+          </div>
+        </div>
+      </template>
+    </UModal>
+
+    <!-- Remove from group confirm modal -->
+    <UModal
+      :open="!!removingStudentId"
+      title="Убрать из группы"
+      @update:open="(v) => { if (!v && !removePending) removingStudentId = null }"
+    >
+      <template #body="{ close }">
+        <div class="space-y-4">
+          <p class="text-sm text-muted">
+            Студент будет откреплён от группы, но не удалён из системы.
+          </p>
+
+          <div class="flex justify-end gap-2">
+            <UButton
+              color="neutral"
+              variant="soft"
+              :disabled="removePending"
+              @click="close()"
+            >
+              Отмена
+            </UButton>
+
+            <UButton
+              color="warning"
+              icon="i-lucide-user-minus"
+              :loading="removePending"
+              :disabled="removePending"
+              @click="onRemoveFromGroup"
+            >
+              Убрать
+            </UButton>
+          </div>
+        </div>
+      </template>
+    </UModal>
+
+    <!-- Delete student confirm modal -->
+    <UModal
+      :open="!!deletingStudentId"
+      title="Удалить студента"
+      @update:open="(v) => { if (!v && !deletePending) deletingStudentId = null }"
+    >
+      <template #body="{ close }">
+        <div class="space-y-4">
+          <p class="text-sm text-muted">
+            Студент будет удалён из системы безвозвратно.
+          </p>
+
+          <div class="flex justify-end gap-2">
+            <UButton
+              color="neutral"
+              variant="soft"
+              :disabled="deletePending"
+              @click="close()"
+            >
+              Отмена
+            </UButton>
+
+            <UButton
+              color="error"
+              icon="i-lucide-trash-2"
+              :loading="deletePending"
+              :disabled="deletePending"
+              @click="onDeleteStudent"
+            >
+              Удалить
+            </UButton>
+          </div>
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>
