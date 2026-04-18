@@ -37,7 +37,7 @@ export default defineNuxtConfig({
   vite: {
     optimizeDeps: {
       include: [
-        'zod',
+        'valibot',
       ],
     },
   },

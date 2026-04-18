@@ -82,10 +82,6 @@ watch(openedAccordion, async (value) => {
   await refreshArchivedSubjects()
 })
 
-function openSubject(subjectId: string) {
-  return navigateTo(`/dashboard/subjects/${subjectId}`)
-}
-
 async function onRefreshActive() {
   if (!teacherId.value) {
     return
@@ -105,12 +101,22 @@ async function onRefreshArchived() {
 </script>
 
 <template>
-  <div class="flex h-full flex-col gap-4 p-4 sm:p-6">
+  <div class="flex h-full flex-col gap-6 p-4 sm:p-6">
+    <UPageHeader
+      title="Предметы"
+      description="Управление вашими предметами"
+    >
+      <template #links>
+        <CreateSubjectToolbarForm />
+      </template>
+    </UPageHeader>
+
     <UAlert
       v-if="!teacherId"
       color="warning"
       variant="soft"
-      title="Teacher ID not found"
+      icon="i-lucide-circle-alert"
+      title="Сессия не инициализирована"
       description="Предметы будут загружены после инициализации OIDC-сессии."
     />
 
@@ -118,73 +124,59 @@ async function onRefreshArchived() {
       v-if="activeSubjectsError"
       color="error"
       variant="soft"
-      title="Failed to load subjects"
+      icon="i-lucide-circle-x"
+      title="Ошибка загрузки"
       :description="activeSubjectsError.message"
     />
 
-    <UPageCard
-      title="Активные предметы"
-      description="По умолчанию отображаются только неархивированные предметы."
-      class="space-y-4"
-    >
-      <template #extra>
+    <UPageCard class="flex-1" :ui="{ header: 'mb-4 flex items-center gap-2' }">
+      <template #header>
+        <span class="font-medium text-highlighted">Активные предметы</span>
+        <UBadge
+          v-if="activeSubjects.length"
+          :label="String(activeSubjects.length)"
+          color="primary"
+          variant="subtle"
+        />
         <UButton
+          color="neutral"
+          variant="ghost"
           icon="i-lucide-refresh-cw"
+          size="sm"
           :loading="activeSubjectsPending"
           :disabled="!teacherId"
+          class="ms-auto"
           @click="onRefreshActive"
-        >
-          Refresh
-        </UButton>
+        />
       </template>
 
-      <div
-        v-if="activeSubjectsPending"
-        class="space-y-3"
-      >
-        <USkeleton class="h-20 w-full" />
-        <USkeleton class="h-20 w-full" />
-      </div>
+      <UPageColumns v-if="activeSubjectsPending">
+        <USkeleton class="h-24 w-full rounded-lg" />
+        <USkeleton class="h-24 w-full rounded-lg" />
+        <USkeleton class="h-24 w-full rounded-lg" />
+      </UPageColumns>
 
       <UEmpty
         v-else-if="!activeSubjects.length"
         icon="i-lucide-book-open"
         title="Активных предметов нет"
-        description="Создайте первый предмет или обновите список."
+        description="Создайте первый предмет с помощью кнопки выше."
+        variant="naked"
+        class="py-8"
       />
 
-      <div
-        v-else
-        class="space-y-3"
-      >
-        <UCard
+      <UPageColumns v-else>
+        <UPageCard
           v-for="subject in activeSubjects"
           :key="subject.id"
-        >
-          <div class="flex items-start justify-between gap-3">
-            <div class="space-y-1">
-              <p class="text-sm font-semibold text-highlighted">
-                {{ subject.name }}
-              </p>
-              <p class="text-sm text-muted">
-                {{ subject.description || 'Без описания' }}
-              </p>
-            </div>
-
-            <UButton
-              color="neutral"
-              variant="outline"
-              icon="i-lucide-arrow-right"
-              @click="openSubject(subject.id)"
-            >
-              Open
-            </UButton>
-          </div>
-        </UCard>
-      </div>
+          :title="subject.name"
+          :description="subject.description || 'Без описания'"
+          :to="`/dashboard/subjects/${subject.id}`"
+        />
+      </UPageColumns>
     </UPageCard>
 
-    <UPageCard title="Архив">
+    <UCard :ui="{ body: 'p-0' }">
       <UAccordion
         v-model="openedAccordion"
         :items="archivedAccordionItems"
@@ -193,76 +185,57 @@ async function onRefreshArchived() {
         <template #body="{ item }">
           <div
             v-if="item.value === ARCHIVED_ACCORDION_VALUE"
-            class="space-y-3"
+            class="space-y-4 px-4 pb-4"
           >
             <UAlert
               v-if="archivedSubjectsError"
               color="error"
               variant="soft"
-              title="Failed to load archived subjects"
+              icon="i-lucide-circle-x"
+              title="Ошибка загрузки архива"
               :description="archivedSubjectsError.message"
             />
 
-            <div class="flex justify-end">
-              <UButton
-                color="neutral"
-                variant="outline"
-                icon="i-lucide-refresh-cw"
-                :loading="archivedSubjectsPending"
-                :disabled="!teacherId"
-                @click="onRefreshArchived"
-              >
-                Refresh archived
-              </UButton>
-            </div>
-
-            <div
-              v-if="archivedSubjectsPending"
-              class="space-y-3"
-            >
-              <USkeleton class="h-20 w-full" />
-              <USkeleton class="h-20 w-full" />
-            </div>
+            <UPageColumns v-if="archivedSubjectsPending">
+              <USkeleton class="h-24 w-full rounded-lg" />
+              <USkeleton class="h-24 w-full rounded-lg" />
+            </UPageColumns>
 
             <UEmpty
               v-else-if="!archivedSubjects.length"
               icon="i-lucide-archive"
               title="Архивных предметов нет"
-              description=""
+              variant="naked"
+              class="py-6"
             />
 
-            <div
-              v-else
-              class="space-y-3"
-            >
-              <UCard
+            <UPageColumns v-else>
+              <UPageCard
                 v-for="subject in archivedSubjects"
                 :key="subject.id"
-              >
-                <div class="flex items-start justify-between gap-3">
-                  <div class="space-y-1">
-                    <p class="text-sm font-semibold text-highlighted">
-                      {{ subject.name }}
-                    </p>
-                    <p class="text-sm text-muted">
-                      {{ subject.description || 'Без описания' }}
-                    </p>
-                  </div>
+                :title="subject.name"
+                :description="subject.description || 'Без описания'"
+                :to="`/dashboard/subjects/${subject.id}`"
+                class="opacity-60 transition-opacity hover:opacity-100"
+              />
+            </UPageColumns>
 
-                  <UButton
-                    color="neutral"
-                    variant="outline"
-                    icon="i-lucide-arrow-right"
-                    @click="openSubject(subject.id)"
-                  >
-                    Open
-                  </UButton>
-                </div>
-              </UCard>
+            <div class="flex justify-end">
+              <UButton
+                color="neutral"
+                variant="ghost"
+                icon="i-lucide-refresh-cw"
+                size="sm"
+                :loading="archivedSubjectsPending"
+                :disabled="!teacherId"
+                @click="onRefreshArchived"
+              >
+                Обновить
+              </UButton>
             </div>
           </div>
         </template>
       </UAccordion>
-    </UPageCard>
+    </UCard>
   </div>
 </template>
