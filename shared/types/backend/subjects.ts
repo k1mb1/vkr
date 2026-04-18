@@ -1,9 +1,11 @@
+import type { SchemaFor } from '#shared/types/backend/valibot-utils'
+import type { InferOutput } from 'valibot'
 import {
   optionalTrimmedStringWithMaxSchema,
   requiredTrimmedStringWithMaxSchema,
   uuidV4Schema,
-} from '#shared/types/backend/zod-utils'
-import { z } from 'zod'
+} from '#shared/types/backend/valibot-utils'
+import * as v from 'valibot'
 
 interface SubjectResponse {
   id: string
@@ -37,13 +39,13 @@ const subjectNameSchema = requiredTrimmedStringWithMaxSchema(
 
 const subjectDescriptionRequestSchema = optionalTrimmedStringWithMaxSchema(500)
 
-const createSubjectRequestSchema: z.ZodType<CreateSubjectRequest> = z.object({
+const createSubjectRequestSchema: SchemaFor<CreateSubjectRequest> = v.object({
   name: subjectNameSchema,
   description: subjectDescriptionRequestSchema,
   teacherId: uuidV4Schema('Teacher ID must be a valid UUID v4'),
 })
 
-type CreateSubjectRequestPayload = z.output<typeof createSubjectRequestSchema>
+type CreateSubjectRequestPayload = InferOutput<typeof createSubjectRequestSchema>
 
 export type {
   CreateSubjectRequest,

@@ -1,7 +1,9 @@
 import type { PageRequest } from '#shared/types/backend'
+import type { BaseIssue, BaseSchema } from 'valibot'
 import type { MaybeRefOrGetter } from 'vue'
-import type { ZodType } from 'zod'
 import { toPageQuery } from '#shared/types/backend'
+import { useFetch } from 'nuxt/app'
+import * as v from 'valibot'
 import { toValue } from 'vue'
 
 type QueryPrimitive = string | number | boolean | null | undefined
@@ -14,9 +16,11 @@ type BackendFetchResult<Response> = ReturnType<typeof useFetch<Response>>
 type BackendQuery = object
 type BackendQueryRecord = Record<string, QueryValue>
 
+type ValibotSchema<T> = BaseSchema<unknown, T, BaseIssue<unknown>>
+
 type BackendFetchQueryInput<Query extends BackendQuery> = MaybeRefOrGetter<Query | undefined>
 type BackendFetchBodyInput<Body extends BackendBody> = MaybeRefOrGetter<Body | undefined>
-type BackendFetchBodySchemaInput<Body extends BackendBody> = MaybeRefOrGetter<ZodType<Body> | undefined>
+type BackendFetchBodySchemaInput<Body extends BackendBody> = MaybeRefOrGetter<ValibotSchema<Body> | undefined>
 type BackendFetchHeadersInput = MaybeRefOrGetter<HeadersInit | undefined>
 type BackendFetchRequiresAuthInput = MaybeRefOrGetter<boolean | undefined>
 
@@ -38,23 +42,23 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 
 function validateObjectBody<Body extends BackendBody>(
   body: Body | undefined,
-  bodySchema: ZodType<Body> | undefined,
+  bodySchema: ValibotSchema<Body> | undefined,
 ): Body | undefined {
   if (!bodySchema || !isPlainObject(body)) {
     return body
   }
 
-  const parsed = bodySchema.safeParse(body)
+  const result = v.safeParse(bodySchema, body)
 
-  if (!parsed.success) {
-    const issues = parsed.error.issues
-      .map(issue => `${issue.path.join('.') || '(root)'}: ${issue.message}`)
+  if (!result.success) {
+    const issues = result.issues
+      .map(issue => `${issue.path?.map(p => String(p.key)).join('.') || '(root)'}: ${issue.message}`)
       .join('; ')
 
     throw new TypeError(`Invalid request body: ${issues}`)
   }
 
-  return parsed.data
+  return result.output as Body
 }
 
 function buildHeaders(headers?: HeadersInit): Headers {

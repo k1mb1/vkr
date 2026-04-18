@@ -1,8 +1,10 @@
+import type { SchemaFor } from '#shared/types/backend/valibot-utils'
+import type { InferOutput } from 'valibot'
 import {
   requiredTrimmedStringSchema,
   requiredTrimmedStringWithMaxSchema,
-} from '#shared/types/backend/zod-utils'
-import { z } from 'zod'
+} from '#shared/types/backend/valibot-utils'
+import * as v from 'valibot'
 
 interface CreateGroupRequest {
   groupName: string
@@ -33,11 +35,15 @@ interface SubgroupResponse {
   students: StudentEntryResponse[]
 }
 
-const studentNamesSchema = z.array(
-  z.array(
-    requiredTrimmedStringSchema('Student name cannot be empty'),
-  ).min(1, { message: 'Each subgroup must contain at least one student' }),
-).min(1, { message: 'Add at least one subgroup' })
+const studentNamesSchema = v.pipe(
+  v.array(
+    v.pipe(
+      v.array(requiredTrimmedStringSchema('Student name cannot be empty')),
+      v.minLength(1, 'Each subgroup must contain at least one student'),
+    ),
+  ),
+  v.minLength(1, 'Add at least one subgroup'),
+)
 
 const groupNameSchema = requiredTrimmedStringWithMaxSchema(
   'Group name is required',
@@ -45,12 +51,12 @@ const groupNameSchema = requiredTrimmedStringWithMaxSchema(
   'Group name must be 120 characters or less',
 )
 
-const createGroupRequestSchema: z.ZodType<CreateGroupRequest> = z.object({
+const createGroupRequestSchema: SchemaFor<CreateGroupRequest> = v.object({
   groupName: groupNameSchema,
   studentNames: studentNamesSchema,
 })
 
-type CreateGroupRequestPayload = z.output<typeof createGroupRequestSchema>
+type CreateGroupRequestPayload = InferOutput<typeof createGroupRequestSchema>
 
 export type {
   CreateGroupRequest,

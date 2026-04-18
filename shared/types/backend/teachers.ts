@@ -1,8 +1,10 @@
+import type { SchemaFor } from '#shared/types/backend/valibot-utils'
+import type { InferOutput } from 'valibot'
 import {
   emailSchema,
   requiredTrimmedStringWithMaxSchema,
-} from '#shared/types/backend/zod-utils'
-import { z } from 'zod'
+} from '#shared/types/backend/valibot-utils'
+import * as v from 'valibot'
 
 interface UpdateTeacherRequest {
   username: string
@@ -25,12 +27,12 @@ const teacherUsernameSchema = requiredTrimmedStringWithMaxSchema(
 
 const teacherEmailSchema = emailSchema('Email must be a valid email address')
 
-const updateTeacherRequestSchema: z.ZodType<UpdateTeacherRequest> = z.object({
+const updateTeacherRequestSchema: SchemaFor<UpdateTeacherRequest> = v.object({
   username: teacherUsernameSchema,
   email: teacherEmailSchema,
 })
 
-type UpdateTeacherRequestPayload = z.output<typeof updateTeacherRequestSchema>
+type UpdateTeacherRequestPayload = InferOutput<typeof updateTeacherRequestSchema>
 
 export type {
   TeacherResponse,

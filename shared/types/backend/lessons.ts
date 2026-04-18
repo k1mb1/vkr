@@ -1,10 +1,12 @@
+import type { SchemaFor } from '#shared/types/backend/valibot-utils'
+import type { InferOutput } from 'valibot'
 import {
   isoDateTimeSchema,
   nonNegativeIntegerSchema,
   requiredTrimmedStringWithMaxSchema,
   uuidV4Schema,
-} from '#shared/types/backend/zod-utils'
-import { z } from 'zod'
+} from '#shared/types/backend/valibot-utils'
+import * as v from 'valibot'
 
 const LESSON_TYPES = ['LECTURE', 'PRACTICE'] as const
 
@@ -48,31 +50,34 @@ const lessonDateTimeSchema = isoDateTimeSchema('Lesson dateTime must be a valid 
 
 const subjectIdSchema = uuidV4Schema('Subject ID must be a valid UUID v4')
 
-const lessonTypeSchema = z.enum(LESSON_TYPES)
+const lessonTypeSchema = v.picklist(LESSON_TYPES)
 
 const lessonCountSchema = nonNegativeIntegerSchema(
   'Lesson count must be an integer',
   'Lesson count cannot be negative',
 )
 
-const createLessonRequestSchema: z.ZodType<CreateLessonRequest> = z.object({
+const createLessonRequestSchema: SchemaFor<CreateLessonRequest> = v.object({
   name: lessonNameSchema,
   dateTime: lessonDateTimeSchema,
   type: lessonTypeSchema,
   subjectId: subjectIdSchema,
 })
 
-const createLessonsByTypeRequestSchema: z.ZodType<CreateLessonsByTypeRequest> = z.object({
-  subjectId: subjectIdSchema,
-  lectureCount: lessonCountSchema,
-  practiceCount: lessonCountSchema,
-}).refine(
-  request => request.lectureCount > 0 || request.practiceCount > 0,
-  { message: 'At least one lesson must be requested' },
+const createLessonsByTypeRequestSchema: SchemaFor<CreateLessonsByTypeRequest> = v.pipe(
+  v.object({
+    subjectId: subjectIdSchema,
+    lectureCount: lessonCountSchema,
+    practiceCount: lessonCountSchema,
+  }),
+  v.check(
+    data => data.lectureCount > 0 || data.practiceCount > 0,
+    'At least one lesson must be requested',
+  ),
 )
 
-type CreateLessonRequestPayload = z.output<typeof createLessonRequestSchema>
-type CreateLessonsByTypeRequestPayload = z.output<typeof createLessonsByTypeRequestSchema>
+type CreateLessonRequestPayload = InferOutput<typeof createLessonRequestSchema>
+type CreateLessonsByTypeRequestPayload = InferOutput<typeof createLessonsByTypeRequestSchema>
 
 export type {
   CreateLessonRequest,
