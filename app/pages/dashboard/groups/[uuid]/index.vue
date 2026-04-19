@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { StudentGroupResponse } from '#shared/types/backend'
 import type { TableColumn, TabsItem } from '@nuxt/ui'
-import { useStudentsGroupsApi } from '~/composables/api/useStudentsGroups'
 import { useStudentsApi } from '~/composables/api/useStudentsApi'
+import { useStudentsGroupsApi } from '~/composables/api/useStudentsGroups'
 import { useGroupsBreadcrumbLabel } from '~/composables/useGroupsBreadcrumbItems'
 
 const route = useRoute()
@@ -205,8 +205,10 @@ const deletingStudentId = ref<string | null>(null)
 const deletePending = ref(false)
 
 function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) return error.message
-  if (typeof error === 'string') return error
+  if (error instanceof Error)
+    return error.message
+  if (typeof error === 'string')
+    return error
   const e = error as { data?: { statusMessage?: string, message?: string }, message?: string }
   return e.data?.statusMessage || e.data?.message || e.message || 'Что-то пошло не так'
 }
@@ -222,11 +224,13 @@ function closeEditStudent() {
 }
 
 async function onRenameStudent() {
-  if (!editingStudent.value || editPending.value) return
+  if (!editingStudent.value || editPending.value)
+    return
   editPending.value = true
   try {
     const { error: err } = await studentsApi.update(editingStudent.value.id, { name: editUsername.value.trim() })
-    if (err.value) throw err.value
+    if (err.value)
+      throw err.value
     toast.add({ title: 'Студент переименован', color: 'success', icon: 'i-lucide-check' })
     closeEditStudent()
     await refresh()
@@ -240,11 +244,13 @@ async function onRenameStudent() {
 }
 
 async function onRemoveFromGroup() {
-  if (!removingStudentId.value || removePending.value) return
+  if (!removingStudentId.value || removePending.value)
+    return
   removePending.value = true
   try {
     const { error: err } = await studentsApi.update(removingStudentId.value, { groupId: null })
-    if (err.value) throw err.value
+    if (err.value)
+      throw err.value
     toast.add({ title: 'Студент убран из группы', color: 'success', icon: 'i-lucide-check' })
     removingStudentId.value = null
     await refresh()
@@ -258,11 +264,13 @@ async function onRemoveFromGroup() {
 }
 
 async function onDeleteStudent() {
-  if (!deletingStudentId.value || deletePending.value) return
+  if (!deletingStudentId.value || deletePending.value)
+    return
   deletePending.value = true
   try {
     const { error: err } = await studentsApi.remove(deletingStudentId.value)
-    if (err.value) throw err.value
+    if (err.value)
+      throw err.value
     toast.add({ title: 'Студент удалён', color: 'success', icon: 'i-lucide-check' })
     deletingStudentId.value = null
     await refresh()
