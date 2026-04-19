@@ -1,16 +1,14 @@
 <script setup lang="ts">
-import type {
-  FindSubjectsFilter,
-} from '#shared/types/backend'
-import type { AccordionItem } from '@nuxt/ui'
+import type { FindSubjectsFilter, SubjectResponse } from '#shared/types/backend'
+import type { TableColumn, TabsItem } from '@nuxt/ui'
+import { h, resolveComponent } from 'vue'
 import { useSubjectsApi } from '~/composables/api/useSubjectsApi'
-
-const ARCHIVED_ACCORDION_VALUE = 'archived-subjects'
 
 const { user } = useOidcAuth()
 const { findAllByTeacherId } = useSubjectsApi()
 
-const openedAccordion = ref<string | undefined>()
+const activeTab = ref<string>('active')
+const searchQuery = ref('')
 const archivedLoaded = ref(false)
 
 const teacherId = computed(() => {
@@ -28,195 +26,167 @@ const {
   pending: activeSubjectsPending,
   error: activeSubjectsError,
   refresh: refreshActiveSubjects,
-} = findAllByTeacherId(
-  safeTeacherId,
-  activeFilter,
-  {
-    immediate: false,
-  },
-)
+} = findAllByTeacherId(safeTeacherId, activeFilter, { immediate: false })
 
 const {
   data: archivedSubjectsData,
   pending: archivedSubjectsPending,
   error: archivedSubjectsError,
   refresh: refreshArchivedSubjects,
-} = findAllByTeacherId(
-  safeTeacherId,
-  archivedFilter,
-  {
-    immediate: false,
-  },
-)
+} = findAllByTeacherId(safeTeacherId, archivedFilter, { immediate: false })
 
 const activeSubjects = computed(() => activeSubjectsData.value ?? [])
 const archivedSubjects = computed(() => archivedSubjectsData.value ?? [])
 
-const archivedAccordionItems = computed<AccordionItem[]>(() => {
-  const archivedCount = archivedSubjects.value.length
+function filter(list: SubjectResponse[]) {
+  const q = searchQuery.value.trim().toLowerCase()
+  if (!q)
+    return list
+  return list.filter(s =>
+    s.name.toLowerCase().includes(q) || s.description?.toLowerCase().includes(q),
+  )
+}
 
-  return [
-    {
-      value: ARCHIVED_ACCORDION_VALUE,
-      label: archivedCount > 0 ? `Архивные предметы (${archivedCount})` : 'Архивные предметы',
-      icon: 'i-lucide-archive',
-    },
-  ]
-})
+const filteredActive = computed(() => filter(activeSubjects.value))
+const filteredArchived = computed(() => filter(archivedSubjects.value))
+
+const tabs = computed<TabsItem[]>(() => [
+  {
+    label: 'Активные',
+    value: 'active',
+    icon: 'i-lucide-book-open',
+    badge: activeSubjects.value.length || undefined,
+  },
+  {
+    label: 'Архивные',
+    value: 'archived',
+    icon: 'i-lucide-archive',
+    badge: archivedSubjects.value.length || undefined,
+  },
+])
+
+const isArchived = computed(() => activeTab.value === 'archived')
+const currentSubjects = computed(() => isArchived.value ? filteredArchived.value : filteredActive.value)
+const currentPending = computed(() => isArchived.value ? archivedSubjectsPending.value : activeSubjectsPending.value)
+const currentError = computed(() => isArchived.value ? archivedSubjectsError.value : activeSubjectsError.value)
+
+const UButton = resolveComponent('UButton')
+
+const columns: TableColumn<SubjectResponse>[] = [
+  {
+    accessorKey: 'name',
+    header: 'Название',
+    meta: { class: { th: 'w-2/5', td: 'w-2/5 max-w-0 overflow-hidden' } },
+    cell: ({ row }) => h('span', row.original.name),
+  },
+  {
+    accessorKey: 'description',
+    header: 'Описание',
+    meta: { class: { th: 'w-2/5', td: 'w-2/5 max-w-0 overflow-hidden' } },
+    cell: ({ row }) => h('span', row.original.description || '—'),
+  },
+  {
+    accessorKey: 'createdAt',
+    header: 'Создан',
+    meta: { class: { th: 'w-32', td: 'w-32' } },
+    cell: ({ row }) => h('span', new Date(row.original.createdAt).toLocaleDateString('ru-RU')),
+  },
+  {
+    id: 'actions',
+    header: '',
+    meta: { class: { th: 'w-12', td: 'w-12' } },
+    cell: ({ row }) => h(UButton, {
+      color: 'neutral',
+      variant: 'ghost',
+      icon: 'i-lucide-chevron-right',
+      to: `/dashboard/subjects/${row.original.id}`,
+      onClick: (e: Event) => e.stopPropagation(),
+    }),
+  },
+]
 
 watch(teacherId, async (value) => {
   if (!value) {
     archivedLoaded.value = false
     return
   }
-
   await refreshActiveSubjects()
 }, { immediate: true })
 
-watch(openedAccordion, async (value) => {
-  if (value !== ARCHIVED_ACCORDION_VALUE || archivedLoaded.value || !teacherId.value) {
+watch(activeTab, async (value) => {
+  if (value !== 'archived' || archivedLoaded.value || !teacherId.value)
     return
-  }
-
   archivedLoaded.value = true
   await refreshArchivedSubjects()
 })
 
-async function onRefreshActive() {
-  if (!teacherId.value) {
+async function onRefresh() {
+  if (!teacherId.value)
     return
+  if (isArchived.value) {
+    archivedLoaded.value = true
+    await refreshArchivedSubjects()
   }
-
-  await refreshActiveSubjects()
+  else {
+    await refreshActiveSubjects()
+  }
 }
 
-async function onRefreshArchived() {
-  if (!teacherId.value) {
-    return
-  }
-
-  archivedLoaded.value = true
-  await refreshArchivedSubjects()
+function onSelectRow(_e: Event, row: { original: SubjectResponse }) {
+  navigateTo(`/dashboard/subjects/${row.original.id}`)
 }
 </script>
 
 <template>
-  <UPageCard :ui="{ header: 'flex items-center gap-2' }">
-    <template #header>
-      <span class="font-semibold text-highlighted">Активные предметы</span>
-      <UBadge
-        v-if="activeSubjects.length"
-        :label="String(activeSubjects.length)"
-        color="primary"
-        variant="subtle"
-      />
-      <UButton
-        color="neutral"
-        variant="ghost"
-        icon="i-lucide-refresh-cw"
-        :loading="activeSubjectsPending"
-        :disabled="!teacherId"
-        class="ms-auto"
-        @click="onRefreshActive"
+  <UTabs
+    v-model="activeTab"
+    :items="tabs"
+    :content="false"
+  />
+
+  <div class="flex items-center gap-3 flex-wrap">
+    <UInput
+      v-model="searchQuery"
+      placeholder="Поиск..."
+      icon="i-lucide-search"
+      color="neutral"
+      variant="outline"
+      :disabled="!teacherId"
+    />
+
+    <UButton
+      color="neutral"
+      variant="ghost"
+      icon="i-lucide-refresh-cw"
+      :loading="currentPending"
+      :disabled="!teacherId"
+      @click="onRefresh"
+    />
+  </div>
+
+  <UAlert
+    v-if="currentError"
+    color="error"
+    variant="soft"
+    icon="i-lucide-circle-x"
+    title="Ошибка загрузки"
+    :description="currentError.message"
+  />
+
+  <UTable
+    :data="currentSubjects"
+    :columns="columns"
+    :loading="currentPending"
+    @select="onSelectRow"
+  >
+    <template #empty>
+      <UEmpty
+        :icon="isArchived ? 'i-lucide-archive' : 'i-lucide-book-open'"
+        :title="isArchived ? 'Архивных предметов нет' : 'Активных предметов нет'"
+        :description="!isArchived ? 'Создайте первый предмет с помощью кнопки выше.' : undefined"
+        variant="naked"
+        class="py-12 overflow-visible"
       />
     </template>
-
-    <UAlert
-      v-if="!teacherId"
-      color="warning"
-      variant="soft"
-      icon="i-lucide-circle-alert"
-      title="Сессия не инициализирована"
-      description="Предметы будут загружены после инициализации OIDC-сессии."
-      class="mb-4"
-    />
-
-    <UAlert
-      v-if="activeSubjectsError"
-      color="error"
-      variant="soft"
-      icon="i-lucide-circle-x"
-      title="Ошибка загрузки"
-      :description="activeSubjectsError.message"
-      class="mb-4"
-    />
-
-    <UPageColumns v-if="activeSubjectsPending">
-      <USkeleton class="h-24 w-full rounded-lg" />
-      <USkeleton class="h-24 w-full rounded-lg" />
-      <USkeleton class="h-24 w-full rounded-lg" />
-    </UPageColumns>
-
-    <UEmpty
-      v-else-if="!activeSubjects.length && !activeSubjectsPending"
-      icon="i-lucide-book-open"
-      title="Активных предметов нет"
-      description="Создайте первый предмет с помощью кнопки выше."
-      variant="naked"
-    />
-
-    <UPageColumns v-else-if="activeSubjects.length">
-      <UPageCard
-        v-for="subject in activeSubjects"
-        :key="subject.id"
-        :title="subject.name"
-        :description="subject.description || 'Без описания'"
-        :to="`/dashboard/subjects/${subject.id}`"
-      />
-    </UPageColumns>
-  </UPageCard>
-
-  <UPageCard class="mt-4">
-    <UAccordion
-      v-model="openedAccordion"
-      :items="archivedAccordionItems"
-      :unmount-on-hide="false"
-    >
-      <template #body>
-        <UAlert
-          v-if="archivedSubjectsError"
-          color="error"
-          variant="soft"
-          icon="i-lucide-circle-x"
-          title="Ошибка загрузки архива"
-          :description="archivedSubjectsError.message"
-        />
-
-        <UPageColumns v-if="archivedSubjectsPending">
-          <USkeleton class="h-24 w-full rounded-lg" />
-          <USkeleton class="h-24 w-full rounded-lg" />
-        </UPageColumns>
-
-        <UEmpty
-          v-else-if="!archivedSubjects.length"
-          icon="i-lucide-archive"
-          title="Архивных предметов нет"
-          variant="naked"
-        />
-
-        <UPageColumns v-else>
-          <UPageCard
-            v-for="subject in archivedSubjects"
-            :key="subject.id"
-            :title="subject.name"
-            :description="subject.description || 'Без описания'"
-            :to="`/dashboard/subjects/${subject.id}`"
-            class="opacity-60 transition-opacity hover:opacity-100"
-          />
-        </UPageColumns>
-
-        <UButton
-          color="neutral"
-          variant="ghost"
-          icon="i-lucide-refresh-cw"
-          :loading="archivedSubjectsPending"
-          :disabled="!teacherId"
-          class="ms-auto"
-          @click="onRefreshArchived"
-        >
-          Обновить
-        </UButton>
-      </template>
-    </UAccordion>
-  </UPageCard>
+  </UTable>
 </template>
