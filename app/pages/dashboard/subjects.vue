@@ -1,30 +1,41 @@
 <script setup lang="ts">
 import type { NavigationMenuItem } from '@nuxt/ui'
+import { provideSubjectsBreadcrumbLabel, useSubjectsBreadcrumbItems } from '~/composables/useSubjectsBreadcrumbItems'
 
-const links = [
+const activeSubjectName = provideSubjectsBreadcrumbLabel()
+const breadcrumbItems = useSubjectsBreadcrumbItems(activeSubjectName)
+
+const route = useRoute()
+const uuid = computed(() => route.params.uuid as string | undefined)
+
+const links = computed(() => [
   [
     {
-      label: 'Уроки',
+      label: 'Предмет',
       icon: 'i-lucide-book-open-check',
-      to: '/dashboard/subjects',
+      to: `/dashboard/subjects/${uuid.value}`,
       exact: true,
     },
     {
-      label: 'Студенты',
-      icon: 'i-lucide-users',
-      to: '/dashboard/subjects',
+      label: 'Настройки',
+      icon: 'i-lucide-settings',
+      to: `/dashboard/subjects/${uuid.value}/settings`,
     },
   ],
-] satisfies NavigationMenuItem[][]
+] satisfies NavigationMenuItem[][])
 </script>
 
 <template>
   <NuxtLayout name="dashboard" panel-id="dashboard-subjects" panel-title="Subjects">
+    <template #navbar-title>
+      <UBreadcrumb :items="breadcrumbItems" />
+    </template>
+
     <template #navbar-right>
       <SubjectsCreateSubjectToolbarForm />
     </template>
 
-    <template #toolbar>
+    <template v-if="uuid" #toolbar>
       <UNavigationMenu :items="links" />
     </template>
 

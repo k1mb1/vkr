@@ -1,3 +1,3 @@
 <template>
-  <p>subject</p>
+  <p>settings</p>
 </template>

@@ -61,6 +61,6 @@ export default defineNuxtConfig({
       standalone: false,
     },
   },
-  
+
   ssr: false,
 })

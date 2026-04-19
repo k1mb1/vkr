@@ -49,8 +49,6 @@ const { links } = useDashboardNavigation()
             popover
             :class="{ 'mt-auto': i === links.length - 1 }"
           />
-
-          <USeparator v-if="i < links.length - 2" />
         </template>
       </template>
 
