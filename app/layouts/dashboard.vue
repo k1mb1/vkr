@@ -6,10 +6,8 @@ const { links } = useDashboardNavigation()
 </script>
 
 <template>
-  <div class="min-h-svh">
     <UDashboardGroup
       unit="rem"
-      :ui="{ base: 'relative flex min-h-svh overflow-hidden' }"
     >
       <UDashboardSidebar
         id="dashboard"
@@ -55,5 +53,4 @@ const { links } = useDashboardNavigation()
 
       <slot />
     </UDashboardGroup>
-  </div>
 </template>

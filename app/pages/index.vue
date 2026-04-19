@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <NuxtLayout name="landing">
     <UPageHero
       title="Nuxt + Pocket ID OIDC Scaffold"
       description="Server-first authentication setup with Nuxt UI and nuxt-auth-utils, including protected routes, token refresh endpoint and stub pages."
@@ -59,5 +59,5 @@
         }]"
       />
     </UPageSection>
-  </div>
+  </NuxtLayout>
 </template>

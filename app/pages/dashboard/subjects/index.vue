@@ -101,7 +101,7 @@ async function onRefreshArchived() {
 </script>
 
 <template>
-  <div class="flex h-full flex-col gap-6 p-4 sm:p-6">
+  <div class="flex flex-col gap-6 p-4 sm:p-6">
     <UPageHeader
       title="Предметы"
       description="Управление вашими предметами"
@@ -129,7 +129,7 @@ async function onRefreshArchived() {
       :description="activeSubjectsError.message"
     />
 
-    <UPageCard class="flex-1" :ui="{ header: 'mb-4 flex items-center gap-2' }">
+    <UPageCard :ui="{ header: 'mb-4 flex items-center gap-2' }">
       <template #header>
         <span class="font-medium text-highlighted">Активные предметы</span>
         <UBadge

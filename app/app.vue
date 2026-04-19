@@ -19,19 +19,11 @@ useSeoMeta({
   description,
   ogTitle: title,
   ogDescription: description,
-  ogImage: 'https://ui.nuxt.com/assets/cover.jpg',
-  twitterImage: 'https://ui.nuxt.com/assets/cover.jpg',
-  twitterCard: 'summary_large_image',
 })
-
-const route = useRoute()
-const rootLayout = computed(() => route.path.startsWith('/dashboard') ? false : 'landing')
 </script>
 
 <template>
   <UApp>
-    <NuxtLayout :name="rootLayout">
-      <NuxtPage />
-    </NuxtLayout>
+    <NuxtPage />
   </UApp>
 </template>
