@@ -1,18 +1,37 @@
 <script setup lang="ts">
-import CreateSubjectToolbarForm from '~/components/subjects/CreateSubjectToolbarForm.vue'
+import type { NavigationMenuItem } from '@nuxt/ui';
+
+
+const links = [
+  [
+    {
+      label: 'Уроки',
+      icon: 'i-lucide-book-open-check',
+      to: '/dashboard/subjects',
+      exact: true,
+    },
+    {
+      label: 'Студенты',
+      icon: 'i-lucide-users',
+      to: '/dashboard/subjects',
+    },
+  ],
+] satisfies NavigationMenuItem[][]
+
 </script>
 
 <template>
   <NuxtLayout name="dashboard">
     <BaseDashboardPanel
       id="dashboard-subjects"
-      :items="[
-        { label: 'Dashboard', to: '/dashboard' },
-        { label: 'Subjects', to: '/dashboard/subjects' },
-      ]"
+      title="Subjects"
     >
-      <template #actions>
-        <CreateSubjectToolbarForm />
+      <template #navbar-right>
+        <SubjectsCreateSubjectToolbarForm />
+      </template>
+
+      <template #toolbar>
+        <UNavigationMenu :items="links" />
       </template>
 
       <template #body>

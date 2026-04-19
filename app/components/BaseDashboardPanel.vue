@@ -1,70 +1,66 @@
 <script setup lang="ts">
-import type { BreadcrumbItem, DashboardPanelProps } from '@nuxt/ui'
+import type { VNode } from 'vue'
+import type { DashboardPanelProps, DashboardNavbarProps, DashboardToolbarProps } from '@nuxt/ui'
 
-interface Props {
+const props = defineProps<{
+  // UDashboardPanel
   id: string
-  title?: string
-  items?: BreadcrumbItem[]
-  panelProps?: Partial<DashboardPanelProps>
-}
+  dashboardPanelUi?: DashboardPanelProps['ui']
+  // UDashboardNavbar
+  title?: DashboardNavbarProps['title']
+  navbarUi?: DashboardNavbarProps['ui']
+  // UDashboardToolbar
+  toolbarUi?: DashboardToolbarProps['ui']
+}>()
 
-const props = defineProps<Props>()
-const slots = useSlots()
+const slots = defineSlots<{
+  'navbar-title'?(): VNode[]
+  'navbar-trailing'?(): VNode[]
+  'navbar-right'?(): VNode[]
+  'toolbar-left'?(): VNode[]
+  'toolbar-right'?(): VNode[]
+  toolbar?(): VNode[]
+  body?(): VNode[]
+}>()
 </script>
 
 <template>
-  <UDashboardPanel
-    :id="props.id"
-    v-bind="props.panelProps ?? {}"
-  >
+  <UDashboardPanel :id="props.id" :resizable="true" :ui="props.dashboardPanelUi">
     <template #header>
-      <slot name="header">
-        <UDashboardNavbar
-          v-if="props.title || props.items?.length"
-          :title="props.title"
-          :ui="{ right: 'gap-3' }"
-        >
-          <template #title>
-            <slot name="title">
-              <UBreadcrumb
-                v-if="props.items?.length"
-                :items="props.items"
-              />
-              <span v-else>{{ props.title }}</span>
-            </slot>
-          </template>
+      <UDashboardNavbar :title="props.title" :ui="props.navbarUi">
+        <template #leading>
+          <UDashboardSidebarCollapse />
+        </template>
 
-          <template #leading>
-            <UDashboardSidebarCollapse />
-          </template>
+        <template v-if="slots['navbar-title']" #title>
+          <slot name="navbar-title" />
+        </template>
 
-          <template #right>
-            <slot name="actions" />
-            <UColorModeButton />
-          </template>
-        </UDashboardNavbar>
+        <template v-if="slots['navbar-trailing']" #trailing>
+          <slot name="navbar-trailing" />
+        </template>
 
-        <UDashboardToolbar v-if="slots.toolbar || slots.filters">
-          <template #left>
-            <slot name="toolbar" />
-          </template>
+        <template v-if="slots['navbar-right']" #right>
+          <slot name="navbar-right" />
+        </template>
+      </UDashboardNavbar>
 
-          <template #right>
-            <slot name="filters" />
-          </template>
-        </UDashboardToolbar>
-      </slot>
+      <UDashboardToolbar
+        v-if="slots.toolbar || slots['toolbar-left'] || slots['toolbar-right']"
+        :ui="props.toolbarUi"
+      >
+        <template v-if="slots['toolbar-left']" #left>
+          <slot name="toolbar-left" />
+        </template>
+        <template v-if="slots['toolbar-right']" #right>
+          <slot name="toolbar-right" />
+        </template>
+        <slot name="toolbar" />
+      </UDashboardToolbar>
     </template>
 
-    <template #body>
-      <slot name="body">
-        <UEmpty
-          title="Пусто"
-          description="Здесь пока ничего нет."
-          class="h-full"
-          variant="naked"
-        />
-      </slot>
+    <template v-if="slots.body" #body>
+      <slot name="body" />
     </template>
   </UDashboardPanel>
 </template>

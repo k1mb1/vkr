@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import CreateGroupToolbarForm from '~/components/groups/CreateGroupToolbarForm.vue'
 import { provideGroupsBreadcrumbLabel, useGroupsBreadcrumbItems } from '~/composables/useGroupsBreadcrumbItems'
 
 const groupsListRefreshHandler = useState<null | (() => void | Promise<void>)>('groups-list-refresh-handler', () => null)
@@ -13,30 +12,23 @@ function refreshGroupsList() {
 
 <template>
   <NuxtLayout name="dashboard">
-    <UDashboardPanel
+    <BaseDashboardPanel
       id="dashboard-groups"
-      :ui="{ body: 'h-full p-0 sm:p-0' }"
+      :dashboard-panel-ui="{ body: 'h-full p-0 sm:p-0' }"
+      :navbar-ui="{ right: 'gap-3' }"
     >
-      <template #header>
-        <UDashboardNavbar :ui="{ right: 'gap-3' }">
-          <template #title>
-            <UBreadcrumb :items="breadcrumbItems" />
-          </template>
+      <template #navbar-title>
+        <UBreadcrumb :items="breadcrumbItems" />
+      </template>
 
-          <template #leading>
-            <UDashboardSidebarCollapse />
-          </template>
-
-          <template #right>
-            <CreateGroupToolbarForm :after-create="refreshGroupsList" />
-            <UColorModeButton />
-          </template>
-        </UDashboardNavbar>
+      <template #navbar-right>
+        <CreateGroupToolbarForm :after-create="refreshGroupsList" />
+        <UColorModeButton />
       </template>
 
       <template #body>
         <NuxtPage />
       </template>
-    </UDashboardPanel>
+    </BaseDashboardPanel>
   </NuxtLayout>
 </template>

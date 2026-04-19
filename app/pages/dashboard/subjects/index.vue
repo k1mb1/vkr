@@ -107,7 +107,7 @@ async function onRefreshArchived() {
       description="Управление вашими предметами"
     >
       <template #links>
-        <CreateSubjectToolbarForm />
+        <SubjectsCreateSubjectToolbarForm />
       </template>
     </UPageHeader>
 
@@ -176,7 +176,7 @@ async function onRefreshArchived() {
       </UPageColumns>
     </UPageCard>
 
-    <UCard :ui="{ body: 'p-0' }">
+    <UCard>
       <UAccordion
         v-model="openedAccordion"
         :items="archivedAccordionItems"
@@ -225,7 +225,6 @@ async function onRefreshArchived() {
                 color="neutral"
                 variant="ghost"
                 icon="i-lucide-refresh-cw"
-                size="sm"
                 :loading="archivedSubjectsPending"
                 :disabled="!teacherId"
                 @click="onRefreshArchived"
