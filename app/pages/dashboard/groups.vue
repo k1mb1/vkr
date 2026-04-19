@@ -11,24 +11,21 @@ function refreshGroupsList() {
 </script>
 
 <template>
-  <NuxtLayout name="dashboard">
-    <BaseDashboardPanel
-      id="dashboard-groups"
-      :dashboard-panel-ui="{ body: 'h-full p-0 sm:p-0' }"
-      :navbar-ui="{ right: 'gap-3' }"
-    >
-      <template #navbar-title>
-        <UBreadcrumb :items="breadcrumbItems" />
-      </template>
+  <NuxtLayout
+    name="dashboard"
+    panel-id="dashboard-groups"
+    :dashboard-panel-ui="{ body: 'h-full p-0 sm:p-0' }"
+    :navbar-ui="{ right: 'gap-3' }"
+  >
+    <template #navbar-title>
+      <UBreadcrumb :items="breadcrumbItems" />
+    </template>
 
-      <template #navbar-right>
-        <CreateGroupToolbarForm :after-create="refreshGroupsList" />
-        <UColorModeButton />
-      </template>
+    <template #navbar-right>
+      <CreateGroupToolbarForm :after-create="refreshGroupsList" />
+      <UColorModeButton />
+    </template>
 
-      <template #body>
-        <NuxtPage />
-      </template>
-    </BaseDashboardPanel>
+    <NuxtPage />
   </NuxtLayout>
 </template>

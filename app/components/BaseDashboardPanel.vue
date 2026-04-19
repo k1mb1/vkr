@@ -1,6 +1,6 @@
 <script setup lang="ts">
+import type { DashboardNavbarProps, DashboardPanelProps, DashboardToolbarProps } from '@nuxt/ui'
 import type { VNode } from 'vue'
-import type { DashboardPanelProps, DashboardNavbarProps, DashboardToolbarProps } from '@nuxt/ui'
 
 const props = defineProps<{
   // UDashboardPanel
@@ -14,13 +14,13 @@ const props = defineProps<{
 }>()
 
 const slots = defineSlots<{
-  'navbar-title'?(): VNode[]
-  'navbar-trailing'?(): VNode[]
-  'navbar-right'?(): VNode[]
-  'toolbar-left'?(): VNode[]
-  'toolbar-right'?(): VNode[]
-  toolbar?(): VNode[]
-  body?(): VNode[]
+  'navbar-title'?: () => VNode[]
+  'navbar-trailing'?: () => VNode[]
+  'navbar-right'?: () => VNode[]
+  'toolbar-left'?: () => VNode[]
+  'toolbar-right'?: () => VNode[]
+  'toolbar'?: () => VNode[]
+  'body'?: () => VNode[]
 }>()
 </script>
 

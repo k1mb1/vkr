@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import type { NavigationMenuItem } from '@nuxt/ui';
-
+import type { NavigationMenuItem } from '@nuxt/ui'
 
 const links = [
   [
@@ -17,26 +16,18 @@ const links = [
     },
   ],
 ] satisfies NavigationMenuItem[][]
-
 </script>
 
 <template>
-  <NuxtLayout name="dashboard">
-    <BaseDashboardPanel
-      id="dashboard-subjects"
-      title="Subjects"
-    >
-      <template #navbar-right>
-        <SubjectsCreateSubjectToolbarForm />
-      </template>
+  <NuxtLayout name="dashboard" panel-id="dashboard-subjects" panel-title="Subjects">
+    <template #navbar-right>
+      <SubjectsCreateSubjectToolbarForm />
+    </template>
 
-      <template #toolbar>
-        <UNavigationMenu :items="links" />
-      </template>
+    <template #toolbar>
+      <UNavigationMenu :items="links" />
+    </template>
 
-      <template #body>
-        <NuxtPage />
-      </template>
-    </BaseDashboardPanel>
+    <NuxtPage />
   </NuxtLayout>
 </template>
