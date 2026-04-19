@@ -101,15 +101,25 @@ async function onRefreshArchived() {
 </script>
 
 <template>
-  <div class="flex flex-col gap-6 p-4 sm:p-6">
-    <UPageHeader
-      title="Предметы"
-      description="Управление вашими предметами"
-    >
-      <template #links>
-        <SubjectsCreateSubjectToolbarForm />
-      </template>
-    </UPageHeader>
+  <UPageCard :ui="{ header: 'flex items-center gap-2' }">
+    <template #header>
+      <span class="font-semibold text-highlighted">Активные предметы</span>
+      <UBadge
+        v-if="activeSubjects.length"
+        :label="String(activeSubjects.length)"
+        color="primary"
+        variant="subtle"
+      />
+      <UButton
+        color="neutral"
+        variant="ghost"
+        icon="i-lucide-refresh-cw"
+        :loading="activeSubjectsPending"
+        :disabled="!teacherId"
+        class="ms-auto"
+        @click="onRefreshActive"
+      />
+    </template>
 
     <UAlert
       v-if="!teacherId"
@@ -118,6 +128,7 @@ async function onRefreshArchived() {
       icon="i-lucide-circle-alert"
       title="Сессия не инициализирована"
       description="Предметы будут загружены после инициализации OIDC-сессии."
+      class="mb-4"
     />
 
     <UAlert
@@ -127,114 +138,85 @@ async function onRefreshArchived() {
       icon="i-lucide-circle-x"
       title="Ошибка загрузки"
       :description="activeSubjectsError.message"
+      class="mb-4"
     />
 
-    <UPageCard :ui="{ header: 'mb-4 flex items-center gap-2' }">
-      <template #header>
-        <span class="font-medium text-highlighted">Активные предметы</span>
-        <UBadge
-          v-if="activeSubjects.length"
-          :label="String(activeSubjects.length)"
-          color="primary"
-          variant="subtle"
+    <UPageColumns v-if="activeSubjectsPending">
+      <USkeleton class="h-24 w-full rounded-lg" />
+      <USkeleton class="h-24 w-full rounded-lg" />
+      <USkeleton class="h-24 w-full rounded-lg" />
+    </UPageColumns>
+
+    <UEmpty
+      v-else-if="!activeSubjects.length && !activeSubjectsPending"
+      icon="i-lucide-book-open"
+      title="Активных предметов нет"
+      description="Создайте первый предмет с помощью кнопки выше."
+      variant="naked"
+    />
+
+    <UPageColumns v-else-if="activeSubjects.length">
+      <UPageCard
+        v-for="subject in activeSubjects"
+        :key="subject.id"
+        :title="subject.name"
+        :description="subject.description || 'Без описания'"
+        :to="`/dashboard/subjects/${subject.id}`"
+      />
+    </UPageColumns>
+  </UPageCard>
+
+  <UPageCard class="mt-4">
+    <UAccordion
+      v-model="openedAccordion"
+      :items="archivedAccordionItems"
+      :unmount-on-hide="false"
+    >
+      <template #body>
+        <UAlert
+          v-if="archivedSubjectsError"
+          color="error"
+          variant="soft"
+          icon="i-lucide-circle-x"
+          title="Ошибка загрузки архива"
+          :description="archivedSubjectsError.message"
         />
+
+        <UPageColumns v-if="archivedSubjectsPending">
+          <USkeleton class="h-24 w-full rounded-lg" />
+          <USkeleton class="h-24 w-full rounded-lg" />
+        </UPageColumns>
+
+        <UEmpty
+          v-else-if="!archivedSubjects.length"
+          icon="i-lucide-archive"
+          title="Архивных предметов нет"
+          variant="naked"
+        />
+
+        <UPageColumns v-else>
+          <UPageCard
+            v-for="subject in archivedSubjects"
+            :key="subject.id"
+            :title="subject.name"
+            :description="subject.description || 'Без описания'"
+            :to="`/dashboard/subjects/${subject.id}`"
+            class="opacity-60 transition-opacity hover:opacity-100"
+          />
+        </UPageColumns>
+
         <UButton
           color="neutral"
           variant="ghost"
           icon="i-lucide-refresh-cw"
-          size="sm"
-          :loading="activeSubjectsPending"
+          :loading="archivedSubjectsPending"
           :disabled="!teacherId"
           class="ms-auto"
-          @click="onRefreshActive"
-        />
+          @click="onRefreshArchived"
+        >
+          Обновить
+        </UButton>
       </template>
-
-      <UPageColumns v-if="activeSubjectsPending">
-        <USkeleton class="h-24 w-full rounded-lg" />
-        <USkeleton class="h-24 w-full rounded-lg" />
-        <USkeleton class="h-24 w-full rounded-lg" />
-      </UPageColumns>
-
-      <UEmpty
-        v-else-if="!activeSubjects.length"
-        icon="i-lucide-book-open"
-        title="Активных предметов нет"
-        description="Создайте первый предмет с помощью кнопки выше."
-        variant="naked"
-        class="py-8"
-      />
-
-      <UPageColumns v-else>
-        <UPageCard
-          v-for="subject in activeSubjects"
-          :key="subject.id"
-          :title="subject.name"
-          :description="subject.description || 'Без описания'"
-          :to="`/dashboard/subjects/${subject.id}`"
-        />
-      </UPageColumns>
-    </UPageCard>
-
-    <UCard>
-      <UAccordion
-        v-model="openedAccordion"
-        :items="archivedAccordionItems"
-        :unmount-on-hide="false"
-      >
-        <template #body="{ item }">
-          <div
-            v-if="item.value === ARCHIVED_ACCORDION_VALUE"
-            class="space-y-4 px-4 pb-4"
-          >
-            <UAlert
-              v-if="archivedSubjectsError"
-              color="error"
-              variant="soft"
-              icon="i-lucide-circle-x"
-              title="Ошибка загрузки архива"
-              :description="archivedSubjectsError.message"
-            />
-
-            <UPageColumns v-if="archivedSubjectsPending">
-              <USkeleton class="h-24 w-full rounded-lg" />
-              <USkeleton class="h-24 w-full rounded-lg" />
-            </UPageColumns>
-
-            <UEmpty
-              v-else-if="!archivedSubjects.length"
-              icon="i-lucide-archive"
-              title="Архивных предметов нет"
-              variant="naked"
-              class="py-6"
-            />
-
-            <UPageColumns v-else>
-              <UPageCard
-                v-for="subject in archivedSubjects"
-                :key="subject.id"
-                :title="subject.name"
-                :description="subject.description || 'Без описания'"
-                :to="`/dashboard/subjects/${subject.id}`"
-                class="opacity-60 transition-opacity hover:opacity-100"
-              />
-            </UPageColumns>
-
-            <div class="flex justify-end">
-              <UButton
-                color="neutral"
-                variant="ghost"
-                icon="i-lucide-refresh-cw"
-                :loading="archivedSubjectsPending"
-                :disabled="!teacherId"
-                @click="onRefreshArchived"
-              >
-                Обновить
-              </UButton>
-            </div>
-          </div>
-        </template>
-      </UAccordion>
-    </UCard>
-  </div>
+    </UAccordion>
+  </UPageCard>
 </template>
