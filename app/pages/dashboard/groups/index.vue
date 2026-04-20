@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { StudentGroupPageResponse } from '#shared/types/backend'
 import type { TableColumn, TableRow } from '@nuxt/ui'
-import { h, resolveComponent } from 'vue'
 import { PAGE_DEFAULTS } from '#shared/types/backend'
+import { h, resolveComponent } from 'vue'
 import { useStudentsGroupsApi } from '~/composables/api/useStudentsGroups'
 
 const UButton = resolveComponent('UButton')
@@ -21,6 +21,10 @@ const { data, pending, error, refresh } = findAll(computed(() => ({
 const rows = computed(() => data.value?.content ?? [])
 const total = computed(() => data.value?.page.totalElements ?? 0)
 
+function onRefresh() {
+  return refresh()
+}
+
 const columns: TableColumn<StudentGroupPageResponse>[] = [
   {
     accessorKey: 'name',
@@ -32,7 +36,7 @@ const columns: TableColumn<StudentGroupPageResponse>[] = [
     header: 'Subgroups',
     meta: {
       class: {
-        th: 'text-right',
+        th: 'text-left',
       },
     },
     footer: () =>
@@ -47,13 +51,13 @@ const columns: TableColumn<StudentGroupPageResponse>[] = [
           () => 'Refresh',
         ),
         h(UPagination, {
-          page: page.value,
+          'page': page.value,
           'onUpdate:page': (value: number) => {
             page.value = value
           },
-          itemsPerPage: pageSize,
-          total: total.value,
-          disabled: pending.value,
+          'itemsPerPage': pageSize,
+          'total': total.value,
+          'disabled': pending.value,
         }),
       ]),
   },
@@ -62,8 +66,6 @@ const columns: TableColumn<StudentGroupPageResponse>[] = [
 function onSelect(_: Event, row: TableRow<StudentGroupPageResponse>) {
   return navigateTo(`/dashboard/groups/${row.original.id}`)
 }
-
-const onRefresh = () => refresh()
 </script>
 
 <template>
@@ -76,34 +78,34 @@ const onRefresh = () => refresh()
       :description="error.message"
     />
 
-      <UTable
-        :data="rows"
-        :columns="columns"
-        :loading="pending"
-        sticky="footer"
-        @select="onSelect"
-      >
-        <template #empty>
-          <UEmpty
-            icon="i-lucide-users"
-            title="No groups found"
-            description="Try refreshing or create your first group."
-            variant="naked"
-            class="py-8"
-          >
-            <template #actions>
-              <UButton
-                color="neutral"
-                variant="outline"
-                icon="i-lucide-refresh-cw"
-                :loading="pending"
-                @click="onRefresh"
-              >
-                Refresh
-              </UButton>
-            </template>
-          </UEmpty>
-        </template>
-      </UTable>
+    <UTable
+      :data="rows"
+      :columns="columns"
+      :loading="pending"
+      sticky="footer"
+      @select="onSelect"
+    >
+      <template #empty>
+        <UEmpty
+          icon="i-lucide-users"
+          title="No groups found"
+          description="Try refreshing or create your first group."
+          variant="naked"
+          class="py-8"
+        >
+          <template #actions>
+            <UButton
+              color="neutral"
+              variant="outline"
+              icon="i-lucide-refresh-cw"
+              :loading="pending"
+              @click="onRefresh"
+            >
+              Refresh
+            </UButton>
+          </template>
+        </UEmpty>
+      </template>
+    </UTable>
   </div>
 </template>

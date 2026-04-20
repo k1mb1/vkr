@@ -138,56 +138,58 @@ function onSelectRow(_e: Event, row: { original: SubjectResponse }) {
 </script>
 
 <template>
-  <UTabs
-    v-model="activeTab"
-    :items="tabs"
-    :content="false"
-  />
-
-  <div class="flex items-center gap-3 flex-wrap">
-    <UInput
-      v-model="searchQuery"
-      placeholder="Поиск..."
-      icon="i-lucide-search"
-      color="neutral"
-      variant="outline"
-      :disabled="!teacherId"
+  <div class="flex flex-col gap-4">
+    <UTabs
+      v-model="activeTab"
+      :items="tabs"
+      :content="false"
     />
 
-    <UButton
-      color="neutral"
-      variant="ghost"
-      icon="i-lucide-refresh-cw"
-      :loading="currentPending"
-      :disabled="!teacherId"
-      @click="onRefresh"
-    />
-  </div>
-
-  <UAlert
-    v-if="currentError"
-    color="error"
-    variant="soft"
-    icon="i-lucide-circle-x"
-    title="Ошибка загрузки"
-    :description="currentError.message"
-  />
-
-  <UTable
-    :data="currentSubjects"
-    :columns="columns"
-    :loading="currentPending"
-    @select="onSelectRow"
-    sticky
-  >
-    <template #empty>
-      <UEmpty
-        :icon="isArchived ? 'i-lucide-archive' : 'i-lucide-book-open'"
-        :title="isArchived ? 'Архивных предметов нет' : 'Активных предметов нет'"
-        :description="!isArchived ? 'Создайте первый предмет с помощью кнопки выше.' : undefined"
-        variant="naked"
-        class="py-12 overflow-visible"
+    <div class="flex items-center gap-3 flex-wrap">
+      <UInput
+        v-model="searchQuery"
+        placeholder="Поиск..."
+        icon="i-lucide-search"
+        color="neutral"
+        variant="outline"
+        :disabled="!teacherId"
       />
-    </template>
-  </UTable>
+
+      <UButton
+        color="neutral"
+        variant="ghost"
+        icon="i-lucide-refresh-cw"
+        :loading="currentPending"
+        :disabled="!teacherId"
+        @click="onRefresh"
+      />
+    </div>
+
+    <UAlert
+      v-if="currentError"
+      color="error"
+      variant="soft"
+      icon="i-lucide-circle-x"
+      title="Ошибка загрузки"
+      :description="currentError.message"
+    />
+
+    <UTable
+      :data="currentSubjects"
+      :columns="columns"
+      :loading="currentPending"
+      sticky
+      @select="onSelectRow"
+    >
+      <template #empty>
+        <UEmpty
+          :icon="isArchived ? 'i-lucide-archive' : 'i-lucide-book-open'"
+          :title="isArchived ? 'Архивных предметов нет' : 'Активных предметов нет'"
+          :description="!isArchived ? 'Создайте первый предмет с помощью кнопки выше.' : undefined"
+          variant="naked"
+          class="py-12 overflow-visible"
+        />
+      </template>
+    </UTable>
+  </div>
 </template>
