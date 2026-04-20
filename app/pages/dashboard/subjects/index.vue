@@ -6,6 +6,7 @@ import { useSubjectsApi } from '~/composables/api/useSubjectsApi'
 
 const { user } = useOidcAuth()
 const { findAllByTeacherId } = useSubjectsApi()
+const activeSubject = useState<SubjectResponse | null>('subjects-active-subject', () => null)
 
 const activeTab = ref<string>('active')
 const searchQuery = ref('')
@@ -72,6 +73,10 @@ const currentError = computed(() => isArchived.value ? archivedSubjectsError.val
 
 const UButton = resolveComponent('UButton')
 
+function setActiveSubject(subject: SubjectResponse): void {
+  activeSubject.value = subject
+}
+
 const columns: TableColumn<SubjectResponse>[] = [
   {
     accessorKey: 'name',
@@ -100,7 +105,10 @@ const columns: TableColumn<SubjectResponse>[] = [
       variant: 'ghost',
       icon: 'i-lucide-chevron-right',
       to: `/dashboard/subjects/${row.original.id}`,
-      onClick: (e: Event) => e.stopPropagation(),
+      onClick: (e: Event) => {
+        e.stopPropagation()
+        setActiveSubject(row.original)
+      },
     }),
   },
 ]
@@ -133,6 +141,7 @@ async function onRefresh() {
 }
 
 function onSelectRow(_e: Event, row: { original: SubjectResponse }) {
+  setActiveSubject(row.original)
   navigateTo(`/dashboard/subjects/${row.original.id}`)
 }
 

@@ -1,20 +1,25 @@
 <script setup lang="ts">
+import type { SubjectResponse } from '#shared/types/backend'
 import type { BreadcrumbItem } from '@nuxt/ui'
 import type { NavigationMenuItem } from '@nuxt/ui'
 import { useStudentsGroupsApi } from '~/composables/api'
 
 const route = useRoute()
 const subjectId = computed(() => String(route.params.uuid ?? ''))
+const activeSubject = useState<SubjectResponse | null>('subjects-active-subject', () => null)
 
-const {
-    data,
-} = useStudentsGroupsApi().findById(subjectId)
+const subjectName = computed(() => {
+  if (activeSubject.value?.id === subjectId.value && activeSubject.value.name)
+    return activeSubject.value.name
+
+  return 'Subject'
+})
 
 const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
   return [
     { label: 'Dashboard', to: '/dashboard' },
     { label: 'Subjects', to: '/dashboard/subjects' },
-    { label: data.value?.name || 'Subject', to: `/dashboard/subjects/${subjectId.value}` }
+    { label: subjectName.value, to: `/dashboard/subjects/${subjectId.value}` }
   ]
 })
 
