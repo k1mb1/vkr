@@ -3,6 +3,46 @@ import type { NavigationMenuItem } from '@nuxt/ui'
 import type { Ref } from 'vue'
 import { useSubjectsApi } from '~/composables/api/useSubjectsApi'
 
+export function getDashboardPrimaryLinks(): Array<NavigationMenuItem & { description: string }> {
+  return [
+    {
+      label: 'Главная',
+      icon: 'i-lucide-house',
+      to: '/dashboard',
+      exact: true,
+      description: 'Быстрый обзор рабочих разделов.',
+    },
+    {
+      label: 'Предметы',
+      icon: 'i-lucide-book-open',
+      to: '/dashboard/subjects',
+      exact: true,
+      description: 'Создание и управление учебными предметами.',
+    },
+    {
+      label: 'Groups',
+      icon: 'i-lucide-users',
+      to: '/dashboard/groups',
+      description: 'Управление группами и участниками.',
+    },
+    ...(import.meta.dev
+      ? [{
+          label: 'Debug',
+          icon: 'i-lucide-flask-conical',
+          to: '/dashboard/debug',
+          description: 'Проверка запросов к backend в dev-режиме.',
+        }]
+      : []),
+    {
+      label: 'Feedback',
+      icon: 'i-lucide-message-circle',
+      to: 'https://k1mbb.t.me',
+      target: '_blank',
+      description: 'Связаться и оставить обратную связь.',
+    },
+  ]
+}
+
 export function useDashboardNavigation(open: Ref<boolean>) {
   const { user } = useOidcAuth()
   const { findAllByTeacherId } = useSubjectsApi()
@@ -46,45 +86,41 @@ export function useDashboardNavigation(open: Ref<boolean>) {
     return items.length ? items : [{ label: 'Предметов пока нет', icon: 'i-lucide-book-open', disabled: true }]
   })
 
-  const links = computed(() => [
-    [{
-      label: 'Главная',
-      icon: 'i-lucide-house',
-      to: '/dashboard',
-      exact: true,
+  const withSidebarAction = (item: NavigationMenuItem): NavigationMenuItem => {
+    return {
+      label: item.label,
+      icon: item.icon,
+      to: item.to,
+      exact: item.exact,
+      target: item.target,
       onSelect: closeSidebar,
-    }, {
-      label: 'Предметы',
-      icon: 'i-lucide-book-open',
-      to: '/dashboard/subjects',
-      exact: true,
-      defaultOpen: true,
-      onSelect: closeSidebar,
-      children: subjectChildren.value,
-    }, {
-      label: 'Groups',
-      icon: 'i-lucide-users',
-      to: '/dashboard/groups',
-      onSelect: closeSidebar,
-    }],
-    ...(import.meta.dev
-      ? [
-          [{
-            label: 'Debug',
-            icon: 'i-lucide-flask-conical',
-            to: '/dashboard/debug',
-            onSelect: closeSidebar,
-          }],
-        ]
-      : []),
-    [{
-      label: 'Feedback',
-      icon: 'i-lucide-message-circle',
-      to: 'https://k1mbb.t.me',
-      target: '_blank',
-      onSelect: closeSidebar,
-    }],
-  ] satisfies NavigationMenuItem[][])
+    }
+  }
+
+  const links = computed(() => {
+    const primaryLinks = getDashboardPrimaryLinks()
+    const homeLink = primaryLinks[0]
+    const subjectsLink = primaryLinks[1]
+    const groupsLink = primaryLinks[2]
+    const feedbackLink = primaryLinks.at(-1)
+    const debugLink = import.meta.dev ? primaryLinks[3] : null
+
+    return [
+      [
+        ...(homeLink ? [{ ...withSidebarAction(homeLink) }] : []),
+        ...(subjectsLink
+          ? [{
+              ...withSidebarAction(subjectsLink),
+              defaultOpen: true,
+              children: subjectChildren.value,
+            }]
+          : []),
+        ...(groupsLink ? [{ ...withSidebarAction(groupsLink) }] : []),
+      ],
+      ...(debugLink ? [[{ ...withSidebarAction(debugLink) }]] : []),
+      ...(feedbackLink ? [[{ ...withSidebarAction(feedbackLink) }]] : []),
+    ] satisfies NavigationMenuItem[][]
+  })
 
   return { links }
 }
