@@ -1,13 +1,31 @@
 <script setup lang="ts">
-import { provideGroupsBreadcrumbLabel, useGroupsBreadcrumbItems } from '~/composables/useGroupsBreadcrumbItems'
+const route = useRoute()
 
-const groupsListRefreshHandler = useState<null | (() => void | Promise<void>)>('groups-list-refresh-handler', () => null)
-const activeGroupName = provideGroupsBreadcrumbLabel()
-const breadcrumbItems = useGroupsBreadcrumbItems(activeGroupName)
+const activeGroupName = useState<string | null>('groups-active-name', () => null)
+const refreshHandler = useState<null | (() => void | Promise<void>)>(
+  'groups-list-refresh-handler',
+  () => null,
+)
 
-function refreshGroupsList() {
-  void groupsListRefreshHandler.value?.()
-}
+const refreshGroupsList = () => refreshHandler.value?.()
+
+const breadcrumbItems = computed(() => {
+  const items = [
+    { label: 'Dashboard', to: '/dashboard' },
+    { label: 'Groups', to: '/dashboard/groups' },
+  ]
+
+  const uuid = route.params.uuid
+
+  if (typeof uuid === 'string' && uuid) {
+    items.push({
+      label: activeGroupName.value || 'Group',
+      to: `/dashboard/groups/${uuid}`,
+    })
+  }
+
+  return items
+})
 </script>
 
 <template>
@@ -22,7 +40,7 @@ function refreshGroupsList() {
     </template>
 
     <template #navbar-right>
-      <CreateGroupToolbarForm :after-create="refreshGroupsList" />
+      <GroupsCreateToolbarForm :after-create="refreshGroupsList" />
       <UColorModeButton />
     </template>
 

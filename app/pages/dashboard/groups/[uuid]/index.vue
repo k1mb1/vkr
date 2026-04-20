@@ -3,11 +3,10 @@ import type { StudentGroupResponse } from '#shared/types/backend'
 import type { TableColumn, TabsItem } from '@nuxt/ui'
 import { useStudentsApi } from '~/composables/api/useStudentsApi'
 import { useStudentsGroupsApi } from '~/composables/api/useStudentsGroups'
-import { useGroupsBreadcrumbLabel } from '~/composables/useGroupsBreadcrumbItems'
 
 const route = useRoute()
 const groupId = computed(() => String(route.params.uuid ?? ''))
-const activeGroupName = useGroupsBreadcrumbLabel()
+const activeGroupName = useState<string | null>('groups-active-name', () => null)
 const toast = useToast()
 
 const { findById } = useStudentsGroupsApi()
