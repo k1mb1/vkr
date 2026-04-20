@@ -178,6 +178,7 @@ function onSelectRow(_e: Event, row: { original: SubjectResponse }) {
     :columns="columns"
     :loading="currentPending"
     @select="onSelectRow"
+    sticky
   >
     <template #empty>
       <UEmpty
