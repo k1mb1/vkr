@@ -1,10 +1,15 @@
 import type { FindSubjectsFilter } from '#shared/types/backend'
 import type { NavigationMenuItem } from '@nuxt/ui'
+import type { Ref } from 'vue'
 import { useSubjectsApi } from '~/composables/api/useSubjectsApi'
 
-export function useDashboardNavigation() {
+export function useDashboardNavigation(open: Ref<boolean>) {
   const { user } = useOidcAuth()
   const { findAllByTeacherId } = useSubjectsApi()
+
+  const closeSidebar = () => {
+    open.value = false
+  }
 
   const teacherId = computed(() => {
     const value = user.value?.sub
@@ -34,30 +39,33 @@ export function useDashboardNavigation() {
       return [{ label: 'Ошибка загрузки предметов', icon: 'i-lucide-circle-x', disabled: true }]
 
     const items = [
-      ...(activeSubjectsData.value ?? []).map(s => ({ label: s.name, to: `/dashboard/subjects/${s.id}` })),
-      ...(archivedSubjectsData.value ?? []).map(s => ({ label: `[Архив] ${s.name}`, to: `/dashboard/subjects/${s.id}`, icon: 'i-lucide-archive' })),
+      ...(activeSubjectsData.value ?? []).map(s => ({ label: s.name, to: `/dashboard/subjects/${s.id}`, onSelect: closeSidebar })),
+      ...(archivedSubjectsData.value ?? []).map(s => ({ label: `[Архив] ${s.name}`, to: `/dashboard/subjects/${s.id}`, icon: 'i-lucide-archive', onSelect: closeSidebar })),
     ]
 
     return items.length ? items : [{ label: 'Предметов пока нет', icon: 'i-lucide-book-open', disabled: true }]
   })
 
-  const links = computed<NavigationMenuItem[][]>(() => [
+  const links = computed(() => [
     [{
       label: 'Главная',
       icon: 'i-lucide-house',
       to: '/dashboard',
       exact: true,
+      onSelect: closeSidebar,
     }, {
       label: 'Предметы',
       icon: 'i-lucide-book-open',
       to: '/dashboard/subjects',
       exact: true,
       defaultOpen: true,
+      onSelect: closeSidebar,
       children: subjectChildren.value,
     }, {
       label: 'Groups',
       icon: 'i-lucide-users',
       to: '/dashboard/groups',
+      onSelect: closeSidebar,
     }],
     ...(import.meta.dev
       ? [
@@ -65,6 +73,7 @@ export function useDashboardNavigation() {
             label: 'Debug',
             icon: 'i-lucide-flask-conical',
             to: '/dashboard/debug',
+            onSelect: closeSidebar,
           }],
         ]
       : []),
@@ -73,8 +82,9 @@ export function useDashboardNavigation() {
       icon: 'i-lucide-message-circle',
       to: 'https://k1mbb.t.me',
       target: '_blank',
+      onSelect: closeSidebar,
     }],
-  ])
+  ] satisfies NavigationMenuItem[][])
 
   return { links }
 }

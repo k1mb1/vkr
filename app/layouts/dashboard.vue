@@ -13,7 +13,7 @@ const open = ref(false)
 const sidebarCollapsed = ref(false)
 const slots = useSlots()
 
-const { links } = useDashboardNavigation()
+const { links } = useDashboardNavigation(open)
 </script>
 
 <template>
