@@ -1,16 +1,20 @@
 <script setup lang="ts">
 import type { SubjectResponse } from '#shared/types/backend'
 import type { BreadcrumbItem, NavigationMenuItem } from '@nuxt/ui'
+import { useSubjectsStore } from '~/stores/subjects'
 
-const route = useRoute()
-const subjectId = computed(() => String(route.params.uuid ?? ''))
-const activeSubject = useState<SubjectResponse | null>('subjects-active-subject', () => null)
+const subjectsStore = useSubjectsStore()
+const subjectId = computed(() => subjectsStore.activeSubject?.id ?? '')
 
 const subjectName = computed(() => {
-  if (activeSubject.value?.id === subjectId.value && activeSubject.value.name)
-    return activeSubject.value.name
+  if (subjectsStore.activeSubject?.name)
+    return subjectsStore.activeSubject.name
 
   return 'Subject'
+})
+
+onUnmounted(() => {
+  subjectsStore.setActiveSubject(null)
 })
 
 const breadcrumbItems = computed<BreadcrumbItem[]>(() => {

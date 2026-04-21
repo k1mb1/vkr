@@ -27,6 +27,7 @@ export const useSubjectsStore = defineStore('subjects', () => {
   } = findAllByTeacherId(safeTeacherId, { archived: true }, { immediate: false })
 
   const archivedLoaded = ref(false)
+  const activeSubject = ref<SubjectResponse | null>(null)
 
   const activeSubjects = computed<SubjectResponse[]>(() => activeSubjectsData.value ?? [])
   const archivedSubjects = computed<SubjectResponse[]>(() => archivedSubjectsData.value ?? [])
@@ -60,9 +61,14 @@ export const useSubjectsStore = defineStore('subjects', () => {
       await loadActiveSubjects()
   }
 
+  function setActiveSubject(subject: SubjectResponse | null) {
+    activeSubject.value = subject
+  }
+
   watch(teacherId, async (value) => {
     if (!value) {
       archivedLoaded.value = false
+      activeSubject.value = null
       return
     }
 
@@ -79,9 +85,11 @@ export const useSubjectsStore = defineStore('subjects', () => {
     activeSubjectsError,
     archivedSubjectsError,
     archivedLoaded,
+    activeSubject,
     loadActiveSubjects,
     loadArchivedSubjects,
     loadArchivedSubjectsOnce,
     refreshForCurrentTab,
+    setActiveSubject,
   }
 })

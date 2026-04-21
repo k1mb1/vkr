@@ -5,7 +5,6 @@ import { h, resolveComponent } from 'vue'
 import { useSubjectsStore } from '~/stores/subjects'
 
 const subjectsStore = useSubjectsStore()
-const activeSubject = useState<SubjectResponse | null>('subjects-active-subject', () => null)
 
 const activeTab = ref<string>('active')
 const searchQuery = ref('')
@@ -48,7 +47,7 @@ const currentError = computed(() => isArchived.value ? subjectsStore.archivedSub
 const UButton = resolveComponent('UButton')
 
 function setActiveSubject(subject: SubjectResponse): void {
-  activeSubject.value = subject
+  subjectsStore.setActiveSubject(subject)
 }
 
 const columns: TableColumn<SubjectResponse>[] = [
