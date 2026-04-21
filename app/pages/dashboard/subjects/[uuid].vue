@@ -4,11 +4,25 @@ import type { BreadcrumbItem, NavigationMenuItem } from '@nuxt/ui'
 import { useSubjectsStore } from '~/stores/subjects'
 
 const subjectsStore = useSubjectsStore()
-const subjectId = computed(() => subjectsStore.activeSubject?.id ?? '')
+const route = useRoute()
+const subjectId = computed(() => String(route.params.uuid ?? ''))
+
+const subjectFromStoreLists = computed<SubjectResponse | null>(() => {
+  const id = subjectId.value
+  if (!id)
+    return null
+
+  return subjectsStore.activeSubjects.find(s => s.id === id)
+    ?? subjectsStore.archivedSubjects.find(s => s.id === id)
+    ?? null
+})
 
 const subjectName = computed(() => {
-  if (subjectsStore.activeSubject?.name)
+  if (subjectsStore.activeSubject?.id === subjectId.value && subjectsStore.activeSubject.name)
     return subjectsStore.activeSubject.name
+
+  if (subjectFromStoreLists.value?.name)
+    return subjectFromStoreLists.value.name
 
   return 'Subject'
 })
