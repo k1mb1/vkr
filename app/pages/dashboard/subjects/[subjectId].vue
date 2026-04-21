@@ -5,7 +5,7 @@ import { useSubjectsStore } from '~/stores/subjects'
 
 const subjectsStore = useSubjectsStore()
 const route = useRoute()
-const subjectId = computed(() => String(route.params.uuid ?? ''))
+const subjectId = computed(() => String(route.params.subjectId ?? ''))
 
 const subjectFromStoreLists = computed<SubjectResponse | null>(() => {
   const id = subjectId.value

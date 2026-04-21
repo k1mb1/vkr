@@ -1,3 +1,0 @@
-<template>
-  lessons
-</template>
