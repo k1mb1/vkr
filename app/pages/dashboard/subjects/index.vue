@@ -1,43 +1,17 @@
 <script setup lang="ts">
-import type { FindSubjectsFilter, SubjectResponse } from '#shared/types/backend'
+import type { SubjectResponse } from '#shared/types/backend'
 import type { BreadcrumbItem, TableColumn, TabsItem } from '@nuxt/ui'
 import { h, resolveComponent } from 'vue'
-import { useSubjectsApi } from '~/composables/api/useSubjectsApi'
+import { useSubjectsStore } from '~/stores/subjects'
 
-const { user } = useOidcAuth()
-const { findAllByTeacherId } = useSubjectsApi()
+const subjectsStore = useSubjectsStore()
 const activeSubject = useState<SubjectResponse | null>('subjects-active-subject', () => null)
 
 const activeTab = ref<string>('active')
 const searchQuery = ref('')
-const archivedLoaded = ref(false)
 
-const teacherId = computed(() => {
-  const value = user.value?.sub
-  return typeof value === 'string' && value.length > 0 ? value : null
-})
-
-const safeTeacherId = computed(() => teacherId.value ?? '')
-
-const activeFilter = computed<FindSubjectsFilter>(() => ({ archived: false }))
-const archivedFilter = computed<FindSubjectsFilter>(() => ({ archived: true }))
-
-const {
-  data: activeSubjectsData,
-  pending: activeSubjectsPending,
-  error: activeSubjectsError,
-  refresh: refreshActiveSubjects,
-} = findAllByTeacherId(safeTeacherId, activeFilter, { immediate: false })
-
-const {
-  data: archivedSubjectsData,
-  pending: archivedSubjectsPending,
-  error: archivedSubjectsError,
-  refresh: refreshArchivedSubjects,
-} = findAllByTeacherId(safeTeacherId, archivedFilter, { immediate: false })
-
-const activeSubjects = computed(() => activeSubjectsData.value ?? [])
-const archivedSubjects = computed(() => archivedSubjectsData.value ?? [])
+const activeSubjects = computed(() => subjectsStore.activeSubjects)
+const archivedSubjects = computed(() => subjectsStore.archivedSubjects)
 
 function filter(list: SubjectResponse[]) {
   const q = searchQuery.value.trim().toLowerCase()
@@ -68,8 +42,8 @@ const tabs = computed<TabsItem[]>(() => [
 
 const isArchived = computed(() => activeTab.value === 'archived')
 const currentSubjects = computed(() => isArchived.value ? filteredArchived.value : filteredActive.value)
-const currentPending = computed(() => isArchived.value ? archivedSubjectsPending.value : activeSubjectsPending.value)
-const currentError = computed(() => isArchived.value ? archivedSubjectsError.value : activeSubjectsError.value)
+const currentPending = computed(() => isArchived.value ? subjectsStore.archivedSubjectsPending : subjectsStore.activeSubjectsPending)
+const currentError = computed(() => isArchived.value ? subjectsStore.archivedSubjectsError : subjectsStore.activeSubjectsError)
 
 const UButton = resolveComponent('UButton')
 
@@ -113,31 +87,18 @@ const columns: TableColumn<SubjectResponse>[] = [
   },
 ]
 
-watch(teacherId, async (value) => {
-  if (!value) {
-    archivedLoaded.value = false
-    return
-  }
-  await refreshActiveSubjects()
-}, { immediate: true })
-
 watch(activeTab, async (value) => {
-  if (value !== 'archived' || archivedLoaded.value || !teacherId.value)
+  if (value !== 'archived')
     return
-  archivedLoaded.value = true
-  await refreshArchivedSubjects()
+
+  await subjectsStore.loadArchivedSubjectsOnce()
 })
 
 async function onRefresh() {
-  if (!teacherId.value)
+  if (!subjectsStore.teacherId)
     return
-  if (isArchived.value) {
-    archivedLoaded.value = true
-    await refreshArchivedSubjects()
-  }
-  else {
-    await refreshActiveSubjects()
-  }
+
+  await subjectsStore.refreshForCurrentTab(isArchived.value)
 }
 
 function onSelectRow(_e: Event, row: { original: SubjectResponse }) {
@@ -177,7 +138,7 @@ const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
           icon="i-lucide-search"
           color="neutral"
           variant="outline"
-          :disabled="!teacherId"
+          :disabled="!subjectsStore.teacherId"
         />
 
         <UButton
@@ -185,7 +146,7 @@ const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
           variant="ghost"
           icon="i-lucide-refresh-cw"
           :loading="currentPending"
-          :disabled="!teacherId"
+          :disabled="!subjectsStore.teacherId"
           @click="onRefresh"
         />
       </div>

@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import type { SubjectResponse } from '#shared/types/backend'
-import type { BreadcrumbItem } from '@nuxt/ui'
-import type { NavigationMenuItem } from '@nuxt/ui'
-import { useStudentsGroupsApi } from '~/composables/api'
+import type { BreadcrumbItem, NavigationMenuItem } from '@nuxt/ui'
 
 const route = useRoute()
 const subjectId = computed(() => String(route.params.uuid ?? ''))
@@ -19,7 +17,7 @@ const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
   return [
     { label: 'Dashboard', to: '/dashboard' },
     { label: 'Subjects', to: '/dashboard/subjects' },
-    { label: subjectName.value, to: `/dashboard/subjects/${subjectId.value}` }
+    { label: subjectName.value, to: `/dashboard/subjects/${subjectId.value}` },
   ]
 })
 
@@ -27,11 +25,11 @@ const linksToolbar = computed(() => [{
   label: 'General',
   icon: 'i-lucide-user',
   to: `/dashboard/subjects/${subjectId.value}`,
-  exact: true
+  exact: true,
 }, {
   label: 'Settings',
   icon: 'i-lucide-bell',
-  to: `/dashboard/subjects/${subjectId.value}/settings`
+  to: `/dashboard/subjects/${subjectId.value}/settings`,
 }] satisfies NavigationMenuItem[])
 </script>
 
@@ -49,6 +47,6 @@ const linksToolbar = computed(() => [{
       <UNavigationMenu :items="linksToolbar" highlight class="-mx-1 flex-1" />
     </template>
 
-    <NuxtPage/>
+    <NuxtPage />
   </NuxtLayout>
 </template>
