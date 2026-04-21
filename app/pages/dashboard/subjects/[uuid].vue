@@ -45,6 +45,10 @@ const linksToolbar = computed(() => [{
   to: `/dashboard/subjects/${subjectId.value}`,
   exact: true,
 }, {
+  label: 'Lessons',
+  icon: 'i-lucide-book-open',
+  to: `/dashboard/subjects/${subjectId.value}/lessons`,
+}, {
   label: 'Settings',
   icon: 'i-lucide-bell',
   to: `/dashboard/subjects/${subjectId.value}/settings`,
