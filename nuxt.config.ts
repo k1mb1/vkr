@@ -2,7 +2,7 @@ import { env } from 'node:process'
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-  modules: ['@nuxt/eslint', '@nuxt/ui', 'nuxt-auth-utils', '@pinia/nuxt'],
+  modules: ['@nuxt/eslint', '@nuxt/ui', 'nuxt-auth-utils', '@pinia/nuxt', '@nuxtjs/i18n'],
 
   devtools: {
     enabled: true,
@@ -63,4 +63,21 @@ export default defineNuxtConfig({
   },
 
   ssr: false,
+
+  i18n: {
+    strategy: 'no_prefix',
+    defaultLocale: 'ru',
+    detectBrowserLanguage: {
+      useCookie: true,
+      redirectOn: 'root',
+      alwaysRedirect: true,
+    },
+    locales: [{
+      code: 'en',
+      name: 'English',
+    }, {
+      code: 'ru',
+      name: 'Русский',
+    }],
+  },
 })
