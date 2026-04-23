@@ -1,3 +1,5 @@
 <template>
-  lessons uuid
+  <div>
+    lessons uuid
+  </div>
 </template>
