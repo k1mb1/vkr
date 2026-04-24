@@ -20,10 +20,11 @@ export function useLessonsApi() {
   const findAllBySubjectId = (
     subjectId: MaybeRefOrGetter<string>,
   ): BackendFetchResult<LessonResponse[]> => {
-    return useBackendFetch<LessonResponse[], undefined>(
-      () => `/lessons/subjects/${toValue(subjectId)}`,
+    return useBackendFetch<LessonResponse[], undefined, { subjectId: string }>(
+      `/lessons`,
       {
         method: 'GET',
+        query: () => ({ subjectId: toValue(subjectId) }),
       },
     )
   }
