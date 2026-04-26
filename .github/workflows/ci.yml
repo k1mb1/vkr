@@ -23,12 +23,31 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
           cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Cache Nuxt artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            .nuxt
+            node_modules/.cache
+          key: ${{ runner.os }}-node-${{ matrix.node }}-nuxt-${{ hashFiles('pnpm-lock.yaml', 'nuxt.config.ts', 'tsconfig.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-${{ matrix.node }}-nuxt-
+
+      - name: Cache ESLint results
+        uses: actions/cache@v4
+        with:
+          path: .eslintcache
+          key: ${{ runner.os }}-node-${{ matrix.node }}-eslint-${{ hashFiles('pnpm-lock.yaml', 'eslint.config.mjs') }}
+          restore-keys: |
+            ${{ runner.os }}-node-${{ matrix.node }}-eslint-
 
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: Lint
-        run: pnpm run lint
+        run: pnpm run lint -- --cache --cache-location .eslintcache
 
       - name: Typecheck
         run: pnpm run typecheck
