@@ -47,7 +47,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Lint
-        run: pnpm run lint -- --cache --cache-location .eslintcache
+        run: pnpm exec eslint . --cache --cache-location .eslintcache
 
       - name: Typecheck
         run: pnpm run typecheck

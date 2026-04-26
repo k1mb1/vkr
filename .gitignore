@@ -25,3 +25,4 @@ logs
 .agents
 .claude
 skills-lock.json
+.eslintcache
