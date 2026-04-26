@@ -1,32 +1,63 @@
 import type { BaseIssue, BaseSchema } from 'valibot'
+import { CalendarDate, CalendarDateTime, getLocalTimeZone, ZonedDateTime } from '@internationalized/date'
 import * as v from 'valibot'
 
-export type SchemaFor<T> = BaseSchema<unknown, T, BaseIssue<unknown>>
+type SchemaFor<T> = BaseSchema<unknown, T, BaseIssue<unknown>>
+type CalendarValue = CalendarDate | CalendarDateTime | ZonedDateTime
 
-export function requiredTrimmedStringSchema(requiredMessage: string) {
-  return v.pipe(v.string(), v.trim(), v.minLength(1, requiredMessage))
+function calendarValue(message: string) {
+  return v.union([v.instance(CalendarDate), v.instance(CalendarDateTime), v.instance(ZonedDateTime)], message)
 }
 
-export function requiredTrimmedStringWithMaxSchema(requiredMessage: string, maxLength: number, maxMessage: string) {
-  return v.pipe(v.string(), v.trim(), v.minLength(1, requiredMessage), v.maxLength(maxLength, maxMessage))
+function string(message = 'Field is required') {
+  return v.pipe(v.string(), v.trim(), v.minLength(1, message))
 }
 
-export function optionalTrimmedStringWithMaxSchema(maxLength: number, maxMessage?: string) {
-  return v.optional(v.pipe(v.string(), v.trim(), v.maxLength(maxLength, maxMessage)))
+function stringMax(maxLength: number, requiredMessage = 'Field is required', maxMessage = `Must be at most ${maxLength} characters`) {
+  return v.pipe(string(requiredMessage), v.maxLength(maxLength, maxMessage))
 }
 
-export function uuidV4Schema(message: string) {
+function uuidV4(message = 'Must be a valid UUID v4') {
   return v.pipe(v.string(), v.uuid(message))
 }
 
-export function isoDateTimeSchema(message: string) {
+function isoDateTime(message = 'Must be a valid ISO datetime') {
   return v.pipe(v.string(), v.isoDateTime(message))
 }
 
-export function nonNegativeIntegerSchema(integerMessage: string, nonNegativeMessage: string) {
+function nonNegativeInteger(integerMessage = 'Must be an integer', nonNegativeMessage = 'Must be non-negative') {
   return v.pipe(v.number(), v.integer(integerMessage), v.minValue(0, nonNegativeMessage))
 }
 
-export function emailSchema(message: string) {
+function email(message = 'Must be a valid email address') {
   return v.pipe(v.string(), v.trim(), v.email(message))
+}
+
+function calendarDateToIso(message = 'Must be a valid calendar date') {
+  return v.pipe(
+    calendarValue(message),
+    v.transform((value: CalendarValue): string => value.toString()),
+  )
+}
+
+function calendarDateTimeToIso(message = 'Must be a valid calendar datetime') {
+  return v.pipe(
+    calendarValue(message),
+    v.transform((value: CalendarValue): string => value.toDate(getLocalTimeZone()).toISOString()),
+  )
+}
+
+export type {
+  SchemaFor,
+}
+
+export {
+  calendarDateTimeToIso,
+  calendarDateToIso,
+  email,
+  isoDateTime,
+  nonNegativeInteger,
+  string,
+  stringMax,
+  uuidV4,
 }

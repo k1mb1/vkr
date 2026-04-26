@@ -30,7 +30,7 @@ export function useSubjectsApi() {
 
   const findAllByTeacherId = (
     teacherId: MaybeRefOrGetter<string>,
-    filter?: MaybeRefOrGetter<FindSubjectsFilter>,
+    filter: MaybeRefOrGetter<FindSubjectsFilter> = DEFAULT_FIND_SUBJECTS_FILTER,
     options?: FindAllByTeacherIdOptions,
   ): BackendFetchResult<SubjectResponse[]> => {
     return useBackendFetch<SubjectResponse[], undefined, FindSubjectsFilter>(
@@ -38,10 +38,7 @@ export function useSubjectsApi() {
       {
         ...(options ?? {}),
         method: 'GET',
-        query: () => ({
-          ...DEFAULT_FIND_SUBJECTS_FILTER,
-          ...(toValue(filter) ?? {}),
-        }),
+        query: () => toValue(filter),
       },
     )
   }

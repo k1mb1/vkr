@@ -2,8 +2,8 @@ import type { StudentEntryResponse } from '#shared/types/backend/student-groups'
 import type { SchemaFor } from '#shared/types/backend/valibot-utils'
 import type { InferOutput } from 'valibot'
 import {
-  requiredTrimmedStringSchema,
-  uuidV4Schema,
+  string,
+  uuidV4,
 } from '#shared/types/backend/valibot-utils'
 import * as v from 'valibot'
 
@@ -43,13 +43,13 @@ interface FindStudentsFilter {
 }
 
 const createStudentRequestSchema: SchemaFor<CreateStudentRequest> = v.object({
-  username: requiredTrimmedStringSchema('Username is required'),
-  groupId: v.optional(v.nullable(uuidV4Schema('Group ID must be a valid UUID v4'))),
+  username: string('Username is required'),
+  groupId: v.optional(v.nullable(uuidV4())),
 })
 
 const updateStudentRequestSchema: SchemaFor<UpdateStudentRequest> = v.object({
-  name: v.optional(requiredTrimmedStringSchema('Name cannot be empty')),
-  groupId: v.optional(v.nullable(uuidV4Schema('Group ID must be a valid UUID v4'))),
+  name: v.optional(string('Name cannot be empty')),
+  groupId: v.optional(v.nullable(uuidV4())),
 })
 
 type CreateStudentRequestPayload = InferOutput<typeof createStudentRequestSchema>

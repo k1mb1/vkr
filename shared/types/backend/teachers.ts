@@ -1,8 +1,8 @@
 import type { SchemaFor } from '#shared/types/backend/valibot-utils'
 import type { InferOutput } from 'valibot'
 import {
-  emailSchema,
-  requiredTrimmedStringWithMaxSchema,
+  email,
+  stringMax,
 } from '#shared/types/backend/valibot-utils'
 import * as v from 'valibot'
 
@@ -19,17 +19,9 @@ interface TeacherResponse {
   updatedAt: string
 }
 
-const teacherUsernameSchema = requiredTrimmedStringWithMaxSchema(
-  'Username is required',
-  120,
-  'Username must be 120 characters or less',
-)
-
-const teacherEmailSchema = emailSchema('Email must be a valid email address')
-
 const updateTeacherRequestSchema: SchemaFor<UpdateTeacherRequest> = v.object({
-  username: teacherUsernameSchema,
-  email: teacherEmailSchema,
+  username: stringMax(120),
+  email: email(),
 })
 
 type UpdateTeacherRequestPayload = InferOutput<typeof updateTeacherRequestSchema>

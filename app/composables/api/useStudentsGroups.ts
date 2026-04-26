@@ -20,26 +20,13 @@ import {
 import { toValue } from 'vue'
 import { useBackendFetch } from '~/composables/useBackendFetch'
 
-function toFindGroupsQuery(request: PageRequest<FindGroupsFilter>): PageQuery {
-  const query = toPageQuery(request)
-  const name = query['filter.name']
-
-  if (name !== undefined) {
-    query.name = name
-  }
-
-  delete query['filter.name']
-
-  return query
-}
-
 export function useStudentsGroupsApi() {
   const findAll = (
     request: MaybeRefOrGetter<PageRequest<FindGroupsFilter>> = DEFAULT_PAGE_REQUEST,
   ): BackendFetchResult<PageResponse<StudentGroupPageResponse>> => {
     return useBackendFetch<PageResponse<StudentGroupPageResponse>, undefined, PageQuery>(`/groups`, {
       method: 'GET',
-      query: () => toFindGroupsQuery(toValue(request)),
+      query: () => toPageQuery(toValue(request)),
     })
   }
 

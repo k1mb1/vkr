@@ -38,6 +38,7 @@ export default defineNuxtConfig({
     optimizeDeps: {
       include: [
         'valibot',
+        '@internationalized/date',
       ],
     },
   },

@@ -26,19 +26,20 @@ interface PageRequest<TFilter = undefined> {
 }
 
 const PAGE_DEFAULTS = {
-  number: 0,
+  page: 0,
   size: 20,
 } as const
 
 const DEFAULT_PAGE_REQUEST: Required<Omit<PageRequest<never>, 'filter' | 'sort'>> = {
-  page: PAGE_DEFAULTS.number,
+  page: PAGE_DEFAULTS.page,
   size: PAGE_DEFAULTS.size,
 }
 
 type PageQuery = Record<string, QueryValue>
 
 function isQueryPrimitive(value: unknown): value is QueryPrimitive {
-  return value === null || value === undefined || ['string', 'number', 'boolean'].includes(typeof value)
+  const t = typeof value
+  return value === null || value === undefined || t === 'string' || t === 'number' || t === 'boolean'
 }
 
 function toSortQuery(sort: SortingState | undefined): string[] | undefined {
@@ -49,7 +50,7 @@ function toSortQuery(sort: SortingState | undefined): string[] | undefined {
   return sort.map(item => `${item.id},${item.desc ? 'desc' : 'asc'}`)
 }
 
-function addFilterToQuery(query: PageQuery, filter: unknown, prefix = 'filter') {
+function addFilterToQuery(query: PageQuery, filter: unknown, prefix = '') {
   if (!filter || typeof filter !== 'object' || Array.isArray(filter)) {
     return
   }
@@ -57,17 +58,24 @@ function addFilterToQuery(query: PageQuery, filter: unknown, prefix = 'filter') 
   for (const [key, value] of Object.entries(filter as Record<string, unknown>)) {
     const queryKey = prefix ? `${prefix}.${key}` : key
 
+    if (value === null || value === undefined) {
+      continue
+    }
+
     if (isQueryPrimitive(value)) {
       query[queryKey] = value
       continue
     }
 
     if (Array.isArray(value) && value.every(isQueryPrimitive)) {
-      query[queryKey] = value
+      query[queryKey] = value.filter(v => v !== null && v !== undefined) as QueryPrimitive[]
       continue
     }
 
-    query[queryKey] = JSON.stringify(value)
+    if (typeof value === 'object') {
+      addFilterToQuery(query, value, queryKey)
+      continue
+    }
   }
 }
 
@@ -77,9 +85,12 @@ function toPageQuery<TFilter>(request: PageRequest<TFilter> = {}): PageQuery {
     ...request,
   }
 
-  const query: PageQuery = {
-    page: withDefaults.page,
-    size: withDefaults.size,
+  const query: PageQuery = {}
+  if (withDefaults.page !== undefined && withDefaults.page !== null) {
+    query.page = withDefaults.page
+  }
+  if (withDefaults.size !== undefined && withDefaults.size !== null) {
+    query.size = withDefaults.size
   }
 
   const sort = toSortQuery(withDefaults.sort)

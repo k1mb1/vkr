@@ -1,10 +1,11 @@
 import type { SchemaFor } from '#shared/types/backend/valibot-utils'
-import type { InferOutput } from 'valibot'
+import type { InferInput, InferOutput } from 'valibot'
 import {
-  isoDateTimeSchema,
-  nonNegativeIntegerSchema,
-  requiredTrimmedStringWithMaxSchema,
-  uuidV4Schema,
+  calendarDateTimeToIso,
+  calendarDateToIso,
+  nonNegativeInteger,
+  stringMax,
+  uuidV4,
 } from '#shared/types/backend/valibot-utils'
 import * as v from 'valibot'
 
@@ -66,20 +67,7 @@ interface LessonResponse {
   updatedAt: string
 }
 
-const lessonNameSchema = requiredTrimmedStringWithMaxSchema(
-  'Lesson name is required',
-  120,
-  'Lesson name must be 120 characters or less',
-)
-
-const lessonDateTimeSchema = isoDateTimeSchema('Lesson dateTime must be a valid ISO datetime string')
-
-const subjectIdSchema = uuidV4Schema('Subject ID must be a valid UUID v4')
-
-const lessonTypeSchema = v.picklist(LESSON_TYPES)
-const dayOfWeekSchema = v.picklist(DAY_OF_WEEK)
-
-const lessonCountSchema = nonNegativeIntegerSchema(
+const lessonCountSchema = nonNegativeInteger(
   'Lesson count must be an integer',
   'Lesson count cannot be negative',
 )
@@ -90,12 +78,12 @@ const positiveLessonCountSchema = v.pipe(
   v.minValue(1, 'Lesson count must be at least 1'),
 )
 
-const startDateSchema = v.pipe(v.string(), v.isoDate('Start date must be a valid ISO date string'))
+const startDateSchema = calendarDateToIso('Start date must be a valid date')
 
 const daysOfWeekSchema = v.pipe(
   v.array(
     v.pipe(
-      v.array(dayOfWeekSchema),
+      v.array(v.picklist(DAY_OF_WEEK)),
       v.minLength(1, 'Each weekly pattern must contain at least one day'),
     ),
   ),
@@ -107,16 +95,16 @@ const decayFactorSchema = v.pipe(
   v.check(value => value > 0.0001 && value <= 1, 'Decay factor must be in range (0.0001, 1.0]'),
 )
 
-const createLessonRequestSchema: SchemaFor<CreateLessonRequest> = v.object({
-  name: lessonNameSchema,
-  dateTime: v.optional(lessonDateTimeSchema),
-  type: lessonTypeSchema,
-  subjectId: subjectIdSchema,
+const createLessonRequestSchema = v.object({
+  name: stringMax(120, 'Lesson name is required', 'Lesson name must be 120 characters or less'),
+  dateTime: v.optional(calendarDateTimeToIso('Lesson dateTime must be a valid date/time')),
+  type: v.picklist(LESSON_TYPES),
+  subjectId: uuidV4(),
 })
 
 const createLessonsByTypeRequestSchema: SchemaFor<CreateLessonsByTypeRequest> = v.pipe(
   v.object({
-    subjectId: subjectIdSchema,
+    subjectId: uuidV4(),
     lectureCount: lessonCountSchema,
     practiceCount: lessonCountSchema,
   }),
@@ -126,15 +114,15 @@ const createLessonsByTypeRequestSchema: SchemaFor<CreateLessonsByTypeRequest> = 
   ),
 )
 
-const bulkScheduleEntrySchema: SchemaFor<BulkScheduleEntry> = v.object({
-  type: lessonTypeSchema,
+const bulkScheduleEntrySchema = v.object({
+  type: v.picklist(LESSON_TYPES),
   startDate: startDateSchema,
   totalCount: positiveLessonCountSchema,
   daysOfWeek: daysOfWeekSchema,
 })
 
-const bulkScheduleRequestSchema: SchemaFor<BulkScheduleRequest> = v.object({
-  subjectId: subjectIdSchema,
+const bulkScheduleRequestSchema = v.object({
+  subjectId: uuidV4(),
   schedules: v.pipe(
     v.array(bulkScheduleEntrySchema),
     v.minLength(1, 'At least one schedule entry is required'),
@@ -150,10 +138,17 @@ type CreateLessonsByTypeRequestPayload = InferOutput<typeof createLessonsByTypeR
 type BulkScheduleRequestPayload = InferOutput<typeof bulkScheduleRequestSchema>
 type UpdateDecayFactorRequestPayload = InferOutput<typeof updateDecayFactorRequestSchema>
 
+type CreateLessonFormState = InferInput<typeof createLessonRequestSchema>
+type BulkScheduleEntryFormState = InferInput<typeof bulkScheduleEntrySchema>
+type BulkScheduleFormState = InferInput<typeof bulkScheduleRequestSchema>
+
 export type {
   BulkScheduleEntry,
+  BulkScheduleEntryFormState,
+  BulkScheduleFormState,
   BulkScheduleRequest,
   BulkScheduleRequestPayload,
+  CreateLessonFormState,
   CreateLessonRequest,
   CreateLessonRequestPayload,
   CreateLessonsByTypeRequest,

@@ -17,32 +17,13 @@ import {
 import { toValue } from 'vue'
 import { useBackendFetch } from '~/composables/useBackendFetch'
 
-function toFindStudentsQuery(request: PageRequest<FindStudentsFilter>): PageQuery {
-  const query = toPageQuery(request)
-  const username = query['filter.username']
-  const groupId = query['filter.groupId']
-
-  if (username !== undefined) {
-    query.username = username
-  }
-
-  if (groupId !== undefined) {
-    query.groupId = groupId
-  }
-
-  delete query['filter.username']
-  delete query['filter.groupId']
-
-  return query
-}
-
 export function useStudentsApi() {
   const findAll = (
     request: MaybeRefOrGetter<PageRequest<FindStudentsFilter>> = DEFAULT_PAGE_REQUEST,
   ): BackendFetchResult<PageResponse<StudentResponse>> => {
     return useBackendFetch<PageResponse<StudentResponse>, undefined, PageQuery>(`/students`, {
       method: 'GET',
-      query: () => toFindStudentsQuery(toValue(request)),
+      query: () => toPageQuery(toValue(request)),
     })
   }
 
