@@ -8,7 +8,7 @@ import { useStudentsGroupsApi } from '~/composables/api/useStudentsGroups'
 const UButton = resolveComponent('UButton')
 const UPagination = resolveComponent('UPagination')
 
-const page = ref(PAGE_DEFAULTS.number + 1)
+const page = ref(PAGE_DEFAULTS.page + 1)
 const pageSize = PAGE_DEFAULTS.size
 
 const { findAll } = useStudentsGroupsApi()

@@ -29,7 +29,8 @@ const LESSON_TYPE_COLORS: Record<LessonType, 'neutral' | 'primary' | 'secondary'
 }
 
 function formatDateTime(dt: string | null): string {
-  if (!dt) return '—'
+  if (!dt)
+    return '—'
   return new Date(dt).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' })
 }
 
@@ -48,13 +49,15 @@ watch(lesson, (val) => {
 }, { immediate: true })
 
 function getErrorMessage(e: unknown): string {
-  if (e instanceof Error) return e.message
+  if (e instanceof Error)
+    return e.message
   const err = e as { data?: { statusMessage?: string, message?: string }, message?: string }
   return err.data?.statusMessage || err.data?.message || err.message || 'Что-то пошло не так'
 }
 
 async function onSaveDecayFactor(event: { data: UpdateDecayFactorRequestPayload }) {
-  if (decayPending.value) return
+  if (decayPending.value)
+    return
   decayPending.value = true
   try {
     const { data: updated, error: err } = await updateDecayFactor(lessonId, event.data)

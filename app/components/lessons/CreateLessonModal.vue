@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { CreateLessonRequestPayload, LessonResponse, LessonType } from '#shared/types/backend'
-import { createLessonRequestSchema } from '#shared/types/backend'
+import type { CreateLessonFormState, CreateLessonRequestPayload, LessonResponse, LessonType } from '#shared/types/backend'
+import { createLessonRequestSchema, LESSON_TYPES } from '#shared/types/backend'
 import { useLessonsApi } from '~/composables/api/useLessonsApi'
 
 interface ApiErrorPayload {
@@ -18,14 +18,13 @@ const props = defineProps<{
   afterCreate?: (lesson: LessonResponse) => void | Promise<void>
 }>()
 
-const LESSON_TYPES: LessonType[] = ['NONE', 'LECTURE', 'PRACTICE']
-
-const state = reactive<CreateLessonRequestPayload>({
+  
+const state: CreateLessonFormState = reactive<CreateLessonFormState>({
   name: '',
   dateTime: undefined,
   type: 'NONE',
   subjectId: props.subjectId,
-})
+}) as unknown as CreateLessonFormState
 
 const pending = ref(false)
 const { create } = useLessonsApi()
@@ -34,31 +33,6 @@ const toast = useToast()
 watch(() => props.subjectId, (value) => {
   state.subjectId = value
 }, { immediate: true })
-
-function getDateTimeModelValue(): any {
-  if (!state.dateTime) {
-    return null
-  }
-
-  const value = new Date(state.dateTime)
-  return Number.isNaN(value.getTime()) ? null : value
-}
-
-function setDateTimeModelValue(value: any) {
-  if (!value) {
-    state.dateTime = undefined
-    return
-  }
-
-  if (value instanceof Date) {
-    state.dateTime = value.toISOString()
-    return
-  }
-
-  if (typeof value === 'string') {
-    state.dateTime = value.trim() === '' ? undefined : value
-  }
-}
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) {
@@ -174,10 +148,9 @@ async function onSubmit(event: { data: CreateLessonRequestPayload }, close: () =
 
         <UFormField name="dateTime" label="Date/time">
           <UInputDate
-            :model-value="getDateTimeModelValue()"
+            v-model="state.dateTime"
             :disabled="pending"
             class="w-full"
-            @update:model-value="setDateTimeModelValue"
           />
         </UFormField>
 

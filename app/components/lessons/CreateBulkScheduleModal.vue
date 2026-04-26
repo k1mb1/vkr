@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import type {
+  BulkScheduleEntryFormState,
+  BulkScheduleFormState,
   BulkScheduleRequestPayload,
   DayOfWeek,
   LessonResponse,
-  LessonType,
 } from '#shared/types/backend'
-import { bulkScheduleRequestSchema } from '#shared/types/backend'
+import { bulkScheduleRequestSchema, DAY_OF_WEEK, LESSON_TYPES } from '#shared/types/backend'
+import { getLocalTimeZone, today } from '@internationalized/date'
 import { useLessonsApi } from '~/composables/api/useLessonsApi'
 
 interface ApiErrorPayload {
@@ -23,34 +25,23 @@ const props = defineProps<{
   afterCreate?: (lessons: LessonResponse[]) => void | Promise<void>
 }>()
 
-const LESSON_TYPES: LessonType[] = ['NONE', 'LECTURE', 'PRACTICE']
-const DAYS: DayOfWeek[] = [
-  'MONDAY',
-  'TUESDAY',
-  'WEDNESDAY',
-  'THURSDAY',
-  'FRIDAY',
-  'SATURDAY',
-  'SUNDAY',
-]
-
 function createEmptyWeek(): DayOfWeek[] {
   return ['MONDAY']
 }
 
-function createEmptyScheduleEntry() {
+function createEmptyScheduleEntry(): BulkScheduleEntryFormState {
   return {
-    type: 'LECTURE' as LessonType,
-    startDate: '',
+    type: 'LECTURE',
+    startDate: today(getLocalTimeZone()),
     totalCount: 1,
     daysOfWeek: [createEmptyWeek()],
   }
 }
 
-const state = reactive<BulkScheduleRequestPayload>({
+const state: BulkScheduleFormState = reactive<BulkScheduleFormState>({
   subjectId: props.subjectId,
   schedules: [createEmptyScheduleEntry()],
-})
+}) as unknown as BulkScheduleFormState
 
 const pending = ref(false)
 const { createBulkSchedule } = useLessonsApi()
@@ -238,9 +229,8 @@ async function onSubmit(event: { data: BulkScheduleRequestPayload }, close: () =
               </UFormField>
 
               <UFormField :name="`schedules.${entryIndex}.startDate`" label="Start date" required>
-                <UInput
+                <UInputDate
                   v-model="entry.startDate"
-                  placeholder="2025-09-01"
                   :disabled="pending"
                 />
               </UFormField>
@@ -281,7 +271,7 @@ async function onSubmit(event: { data: BulkScheduleRequestPayload }, close: () =
 
                 <div class="flex flex-wrap gap-2">
                   <UButton
-                    v-for="day in DAYS"
+                    v-for="day in DAY_OF_WEEK"
                     :key="day"
                     :color="isDaySelected(entryIndex, weekIndex, day) ? 'primary' : 'neutral'"
                     :variant="isDaySelected(entryIndex, weekIndex, day) ? 'solid' : 'soft'"

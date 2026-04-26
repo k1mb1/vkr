@@ -9,7 +9,13 @@ import {
 } from '#shared/types/backend/valibot-utils'
 import * as v from 'valibot'
 
-const LESSON_TYPES = ['NONE', 'LECTURE', 'PRACTICE'] as const
+const LESSON_TYPES = [
+  'NONE',
+  'LECTURE',
+  'PRACTICE',
+] as const
+type LessonType = (typeof LESSON_TYPES)[number]
+
 const DAY_OF_WEEK = [
   'MONDAY',
   'TUESDAY',
@@ -19,8 +25,6 @@ const DAY_OF_WEEK = [
   'SATURDAY',
   'SUNDAY',
 ] as const
-
-type LessonType = (typeof LESSON_TYPES)[number]
 type DayOfWeek = (typeof DAY_OF_WEEK)[number]
 
 interface CreateLessonRequest {
@@ -164,5 +168,7 @@ export {
   bulkScheduleRequestSchema,
   createLessonRequestSchema,
   createLessonsByTypeRequestSchema,
+  DAY_OF_WEEK,
+  LESSON_TYPES,
   updateDecayFactorRequestSchema,
 }
