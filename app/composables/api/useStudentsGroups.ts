@@ -68,7 +68,7 @@ export function useStudentsGroupsApi() {
     return useBackendFetch<StudentGroupResponse, UpdateGroupRequestPayload>(
       () => `/groups/${toValue(groupId)}`,
       {
-        method: 'PUT',
+        method: 'PATCH',
         body: () => toValue(payload),
         bodySchema: updateGroupRequestSchema,
       },

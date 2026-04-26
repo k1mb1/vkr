@@ -7,15 +7,17 @@ type SortingState = Array<{
 }>
 
 interface PageInfo {
-  size: number
-  number: number
   totalElements: number
   totalPages: number
+  size: number
+  number: number
+  first: boolean
+  last: boolean
+  empty: boolean
 }
 
-interface PageResponse<T> {
+interface PageResponse<T> extends PageInfo {
   content: T[]
-  page: PageInfo
 }
 
 interface PageRequest<TFilter = undefined> {

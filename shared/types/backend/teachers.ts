@@ -7,8 +7,8 @@ import {
 import * as v from 'valibot'
 
 interface UpdateTeacherRequest {
-  username: string
-  email: string
+  username?: string
+  email?: string
 }
 
 interface TeacherResponse {
@@ -19,10 +19,10 @@ interface TeacherResponse {
   updatedAt: string
 }
 
-const updateTeacherRequestSchema: SchemaFor<UpdateTeacherRequest> = v.object({
+const updateTeacherRequestSchema: SchemaFor<UpdateTeacherRequest> = v.partial(v.object({
   username: stringMax(120),
   email: email(),
-})
+}))
 
 type UpdateTeacherRequestPayload = InferOutput<typeof updateTeacherRequestSchema>
 

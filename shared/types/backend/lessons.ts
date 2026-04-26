@@ -3,6 +3,7 @@ import type { InferInput, InferOutput } from 'valibot'
 import {
   calendarDateTimeToIso,
   calendarDateToIso,
+  isoDateTime,
   nonNegativeInteger,
   stringMax,
   uuidV4,
@@ -15,6 +16,19 @@ const LESSON_TYPES = [
   'PRACTICE',
 ] as const
 type LessonType = (typeof LESSON_TYPES)[number]
+
+const ISSUANCE_MODES = [
+  'AUTO',
+  'MANUAL',
+] as const
+type IssuanceMode = (typeof ISSUANCE_MODES)[number]
+
+const PENALTY_MODES = [
+  'NONE',
+  'SUBTRACT',
+  'MULTIPLY',
+] as const
+type PenaltyMode = (typeof PENALTY_MODES)[number]
 
 const DAY_OF_WEEK = [
   'MONDAY',
@@ -32,6 +46,9 @@ interface CreateLessonRequest {
   dateTime?: string
   type: LessonType
   subjectId: string
+  issuanceMode?: IssuanceMode
+  penaltyMode?: PenaltyMode
+  penaltyStep?: number
 }
 
 interface CreateLessonsByTypeRequest {
@@ -52,8 +69,17 @@ interface BulkScheduleRequest {
   schedules: BulkScheduleEntry[]
 }
 
-interface UpdateDecayFactorRequest {
-  decayFactor: number
+interface UpdateLessonRequest {
+  name?: string
+  dateTime?: string
+  type?: LessonType
+  issuanceMode?: IssuanceMode
+  penaltyMode?: PenaltyMode
+  penaltyStep?: number
+}
+
+interface UpdateIssuedTaskIndexRequest {
+  issuedTaskIndex: number
 }
 
 interface LessonResponse {
@@ -64,7 +90,11 @@ interface LessonResponse {
   subjectId: string
   groupId: string | null
   subgroupNumber: number | null
-  decayFactor: number
+  issuanceMode: IssuanceMode
+  issuedAt: string | null
+  issuedTaskIndex: number
+  penaltyMode: PenaltyMode
+  penaltyStep: number
   archived: boolean
   archivedAt: string | null
   createdAt: string
@@ -94,9 +124,9 @@ const daysOfWeekSchema = v.pipe(
   v.minLength(1, 'At least one weekly pattern is required'),
 )
 
-const decayFactorSchema = v.pipe(
+const penaltyStepSchema = v.pipe(
   v.number(),
-  v.check(value => value > 0.0001 && value <= 1, 'Decay factor must be in range (0.0001, 1.0]'),
+  v.check(value => value > 0.0001 && value <= 1, 'Penalty step must be in range (0.0001, 1.0]'),
 )
 
 const createLessonRequestSchema = v.object({
@@ -104,6 +134,9 @@ const createLessonRequestSchema = v.object({
   dateTime: v.optional(calendarDateTimeToIso('Lesson dateTime must be a valid date/time')),
   type: v.picklist(LESSON_TYPES),
   subjectId: uuidV4(),
+  issuanceMode: v.optional(v.picklist(ISSUANCE_MODES)),
+  penaltyMode: v.optional(v.picklist(PENALTY_MODES)),
+  penaltyStep: v.optional(penaltyStepSchema),
 })
 
 const createLessonsByTypeRequestSchema: SchemaFor<CreateLessonsByTypeRequest> = v.pipe(
@@ -133,14 +166,24 @@ const bulkScheduleRequestSchema = v.object({
   ),
 })
 
-const updateDecayFactorRequestSchema: SchemaFor<UpdateDecayFactorRequest> = v.object({
-  decayFactor: decayFactorSchema,
+const updateLessonRequestSchema: SchemaFor<UpdateLessonRequest> = v.partial(v.object({
+  name: stringMax(120, 'Lesson name is required', 'Lesson name must be 120 characters or less'),
+  dateTime: isoDateTime('Lesson dateTime must be a valid ISO datetime'),
+  type: v.picklist(LESSON_TYPES),
+  issuanceMode: v.picklist(ISSUANCE_MODES),
+  penaltyMode: v.picklist(PENALTY_MODES),
+  penaltyStep: penaltyStepSchema,
+}))
+
+const updateIssuedTaskIndexRequestSchema: SchemaFor<UpdateIssuedTaskIndexRequest> = v.object({
+  issuedTaskIndex: nonNegativeInteger('Issued task index must be an integer', 'Issued task index cannot be negative'),
 })
 
 type CreateLessonRequestPayload = InferOutput<typeof createLessonRequestSchema>
 type CreateLessonsByTypeRequestPayload = InferOutput<typeof createLessonsByTypeRequestSchema>
 type BulkScheduleRequestPayload = InferOutput<typeof bulkScheduleRequestSchema>
-type UpdateDecayFactorRequestPayload = InferOutput<typeof updateDecayFactorRequestSchema>
+type UpdateLessonRequestPayload = InferOutput<typeof updateLessonRequestSchema>
+type UpdateIssuedTaskIndexRequestPayload = InferOutput<typeof updateIssuedTaskIndexRequestSchema>
 
 type CreateLessonFormState = InferInput<typeof createLessonRequestSchema>
 type BulkScheduleEntryFormState = InferInput<typeof bulkScheduleEntrySchema>
@@ -158,10 +201,14 @@ export type {
   CreateLessonsByTypeRequest,
   CreateLessonsByTypeRequestPayload,
   DayOfWeek,
+  IssuanceMode,
   LessonResponse,
   LessonType,
-  UpdateDecayFactorRequest,
-  UpdateDecayFactorRequestPayload,
+  PenaltyMode,
+  UpdateIssuedTaskIndexRequest,
+  UpdateIssuedTaskIndexRequestPayload,
+  UpdateLessonRequest,
+  UpdateLessonRequestPayload,
 }
 
 export {
@@ -169,6 +216,9 @@ export {
   createLessonRequestSchema,
   createLessonsByTypeRequestSchema,
   DAY_OF_WEEK,
+  ISSUANCE_MODES,
   LESSON_TYPES,
-  updateDecayFactorRequestSchema,
+  PENALTY_MODES,
+  updateIssuedTaskIndexRequestSchema,
+  updateLessonRequestSchema,
 }

@@ -3,7 +3,8 @@ import type {
   CreateLessonRequestPayload,
   CreateLessonsByTypeRequestPayload,
   LessonResponse,
-  UpdateDecayFactorRequestPayload,
+  UpdateIssuedTaskIndexRequestPayload,
+  UpdateLessonRequestPayload,
 } from '#shared/types/backend'
 import type { MaybeRefOrGetter } from 'vue'
 import type { BackendFetchResult } from '~/composables/useBackendFetch'
@@ -11,7 +12,8 @@ import {
   bulkScheduleRequestSchema,
   createLessonRequestSchema,
   createLessonsByTypeRequestSchema,
-  updateDecayFactorRequestSchema,
+  updateIssuedTaskIndexRequestSchema,
+  updateLessonRequestSchema,
 } from '#shared/types/backend'
 import { toValue } from 'vue'
 import { useBackendFetch } from '~/composables/useBackendFetch'
@@ -59,25 +61,70 @@ export function useLessonsApi() {
     })
   }
 
-  const updateDecayFactor = (
+  const update = (
     lessonId: MaybeRefOrGetter<string>,
-    payload: MaybeRefOrGetter<UpdateDecayFactorRequestPayload>,
+    payload: MaybeRefOrGetter<UpdateLessonRequestPayload>,
   ): BackendFetchResult<LessonResponse> => {
-    return useBackendFetch<LessonResponse, UpdateDecayFactorRequestPayload>(
-      () => `/lessons/${toValue(lessonId)}/decay-factor`,
+    return useBackendFetch<LessonResponse, UpdateLessonRequestPayload>(
+      () => `/lessons/${toValue(lessonId)}`,
       {
         method: 'PATCH',
         body: () => toValue(payload),
-        bodySchema: updateDecayFactorRequestSchema,
+        bodySchema: updateLessonRequestSchema,
       },
     )
   }
 
+  const updateIssuedTaskIndex = (
+    lessonId: MaybeRefOrGetter<string>,
+    payload: MaybeRefOrGetter<UpdateIssuedTaskIndexRequestPayload>,
+  ): BackendFetchResult<LessonResponse> => {
+    return useBackendFetch<LessonResponse, UpdateIssuedTaskIndexRequestPayload>(
+      () => `/lessons/${toValue(lessonId)}/issued-task-index`,
+      {
+        method: 'PATCH',
+        body: () => toValue(payload),
+        bodySchema: updateIssuedTaskIndexRequestSchema,
+      },
+    )
+  }
+
+  const archive = (
+    lessonId: MaybeRefOrGetter<string>,
+  ): BackendFetchResult<LessonResponse> => {
+    return useBackendFetch<LessonResponse, null>(() => `/lessons/${toValue(lessonId)}/archive`, {
+      method: 'PATCH',
+      body: null,
+    })
+  }
+
+  const issue = (
+    lessonId: MaybeRefOrGetter<string>,
+  ): BackendFetchResult<LessonResponse> => {
+    return useBackendFetch<LessonResponse, null>(() => `/lessons/${toValue(lessonId)}/issue`, {
+      method: 'POST',
+      body: null,
+    })
+  }
+
+  const remove = (
+    lessonId: MaybeRefOrGetter<string>,
+  ): BackendFetchResult<undefined> => {
+    return useBackendFetch<undefined, null>(() => `/lessons/${toValue(lessonId)}`, {
+      method: 'DELETE',
+      body: null,
+    })
+  }
+
   return {
+    archive,
     create,
     createBulkByType,
     createBulkSchedule,
     findAllBySubjectId,
-    updateDecayFactor,
+    issue,
+    remove,
+    update,
+    updateIssuedTaskIndex,
   }
 }

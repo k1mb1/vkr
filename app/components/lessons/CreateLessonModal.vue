@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CreateLessonFormState, CreateLessonRequestPayload, LessonResponse, LessonType } from '#shared/types/backend'
+import type { CreateLessonFormState, CreateLessonRequestPayload, LessonResponse } from '#shared/types/backend'
 import { createLessonRequestSchema, LESSON_TYPES } from '#shared/types/backend'
 import { useLessonsApi } from '~/composables/api/useLessonsApi'
 
@@ -18,7 +18,6 @@ const props = defineProps<{
   afterCreate?: (lesson: LessonResponse) => void | Promise<void>
 }>()
 
-  
 const state: CreateLessonFormState = reactive<CreateLessonFormState>({
   name: '',
   dateTime: undefined,

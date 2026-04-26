@@ -1,4 +1,6 @@
+export { useAttendanceApi } from '~/composables/api/useAttendanceApi'
 export { useLessonsApi } from '~/composables/api/useLessonsApi'
+export { useLessonTasksApi } from '~/composables/api/useLessonTasksApi'
 export { useStudentsApi } from '~/composables/api/useStudentsApi'
 export { useStudentsGroupsApi } from '~/composables/api/useStudentsGroups'
 export { useSubjectsApi } from '~/composables/api/useSubjectsApi'

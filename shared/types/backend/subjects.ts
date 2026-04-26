@@ -9,11 +9,28 @@ import * as v from 'valibot'
 interface SubjectResponse {
   id: string
   name: string
-  description?: string
+  description: string | null
   archived: boolean
+  archivedAt: string | null
   createdAt: string
   updatedAt: string
-  archivedAt?: string
+}
+
+interface AttachGroupToSubjectResponse {
+  subjectId: string
+  subjectName: string
+  groupId: string
+  groupName: string
+  addedStudentsCount: number
+  totalStudentsInSubject: number
+}
+
+interface FinalGradeResponse {
+  studentId: string
+  username: string
+  earnedPoints: number
+  maxPoints: number
+  percentage: number | null
 }
 
 interface CreateSubjectRequest {
@@ -39,8 +56,10 @@ const createSubjectRequestSchema: SchemaFor<CreateSubjectRequest> = v.object({
 type CreateSubjectRequestPayload = InferOutput<typeof createSubjectRequestSchema>
 
 export type {
+  AttachGroupToSubjectResponse,
   CreateSubjectRequest,
   CreateSubjectRequestPayload,
+  FinalGradeResponse,
   FindSubjectsFilter,
   SubjectResponse,
 }

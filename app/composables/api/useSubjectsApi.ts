@@ -1,6 +1,10 @@
 import type {
+  AttachGroupToSubjectResponse,
   CreateSubjectRequestPayload,
+  FinalGradeResponse,
   FindSubjectsFilter,
+  StudentAttendanceTableResponse,
+  StudentTaskGradesResponse,
   SubjectResponse,
 } from '#shared/types/backend'
 import type { MaybeRefOrGetter } from 'vue'
@@ -43,8 +47,68 @@ export function useSubjectsApi() {
     )
   }
 
+  const archive = (
+    subjectId: MaybeRefOrGetter<string>,
+  ): BackendFetchResult<SubjectResponse> => {
+    return useBackendFetch<SubjectResponse, null>(() => `/subjects/${toValue(subjectId)}/archive`, {
+      method: 'PATCH',
+      body: null,
+    })
+  }
+
+  const attachGroup = (
+    subjectId: MaybeRefOrGetter<string>,
+    groupId: MaybeRefOrGetter<string>,
+  ): BackendFetchResult<AttachGroupToSubjectResponse> => {
+    return useBackendFetch<AttachGroupToSubjectResponse, null>(
+      () => `/subjects/${toValue(subjectId)}/groups/${toValue(groupId)}`,
+      {
+        method: 'POST',
+        body: null,
+      },
+    )
+  }
+
+  const findGrades = (
+    subjectId: MaybeRefOrGetter<string>,
+  ): BackendFetchResult<StudentTaskGradesResponse[]> => {
+    return useBackendFetch<StudentTaskGradesResponse[], undefined>(
+      () => `/subjects/${toValue(subjectId)}/grades`,
+      {
+        method: 'GET',
+      },
+    )
+  }
+
+  const findFinalGrades = (
+    subjectId: MaybeRefOrGetter<string>,
+  ): BackendFetchResult<FinalGradeResponse[]> => {
+    return useBackendFetch<FinalGradeResponse[], undefined>(
+      () => `/subjects/${toValue(subjectId)}/final-grades`,
+      {
+        method: 'GET',
+      },
+    )
+  }
+
+  const findAttendance = (
+    subjectId: MaybeRefOrGetter<string>,
+  ): BackendFetchResult<StudentAttendanceTableResponse[]> => {
+    return useBackendFetch<StudentAttendanceTableResponse[], undefined>(
+      () => `/subjects/${toValue(subjectId)}/attendance`,
+      {
+        method: 'GET',
+      },
+    )
+  }
+
   return {
+    archive,
+    attachGroup,
     create,
+    findAttendance,
     findAllByTeacherId,
+    findFinalGrades,
+    findGrades,
   }
 }

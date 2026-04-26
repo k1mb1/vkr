@@ -19,7 +19,7 @@ const { data, pending, error, refresh } = findAll(computed(() => ({
 })))
 
 const rows = computed(() => data.value?.content ?? [])
-const total = computed(() => data.value?.page.totalElements ?? 0)
+const total = computed(() => data.value?.totalElements ?? 0)
 
 function onRefresh() {
   return refresh()

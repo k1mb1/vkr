@@ -1,3 +1,6 @@
+export * from '#shared/types/backend/attendance'
+export * from '#shared/types/backend/grades'
+export * from '#shared/types/backend/lesson-tasks'
 export * from '#shared/types/backend/lessons'
 export * from '#shared/types/backend/pagable'
 export * from '#shared/types/backend/student-groups'

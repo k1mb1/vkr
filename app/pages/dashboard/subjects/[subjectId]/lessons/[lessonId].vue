@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import type { LessonResponse, LessonType, UpdateDecayFactorRequestPayload } from '#shared/types/backend'
-import { updateDecayFactorRequestSchema } from '#shared/types/backend'
+import type { LessonResponse, LessonType, UpdateIssuedTaskIndexRequestPayload } from '#shared/types/backend'
+import { updateIssuedTaskIndexRequestSchema } from '#shared/types/backend'
 import { useLessonsApi } from '~/composables/api/useLessonsApi'
 
 const route = useRoute()
 const subjectId = computed(() => String(route.params.subjectId ?? ''))
 const lessonId = computed(() => String(route.params.lessonId ?? ''))
 
-const { findAllBySubjectId, updateDecayFactor } = useLessonsApi()
+const { findAllBySubjectId, updateIssuedTaskIndex } = useLessonsApi()
 const { data, pending, error, refresh } = findAllBySubjectId(subjectId)
 
 const lesson = computed<LessonResponse | null>(() =>
@@ -38,14 +38,22 @@ function formatDate(dt: string): string {
   return new Date(dt).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' })
 }
 
-// Decay factor form
+function formatPenaltyMode(mode: LessonResponse['penaltyMode']): string {
+  if (mode === 'NONE')
+    return 'Без штрафа'
+  if (mode === 'SUBTRACT')
+    return 'Линейный (SUBTRACT)'
+  return 'Геометрический (MULTIPLY)'
+}
+
+// Issued task index form
 const toast = useToast()
-const decayPending = ref(false)
-const decayState = reactive<UpdateDecayFactorRequestPayload>({ decayFactor: 1 })
+const issuedTaskIndexPending = ref(false)
+const issuedTaskIndexState = reactive<UpdateIssuedTaskIndexRequestPayload>({ issuedTaskIndex: 0 })
 
 watch(lesson, (val) => {
   if (val)
-    decayState.decayFactor = val.decayFactor
+    issuedTaskIndexState.issuedTaskIndex = val.issuedTaskIndex
 }, { immediate: true })
 
 function getErrorMessage(e: unknown): string {
@@ -55,22 +63,22 @@ function getErrorMessage(e: unknown): string {
   return err.data?.statusMessage || err.data?.message || err.message || 'Что-то пошло не так'
 }
 
-async function onSaveDecayFactor(event: { data: UpdateDecayFactorRequestPayload }) {
-  if (decayPending.value)
+async function onSaveIssuedTaskIndex(event: { data: UpdateIssuedTaskIndexRequestPayload }) {
+  if (issuedTaskIndexPending.value)
     return
-  decayPending.value = true
+  issuedTaskIndexPending.value = true
   try {
-    const { data: updated, error: err } = await updateDecayFactor(lessonId, event.data)
+    const { data: updated, error: err } = await updateIssuedTaskIndex(lessonId, event.data)
     if (err.value || !updated.value)
       throw err.value || new Error('Нет ответа от сервера')
-    toast.add({ title: 'Коэффициент обновлён', color: 'success', icon: 'i-lucide-check' })
+    toast.add({ title: 'Индекс выданного задания обновлён', color: 'success', icon: 'i-lucide-check' })
     await refresh()
   }
   catch (e) {
     toast.add({ title: 'Ошибка', description: getErrorMessage(e), color: 'error', icon: 'i-lucide-circle-alert' })
   }
   finally {
-    decayPending.value = false
+    issuedTaskIndexPending.value = false
   }
 }
 </script>
@@ -175,6 +183,51 @@ async function onSaveDecayFactor(event: { data: UpdateDecayFactorRequestPayload 
 
           <div>
             <dt class="text-sm text-muted">
+              Режим выдачи
+            </dt>
+            <dd class="mt-0.5 text-sm">
+              {{ lesson.issuanceMode }}
+            </dd>
+          </div>
+
+          <div>
+            <dt class="text-sm text-muted">
+              Выдано в
+            </dt>
+            <dd class="mt-0.5 text-sm">
+              {{ lesson.issuedAt ? formatDate(lesson.issuedAt) : '—' }}
+            </dd>
+          </div>
+
+          <div>
+            <dt class="text-sm text-muted">
+              Текущий индекс задания
+            </dt>
+            <dd class="mt-0.5 text-sm">
+              {{ lesson.issuedTaskIndex }}
+            </dd>
+          </div>
+
+          <div>
+            <dt class="text-sm text-muted">
+              Штраф смещения
+            </dt>
+            <dd class="mt-0.5 text-sm">
+              {{ formatPenaltyMode(lesson.penaltyMode) }}
+            </dd>
+          </div>
+
+          <div>
+            <dt class="text-sm text-muted">
+              Шаг штрафа
+            </dt>
+            <dd class="mt-0.5 text-sm">
+              {{ lesson.penaltyStep }}
+            </dd>
+          </div>
+
+          <div>
+            <dt class="text-sm text-muted">
               Создано
             </dt>
             <dd class="mt-0.5 text-sm">
@@ -206,28 +259,27 @@ async function onSaveDecayFactor(event: { data: UpdateDecayFactorRequestPayload 
         <template #header>
           <div>
             <h2 class="font-semibold">
-              Коэффициент спада
+              Индекс выданного задания
             </h2>
             <p class="mt-0.5 text-sm text-muted">
-              Итоговый балл занятия умножается на этот коэффициент. 1.0 — без спада.
+              Поле управляет смещением относительно позиции задания и влияет на коэффициент по penalty-правилу.
             </p>
           </div>
         </template>
 
         <UForm
-          :schema="updateDecayFactorRequestSchema"
-          :state="decayState"
+          :schema="updateIssuedTaskIndexRequestSchema"
+          :state="issuedTaskIndexState"
           class="flex items-end gap-3"
-          @submit="onSaveDecayFactor"
+          @submit="onSaveIssuedTaskIndex"
         >
-          <UFormField name="decayFactor" label="Значение (0.0001 — 1.0)" class="w-48">
+          <UFormField name="issuedTaskIndex" label="Индекс (>= 0)" class="w-48">
             <UInput
-              v-model.number="decayState.decayFactor"
+              v-model.number="issuedTaskIndexState.issuedTaskIndex"
               type="number"
-              :min="0.0001"
-              :max="1"
-              :step="0.01"
-              :disabled="decayPending"
+              :min="0"
+              :step="1"
+              :disabled="issuedTaskIndexPending"
               class="w-full"
             />
           </UFormField>
@@ -235,8 +287,8 @@ async function onSaveDecayFactor(event: { data: UpdateDecayFactorRequestPayload 
           <UButton
             type="submit"
             icon="i-lucide-check"
-            :loading="decayPending"
-            :disabled="decayPending"
+            :loading="issuedTaskIndexPending"
+            :disabled="issuedTaskIndexPending"
           >
             Сохранить
           </UButton>

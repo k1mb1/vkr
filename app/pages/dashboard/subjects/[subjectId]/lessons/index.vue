@@ -28,6 +28,12 @@ const LESSON_TYPE_COLORS: Record<LessonType, string> = {
   PRACTICE: 'secondary',
 }
 
+const PENALTY_MODE_LABELS: Record<LessonResponse['penaltyMode'], string> = {
+  NONE: 'Без штрафа',
+  SUBTRACT: 'Линейный',
+  MULTIPLY: 'Геометрический',
+}
+
 const allLessons = computed(() => data.value ?? [])
 const activeLessons = computed(() => allLessons.value.filter(l => !l.archived))
 const archivedLessons = computed(() => allLessons.value.filter(l => l.archived))
@@ -83,10 +89,14 @@ const columns: TableColumn<LessonResponse>[] = [
     },
   },
   {
-    accessorKey: 'decayFactor',
-    header: 'Коэф. спада',
-    meta: { class: { th: 'w-28', td: 'w-28' } },
-    cell: ({ row }) => h('span', row.original.decayFactor),
+    accessorKey: 'penaltyMode',
+    header: 'Штраф',
+    meta: { class: { th: 'w-40', td: 'w-40' } },
+    cell: ({ row }) => {
+      if (row.original.penaltyMode === 'NONE')
+        return h('span', PENALTY_MODE_LABELS.NONE)
+      return h('span', `${PENALTY_MODE_LABELS[row.original.penaltyMode]} (${row.original.penaltyStep})`)
+    },
   },
   {
     id: 'actions',
