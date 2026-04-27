@@ -60,7 +60,7 @@ const createSubjectRequestSchema: SchemaFor<CreateSubjectRequest> = v.object({
 
 const updateSubjectRequestSchema: SchemaFor<UpdateSubjectRequest> = v.object({
   name: stringMax(120),
-  description: v.optional(v.nullable(stringMax(500))),
+  description: v.optional(v.nullable(v.pipe(v.string(), v.maxLength(500, 'Не более 500 символов')))),
 })
 
 type CreateSubjectRequestPayload = InferOutput<typeof createSubjectRequestSchema>
