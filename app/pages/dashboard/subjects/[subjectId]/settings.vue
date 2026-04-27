@@ -31,7 +31,7 @@ function getErrorMessage(err: unknown): string {
 
 // ── Edit info ─────────────────────────────────────────────────────────────────
 
-const editState = reactive<UpdateSubjectRequestPayload>({ name: '', description: '' })
+const editState = reactive<{ name: string, description: string }>({ name: '', description: '' })
 const editPending = ref(false)
 
 watch(subject, (val) => {
