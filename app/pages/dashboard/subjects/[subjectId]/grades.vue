@@ -154,7 +154,7 @@ const taskColumns: TableColumn<FlatGradeRow>[] = [
           variant="ghost"
           icon="i-lucide-refresh-cw"
           :loading="finalPending"
-          @click="refreshFinal"
+          @click="() => refreshFinal()"
         />
       </div>
 
@@ -193,7 +193,7 @@ const taskColumns: TableColumn<FlatGradeRow>[] = [
           variant="ghost"
           icon="i-lucide-refresh-cw"
           :loading="taskPending"
-          @click="refreshTasks"
+          @click="() => refreshTasks()"
         />
       </div>
 

@@ -198,7 +198,7 @@ const attendanceColumns: TableColumn<AttendanceRow>[] = [
           variant="ghost"
           icon="i-lucide-refresh-cw"
           :loading="attendancePending"
-          @click="refreshAttendance"
+          @click="() => refreshAttendance()"
         />
       </div>
 
