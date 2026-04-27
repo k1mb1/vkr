@@ -1,6 +1,6 @@
 import type { SchemaFor } from '#shared/types/backend/valibot-utils'
 import type { InferOutput } from 'valibot'
-import { stringMax, uuidV4 } from '#shared/types/backend/valibot-utils'
+import { uuidV4 } from '#shared/types/backend/valibot-utils'
 import * as v from 'valibot'
 
 const PRESENCE_TYPES = [
@@ -14,7 +14,7 @@ type PresenceType = (typeof PRESENCE_TYPES)[number]
 interface UpsertAttendanceRequest {
   studentId: string
   presence: PresenceType
-  note?: string
+  note?: string | null
 }
 
 interface AttendanceEntryResponse {
@@ -33,7 +33,7 @@ interface StudentAttendanceTableResponse {
 const upsertAttendanceRequestSchema: SchemaFor<UpsertAttendanceRequest> = v.object({
   studentId: uuidV4(),
   presence: v.picklist(PRESENCE_TYPES),
-  note: v.optional(stringMax(5000, 'Note cannot be empty', 'Note must be 5000 characters or less')),
+  note: v.optional(v.nullable(v.pipe(v.string(), v.maxLength(5000, 'Note must be 5000 characters or less')))),
 })
 
 type UpsertAttendanceRequestPayload = InferOutput<typeof upsertAttendanceRequestSchema>
