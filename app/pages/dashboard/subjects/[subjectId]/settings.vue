@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import type { AttachGroupToSubjectResponse } from '#shared/types/backend'
+import type { TableColumn } from '@nuxt/ui'
+import { useStudentsApi } from '~/composables/api/useStudentsApi'
 import { useStudentsGroupsApi } from '~/composables/api/useStudentsGroups'
 import { useSubjectsApi } from '~/composables/api/useSubjectsApi'
 import { useSubjectsStore } from '~/stores/subjects'
@@ -7,6 +9,7 @@ import { useSubjectsStore } from '~/stores/subjects'
 const subjectsStore = useSubjectsStore()
 const { archive, attachGroup } = useSubjectsApi()
 const { findAll: findAllGroups } = useStudentsGroupsApi()
+const { findSubjectSubgroups } = useStudentsApi()
 const toast = useToast()
 const route = useRoute()
 const subjectId = computed(() => String(route.params.subjectId ?? ''))
@@ -16,6 +19,102 @@ const subject = computed(() =>
   ?? subjectsStore.archivedSubjects.find(s => s.id === subjectId.value)
   ?? null,
 )
+
+// ── Attach group ──────────────────────────────────────────────────────────────
+
+const { data: groupsData, pending: groupsPending } = findAllGroups({ size: 100 })
+
+const groupOptions = computed(() =>
+  (groupsData.value?.content ?? []).map(g => ({ label: g.name, value: g.id })),
+)
+
+const selectedGroupId = ref<string | undefined>(undefined)
+const attachPending = ref(false)
+const lastAttachResult = ref<AttachGroupToSubjectResponse | null>(null)
+
+async function onAttachGroup() {
+  if (!selectedGroupId.value || attachPending.value)
+    return
+
+  attachPending.value = true
+  try {
+    const { data, error } = await attachGroup(subjectId.value, selectedGroupId.value)
+
+    if (error.value)
+      throw error.value
+
+    if (!data.value)
+      throw new Error('Нет ответа от сервера')
+
+    lastAttachResult.value = data.value
+
+    toast.add({
+      title: 'Группа прикреплена',
+      description: `${data.value.groupName}: добавлено ${data.value.addedStudentsCount} студентов. Всего в предмете: ${data.value.totalStudentsInSubject}.`,
+      color: 'success',
+      icon: 'i-lucide-check',
+    })
+
+    selectedGroupId.value = undefined
+    await refreshSubgroups()
+  }
+  catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Не удалось прикрепить группу'
+    toast.add({
+      title: 'Ошибка',
+      description: message,
+      color: 'error',
+      icon: 'i-lucide-circle-alert',
+    })
+  }
+  finally {
+    attachPending.value = false
+  }
+}
+
+// ── Subgroups ─────────────────────────────────────────────────────────────────
+
+const {
+  data: subgroupsData,
+  pending: subgroupsPending,
+  error: subgroupsError,
+  refresh: refreshSubgroups,
+} = findSubjectSubgroups(subjectId)
+
+interface SubgroupRow {
+  id: string
+  name: string
+  studentCount: number
+  students: string[]
+}
+
+const subgroupRows = computed<SubgroupRow[]>(() =>
+  (subgroupsData.value?.subgroups ?? []).map(sg => ({
+    id: sg.id,
+    name: sg.name,
+    studentCount: sg.students.length,
+    students: sg.students,
+  })),
+)
+
+const subgroupColumns: TableColumn<SubgroupRow>[] = [
+  {
+    accessorKey: 'name',
+    header: 'Подгруппа',
+    meta: { class: { th: 'w-1/3', td: 'w-1/3' } },
+  },
+  {
+    accessorKey: 'studentCount',
+    header: 'Студентов',
+    meta: { class: { th: 'w-28', td: 'w-28' } },
+  },
+  {
+    accessorKey: 'students',
+    header: 'Состав',
+    meta: { class: { th: '', td: 'max-w-0 overflow-hidden' } },
+    cell: ({ row }) => row.original.students.join(', ') || '—',
+  },
+]
 
 // ── Archive ───────────────────────────────────────────────────────────────────
 
@@ -58,57 +157,6 @@ async function onArchiveConfirm(close: () => void) {
   }
   finally {
     archivePending.value = false
-  }
-}
-
-// ── Attach group ──────────────────────────────────────────────────────────────
-
-const { data: groupsData, pending: groupsPending } = findAllGroups({ size: 100 })
-
-const groupOptions = computed(() =>
-  (groupsData.value?.content ?? []).map(g => ({ label: g.name, value: g.id })),
-)
-
-const selectedGroupId = ref<string | undefined>(undefined)
-const attachPending = ref(false)
-const lastAttachResult = ref<AttachGroupToSubjectResponse | null>(null)
-
-async function onAttachGroup() {
-  if (!selectedGroupId.value || attachPending.value)
-    return
-
-  attachPending.value = true
-  try {
-    const { data, error } = await attachGroup(subjectId.value, selectedGroupId.value)
-
-    if (error.value)
-      throw error.value
-
-    if (!data.value)
-      throw new Error('Нет ответа от сервера')
-
-    lastAttachResult.value = data.value
-
-    toast.add({
-      title: 'Группа прикреплена',
-      description: `${data.value.groupName}: добавлено ${data.value.addedStudentsCount} студентов. Всего в предмете: ${data.value.totalStudentsInSubject}.`,
-      color: 'success',
-      icon: 'i-lucide-check',
-    })
-
-    selectedGroupId.value = undefined
-  }
-  catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Не удалось прикрепить группу'
-    toast.add({
-      title: 'Ошибка',
-      description: message,
-      color: 'error',
-      icon: 'i-lucide-circle-alert',
-    })
-  }
-  finally {
-    attachPending.value = false
   }
 }
 </script>
@@ -166,7 +214,56 @@ async function onAttachGroup() {
       </div>
     </UCard>
 
-    <!-- Архивировать -->
+    <!-- Подгруппы предмета -->
+    <UCard>
+      <template #header>
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="font-semibold">
+              Подгруппы предмета
+            </h2>
+            <p class="mt-0.5 text-sm text-muted">
+              Распределение студентов по подгруппам для этого предмета.
+            </p>
+          </div>
+          <UButton
+            color="neutral"
+            variant="ghost"
+            icon="i-lucide-refresh-cw"
+            :loading="subgroupsPending"
+            @click="() => refreshSubgroups()"
+          />
+        </div>
+      </template>
+
+      <UAlert
+        v-if="subgroupsError"
+        color="error"
+        variant="soft"
+        icon="i-lucide-circle-x"
+        title="Ошибка загрузки"
+        :description="subgroupsError.message"
+        class="mb-4"
+      />
+
+      <UTable
+        :data="subgroupRows"
+        :columns="subgroupColumns"
+        :loading="subgroupsPending"
+      >
+        <template #empty>
+          <UEmpty
+            icon="i-lucide-users"
+            title="Подгруппы не найдены"
+            description="Прикрепите группу, чтобы студенты появились в предмете."
+            variant="naked"
+            class="py-8"
+          />
+        </template>
+      </UTable>
+    </UCard>
+
+    <!-- Архивировать — зона опасности -->
     <UCard>
       <template #header>
         <div>
