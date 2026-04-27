@@ -69,7 +69,7 @@ const groupOptions = computed(() =>
   (groupsData.value?.content ?? []).map(g => ({ label: g.name, value: g.id })),
 )
 
-const selectedGroupId = ref<string | null>(null)
+const selectedGroupId = ref<string | undefined>(undefined)
 const attachPending = ref(false)
 const lastAttachResult = ref<AttachGroupToSubjectResponse | null>(null)
 
@@ -96,7 +96,7 @@ async function onAttachGroup() {
       icon: 'i-lucide-check',
     })
 
-    selectedGroupId.value = null
+    selectedGroupId.value = undefined
   }
   catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Не удалось прикрепить группу'
