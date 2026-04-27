@@ -1,39 +1,62 @@
 <script setup lang="ts">
-import type { StudentAttendanceTableResponse } from '#shared/types/backend'
+import type { FinalGradeResponse, StudentAttendanceTableResponse, SubmissionStatus } from '#shared/types/backend'
 import type { TableColumn } from '@nuxt/ui'
 import { h, resolveComponent } from 'vue'
 import { useAttendanceApi } from '~/composables/api/useAttendanceApi'
-import { useSubjectsStore } from '~/stores/subjects'
+import { useSubjectsApi } from '~/composables/api/useSubjectsApi'
 
-const subjectsStore = useSubjectsStore()
 const { findBySubject } = useAttendanceApi()
+const { findFinalGrades } = useSubjectsApi()
 const route = useRoute()
 const subjectId = computed(() => String(route.params.subjectId ?? ''))
 
-const subject = computed(() =>
-  subjectsStore.activeSubjects.find(s => s.id === subjectId.value)
-  ?? subjectsStore.archivedSubjects.find(s => s.id === subjectId.value)
-  ?? null,
-)
-
-const isSubjectLoading = computed(() =>
-  subjectsStore.activeSubjectsPending || subjectsStore.archivedSubjectsPending,
-)
-
 const { data: attendanceData, pending: attendancePending, error: attendanceError, refresh: refreshAttendance } = findBySubject(subjectId)
+const { data: gradesData, pending: gradesPending, error: gradesError, refresh: refreshGrades } = findFinalGrades(subjectId)
 
-const activeTab = ref<'overview' | 'attendance'>('overview')
+const activeTab = ref<'grades' | 'attendance'>('grades')
 
 const tabs = computed(() => [
-  { label: 'Обзор', value: 'overview', icon: 'i-lucide-info' },
-  { label: 'Посещения', value: 'attendance', icon: 'i-lucide-calendar-check' },
+  { label: 'Оценки', value: 'grades', icon: 'i-lucide-trophy' },
+  { label: 'Посещаемость', value: 'attendance', icon: 'i-lucide-calendar-check' },
 ])
 
-function formatDate(value: string | null): string {
-  if (!value)
-    return '—'
-  return new Date(value).toLocaleString('ru-RU', { dateStyle: 'long', timeStyle: 'short' })
-}
+const UBadge = resolveComponent('UBadge')
+
+// ── Grades ────────────────────────────────────────────────────────────────────
+
+const finalGrades = computed<FinalGradeResponse[]>(() => gradesData.value ?? [])
+
+const gradesColumns: TableColumn<FinalGradeResponse>[] = [
+  {
+    accessorKey: 'username',
+    header: 'Студент',
+    meta: { class: { th: 'w-2/5', td: 'w-2/5' } },
+  },
+  {
+    accessorKey: 'earnedPoints',
+    header: 'Заработано',
+    meta: { class: { th: 'w-32', td: 'w-32' } },
+  },
+  {
+    accessorKey: 'maxPoints',
+    header: 'Максимум',
+    meta: { class: { th: 'w-32', td: 'w-32' } },
+  },
+  {
+    accessorKey: 'percentage',
+    header: '%',
+    meta: { class: { th: 'w-24', td: 'w-24' } },
+    cell: ({ row }) => {
+      const pct = row.original.percentage
+      if (pct === null)
+        return h('span', { class: 'text-muted' }, '—')
+      const color = pct >= 60 ? 'success' : pct >= 40 ? 'warning' : 'error'
+      return h(UBadge, { label: `${pct.toFixed(1)}%`, color, variant: 'soft', size: 'sm' })
+    },
+  },
+]
+
+// ── Attendance ────────────────────────────────────────────────────────────────
 
 interface AttendanceRow {
   studentId: string
@@ -43,8 +66,6 @@ interface AttendanceRow {
   noneCount: number
   rate: string
 }
-
-const UBadge = resolveComponent('UBadge')
 
 const attendanceRows = computed<AttendanceRow[]>(() => {
   return (attendanceData.value ?? []).map((row: StudentAttendanceTableResponse) => {
@@ -106,91 +127,46 @@ const attendanceColumns: TableColumn<AttendanceRow>[] = [
       :content="false"
     />
 
-    <!-- Обзор -->
-    <template v-if="activeTab === 'overview'">
-      <UCard>
-        <template v-if="isSubjectLoading">
-          <div class="flex flex-col gap-3">
-            <USkeleton class="h-5 w-48" />
-            <USkeleton class="h-4 w-80" />
-            <USkeleton class="h-4 w-32" />
-          </div>
-        </template>
+    <!-- Оценки -->
+    <template v-if="activeTab === 'grades'">
+      <div class="flex items-center gap-3">
+        <UButton
+          color="neutral"
+          variant="ghost"
+          icon="i-lucide-refresh-cw"
+          :loading="gradesPending"
+          @click="() => refreshGrades()"
+        />
+      </div>
 
-        <template v-else-if="subject">
-          <dl class="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
-            <div class="flex flex-col gap-1">
-              <dt class="text-sm text-muted">
-                Название
-              </dt>
-              <dd class="font-medium">
-                {{ subject.name }}
-              </dd>
-            </div>
+      <UAlert
+        v-if="gradesError"
+        color="error"
+        variant="soft"
+        icon="i-lucide-circle-x"
+        title="Ошибка загрузки"
+        :description="gradesError.message"
+      />
 
-            <div class="flex flex-col gap-1">
-              <dt class="text-sm text-muted">
-                Статус
-              </dt>
-              <dd>
-                <UBadge
-                  :label="subject.archived ? 'Архивный' : 'Активный'"
-                  :color="subject.archived ? 'neutral' : 'success'"
-                  variant="soft"
-                />
-              </dd>
-            </div>
-
-            <div class="flex flex-col gap-1 sm:col-span-2">
-              <dt class="text-sm text-muted">
-                Описание
-              </dt>
-              <dd :class="subject.description ? '' : 'text-muted'">
-                {{ subject.description ?? '—' }}
-              </dd>
-            </div>
-
-            <div class="flex flex-col gap-1">
-              <dt class="text-sm text-muted">
-                Создан
-              </dt>
-              <dd class="text-sm">
-                {{ formatDate(subject.createdAt) }}
-              </dd>
-            </div>
-
-            <div class="flex flex-col gap-1">
-              <dt class="text-sm text-muted">
-                Обновлён
-              </dt>
-              <dd class="text-sm">
-                {{ formatDate(subject.updatedAt) }}
-              </dd>
-            </div>
-
-            <div v-if="subject.archived" class="flex flex-col gap-1">
-              <dt class="text-sm text-muted">
-                Архивирован
-              </dt>
-              <dd class="text-sm">
-                {{ formatDate(subject.archivedAt) }}
-              </dd>
-            </div>
-          </dl>
-        </template>
-
-        <template v-else>
+      <UTable
+        :data="finalGrades"
+        :columns="gradesColumns"
+        :loading="gradesPending"
+        sticky
+      >
+        <template #empty>
           <UEmpty
-            icon="i-lucide-book"
-            title="Предмет не найден"
+            icon="i-lucide-trophy"
+            title="Итоговые баллы отсутствуют"
+            description="Данные появятся после выставления оценок."
             variant="naked"
-            class="py-8"
+            class="py-12"
           />
         </template>
-      </UCard>
+      </UTable>
     </template>
 
-    <!-- Посещения -->
+    <!-- Посещаемость -->
     <template v-else-if="activeTab === 'attendance'">
       <div class="flex items-center gap-3">
         <UButton

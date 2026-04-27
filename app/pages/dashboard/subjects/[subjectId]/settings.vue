@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import type { AttachGroupToSubjectResponse } from '#shared/types/backend'
+import { useStudentsGroupsApi } from '~/composables/api/useStudentsGroups'
 import { useSubjectsApi } from '~/composables/api/useSubjectsApi'
 import { useSubjectsStore } from '~/stores/subjects'
 
 const subjectsStore = useSubjectsStore()
-const { archive } = useSubjectsApi()
+const { archive, attachGroup } = useSubjectsApi()
+const { findAll: findAllGroups } = useStudentsGroupsApi()
 const toast = useToast()
 const route = useRoute()
 const subjectId = computed(() => String(route.params.subjectId ?? ''))
@@ -14,13 +17,15 @@ const subject = computed(() =>
   ?? null,
 )
 
-const pending = ref(false)
+// ── Archive ───────────────────────────────────────────────────────────────────
+
+const archivePending = ref(false)
 
 async function onArchiveConfirm(close: () => void) {
-  if (pending.value)
+  if (archivePending.value)
     return
 
-  pending.value = true
+  archivePending.value = true
   try {
     const { error } = await archive(subjectId.value)
 
@@ -52,7 +57,58 @@ async function onArchiveConfirm(close: () => void) {
     })
   }
   finally {
-    pending.value = false
+    archivePending.value = false
+  }
+}
+
+// ── Attach group ──────────────────────────────────────────────────────────────
+
+const { data: groupsData, pending: groupsPending } = findAllGroups({ size: 100 })
+
+const groupOptions = computed(() =>
+  (groupsData.value?.content ?? []).map(g => ({ label: g.name, value: g.id })),
+)
+
+const selectedGroupId = ref<string | null>(null)
+const attachPending = ref(false)
+const lastAttachResult = ref<AttachGroupToSubjectResponse | null>(null)
+
+async function onAttachGroup() {
+  if (!selectedGroupId.value || attachPending.value)
+    return
+
+  attachPending.value = true
+  try {
+    const { data, error } = await attachGroup(subjectId.value, selectedGroupId.value)
+
+    if (error.value)
+      throw error.value
+
+    if (!data.value)
+      throw new Error('Нет ответа от сервера')
+
+    lastAttachResult.value = data.value
+
+    toast.add({
+      title: 'Группа прикреплена',
+      description: `${data.value.groupName}: добавлено ${data.value.addedStudentsCount} студентов. Всего в предмете: ${data.value.totalStudentsInSubject}.`,
+      color: 'success',
+      icon: 'i-lucide-check',
+    })
+
+    selectedGroupId.value = null
+  }
+  catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Не удалось прикрепить группу'
+    toast.add({
+      title: 'Ошибка',
+      description: message,
+      color: 'error',
+      icon: 'i-lucide-circle-alert',
+    })
+  }
+  finally {
+    attachPending.value = false
   }
 }
 </script>
@@ -65,58 +121,104 @@ async function onArchiveConfirm(close: () => void) {
       </h1>
     </div>
 
+    <!-- Прикрепить группу -->
     <UCard>
-      <div class="flex flex-col gap-3">
+      <template #header>
         <div>
-          <p class="font-medium">
-            Архивировать предмет
+          <h2 class="font-semibold">
+            Прикрепить группу
+          </h2>
+          <p class="mt-0.5 text-sm text-muted">
+            Студенты выбранной группы будут добавлены к предмету.
           </p>
-          <p class="text-sm text-muted mt-1">
+        </div>
+      </template>
+
+      <div class="flex flex-wrap items-end gap-3">
+        <USelectMenu
+          v-model="selectedGroupId"
+          :items="groupOptions"
+          value-key="value"
+          :loading="groupsPending"
+          :disabled="groupsPending || attachPending"
+          placeholder="Выберите группу"
+          class="w-64"
+        />
+
+        <UButton
+          icon="i-lucide-link"
+          :loading="attachPending"
+          :disabled="!selectedGroupId || attachPending"
+          @click="onAttachGroup"
+        >
+          Прикрепить
+        </UButton>
+      </div>
+
+      <div v-if="lastAttachResult" class="mt-4">
+        <UAlert
+          color="success"
+          variant="soft"
+          icon="i-lucide-users"
+          :title="`Группа «${lastAttachResult.groupName}» прикреплена`"
+          :description="`Добавлено студентов: ${lastAttachResult.addedStudentsCount}. Всего в предмете: ${lastAttachResult.totalStudentsInSubject}.`"
+        />
+      </div>
+    </UCard>
+
+    <!-- Архивировать -->
+    <UCard>
+      <template #header>
+        <div>
+          <h2 class="font-semibold">
+            Архивировать предмет
+          </h2>
+          <p class="mt-0.5 text-sm text-muted">
             Архивированный предмет скрывается из активного списка. Данные сохраняются.
           </p>
         </div>
+      </template>
 
-        <UModal title="Архивировать предмет?">
-          <UButton
-            color="error"
-            variant="soft"
-            icon="i-lucide-archive"
-            :disabled="subject?.archived"
-          >
-            Архивировать
-          </UButton>
+      <UModal title="Архивировать предмет?">
+        <UButton
+          color="error"
+          variant="soft"
+          icon="i-lucide-archive"
+          :disabled="subject?.archived"
+        >
+          Архивировать
+        </UButton>
 
-          <template #body="{ close }">
-            <div class="flex flex-col gap-4">
-              <p>
-                Предмет <strong>{{ subject?.name }}</strong> будет перемещён в архив.
-                Данные занятий и оценок сохранятся.
-              </p>
+        <template #body="{ close }">
+          <div class="flex flex-col gap-4">
+            <p>
+              Предмет <strong>{{ subject?.name }}</strong> будет перемещён в архив.
+              Данные занятий и оценок сохранятся.
+            </p>
 
-              <div class="flex justify-end gap-2">
-                <UButton
-                  color="neutral"
-                  variant="soft"
-                  :disabled="pending"
-                  @click="close()"
-                >
-                  Отмена
-                </UButton>
+            <div class="flex justify-end gap-2">
+              <UButton
+                color="neutral"
+                variant="soft"
+                :disabled="archivePending"
+                @click="close()"
+              >
+                Отмена
+              </UButton>
 
-                <UButton
-                  color="error"
-                  icon="i-lucide-archive"
-                  :loading="pending"
-                  :disabled="pending"
-                  @click="onArchiveConfirm(close)"
-                >
-                  Архивировать
-                </UButton>
-              </div>
+              <UButton
+                color="error"
+                icon="i-lucide-archive"
+                :loading="archivePending"
+                :disabled="archivePending"
+                @click="onArchiveConfirm(close)"
+              >
+                Архивировать
+              </UButton>
             </div>
-          </template>
-        </UModal>
-      </div>
+          </div>
+        </template>
+      </UModal>
     </UCard>
   </section>
 </template>
