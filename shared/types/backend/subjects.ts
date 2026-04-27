@@ -43,6 +43,11 @@ interface FindSubjectsFilter {
   archived?: boolean
 }
 
+interface UpdateSubjectRequest {
+  name: string
+  description?: string | null
+}
+
 const DEFAULT_FIND_SUBJECTS_FILTER: FindSubjectsFilter = {
   archived: false,
 }
@@ -53,7 +58,13 @@ const createSubjectRequestSchema: SchemaFor<CreateSubjectRequest> = v.object({
   teacherId: uuidV4(),
 })
 
+const updateSubjectRequestSchema: SchemaFor<UpdateSubjectRequest> = v.object({
+  name: stringMax(120),
+  description: v.optional(v.nullable(stringMax(500))),
+})
+
 type CreateSubjectRequestPayload = InferOutput<typeof createSubjectRequestSchema>
+type UpdateSubjectRequestPayload = InferOutput<typeof updateSubjectRequestSchema>
 
 export type {
   AttachGroupToSubjectResponse,
@@ -62,9 +73,12 @@ export type {
   FinalGradeResponse,
   FindSubjectsFilter,
   SubjectResponse,
+  UpdateSubjectRequest,
+  UpdateSubjectRequestPayload,
 }
 
 export {
   createSubjectRequestSchema,
   DEFAULT_FIND_SUBJECTS_FILTER,
+  updateSubjectRequestSchema,
 }
