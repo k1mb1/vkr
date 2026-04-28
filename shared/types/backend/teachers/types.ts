@@ -1,6 +1,6 @@
-interface UpdateTeacherRequest {
-  username?: string
-  email?: string
+interface CreateOrUpdateTeacherRequest {
+  username?: string | null
+  email?: string | null
 }
 
 interface TeacherResponse {
@@ -13,5 +13,5 @@ interface TeacherResponse {
 
 export type {
   TeacherResponse,
-  UpdateTeacherRequest,
+  CreateOrUpdateTeacherRequest,
 }
