@@ -32,18 +32,11 @@ const breadcrumbItems = computed(() => {
   <NuxtLayout
     name="dashboard"
     panel-id="dashboard-groups"
-    :dashboard-panel-ui="{ body: 'h-full p-0 sm:p-0' }"
     :navbar-ui="{ right: 'gap-3' }"
   >
     <template #navbar-title>
       <UBreadcrumb :items="breadcrumbItems" />
     </template>
-
-    <template #navbar-right>
-      <GroupsCreateToolbarForm :after-create="refreshGroupsList" />
-      <UColorModeButton />
-    </template>
-
     <NuxtPage />
   </NuxtLayout>
 </template>
