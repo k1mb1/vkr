@@ -2,6 +2,7 @@ const PRESENCE_TYPES = [
   'NONE',
   'PRESENT',
   'NOT_PRESENT',
+  'LATE',
 ] as const
 
 type PresenceType = (typeof PRESENCE_TYPES)[number]
@@ -28,7 +29,7 @@ interface SubjectAttendanceResponse {
     type: 'LECTURE' | 'PRACTICE' | 'NONE'
     groupId: string | null
   }>
-  students: Array<{ id: string; username: string }>
+  students: Array<{ id: string, username: string }>
   attendances: AttendanceEntryResponse[]
 }
 

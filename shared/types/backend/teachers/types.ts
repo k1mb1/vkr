@@ -12,6 +12,6 @@ interface TeacherResponse {
 }
 
 export type {
-  TeacherResponse,
   CreateOrUpdateTeacherRequest,
+  TeacherResponse,
 }

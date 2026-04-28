@@ -56,7 +56,7 @@ function setMode(next: Mode) {
       subgroupCount.value = 2
     }
     if (drafts.value.length < subgroupCount.value) {
-      drafts.value.push(...Array(subgroupCount.value - drafts.value.length).fill(''))
+      drafts.value.push(...Array.from({ length: subgroupCount.value - drafts.value.length }, () => ''))
     }
   }
   mode.value = next
@@ -128,7 +128,7 @@ function removeSubgroup(index: number) {
   if (subgroupCount.value <= 1)
     return
   state.students = state.students.filter(s => s.subgroupIndex !== index)
-  state.students.forEach(s => {
+  state.students.forEach((s) => {
     if (s.subgroupIndex !== null && s.subgroupIndex > index) {
       s.subgroupIndex--
     }

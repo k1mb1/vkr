@@ -3,9 +3,9 @@ import type {
   CreateSubjectRequestPayload,
   FinalGradeResponse,
   FindSubjectsFilter,
+  StudentGroupPageResponse,
   SubjectAttendanceResponse,
   SubjectGradesResponse,
-  StudentGroupPageResponse,
   SubjectResponse,
   UpdateSubjectRequestPayload,
 } from '#shared/types/backend'

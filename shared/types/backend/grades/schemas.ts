@@ -2,8 +2,8 @@ import type { SchemaFor } from '#shared/types/backend/valibot-utils'
 import type { InferOutput } from 'valibot'
 import type { UpsertTaskGradeRequest } from './types'
 import { isoDateTime, uuidV4 } from '#shared/types/backend/valibot-utils'
-import { SUBMISSION_STATUSES } from './types'
 import * as v from 'valibot'
+import { SUBMISSION_STATUSES } from './types'
 
 const upsertTaskGradeRequestSchema: SchemaFor<UpsertTaskGradeRequest> = v.object({
   studentId: uuidV4(),

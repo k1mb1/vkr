@@ -16,13 +16,13 @@ import {
   stringMax,
   uuidV4,
 } from '#shared/types/backend/valibot-utils'
+import * as v from 'valibot'
 import {
   DAY_OF_WEEK,
   ISSUANCE_MODES,
   LESSON_TYPES,
   PENALTY_MODES,
 } from './types'
-import * as v from 'valibot'
 
 const positiveLessonCountSchema = v.pipe(
   v.number(),

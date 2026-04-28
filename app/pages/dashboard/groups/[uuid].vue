@@ -93,8 +93,11 @@ const tabsData = computed(() => {
     rows: Array<{ key: string, id: string, username: string }>
   }> = []
 
-  if (studentsCount.value > 0) {
-    const studentsRows = (group.value?.students ?? []).map((student, localIndex) => ({
+  const groupStudents = group.value?.students ?? []
+
+  const studentsWithoutSubgroup = groupStudents.filter(s => s.subgroupId === null)
+  if (studentsWithoutSubgroup.length > 0) {
+    const studentsRows = studentsWithoutSubgroup.map((student, localIndex) => ({
       key: `students:${String(student.id ?? `${student.username}:${localIndex}`)}`,
       id: student.id,
       username: student.username,
@@ -103,7 +106,7 @@ const tabsData = computed(() => {
     tabs.push({
       value: 'students',
       label: 'Студенты',
-      count: studentsCount.value,
+      count: studentsWithoutSubgroup.length,
       icon: 'i-lucide-users-round',
       title: 'Основные студенты',
       emptyTitle: 'Нет студентов',
@@ -114,7 +117,8 @@ const tabsData = computed(() => {
 
   for (const subgroup of group.value?.subgroups ?? []) {
     const tabValue = `${subgroupTabPrefix}${String(subgroup.id)}`
-    const subgroupRows = subgroup.students.map((student, localIndex) => ({
+    const subgroupStudents = groupStudents.filter(s => s.subgroupId === subgroup.id)
+    const subgroupRows = subgroupStudents.map((student, localIndex) => ({
       key: `${tabValue}:${String(student.id ?? `${student.username}:${localIndex}`)}`,
       id: student.id,
       username: student.username,
@@ -123,7 +127,7 @@ const tabsData = computed(() => {
     tabs.push({
       value: tabValue,
       label: subgroup.name,
-      count: subgroup.students.length,
+      count: subgroupStudents.length,
       icon: 'i-lucide-git-fork',
       title: subgroup.name,
       emptyTitle: 'Подгруппа пуста',
@@ -140,9 +144,7 @@ const groupTabs = computed<TabsItem[]>(() => {
     value: tab.value,
     label: tab.label,
     icon: tab.icon,
-    badge: {
-      label: tab.count,
-    },
+    badge: tab.count || undefined,
   }))
 })
 const availableTabValues = computed<string[]>(() => tabsData.value.map(tab => tab.value))
@@ -309,7 +311,7 @@ function getStudentActions(row: StudentTableRow) {
 </script>
 
 <template>
-  <div class="p-4">
+  <div class="flex flex-col gap-6 p-4 sm:p-6">
     <div v-if="pending && !group" class="space-y-4">
       <USkeleton class="h-8 w-1/3" />
       <USkeleton class="h-36 w-full" />
@@ -325,6 +327,23 @@ function getStudentActions(row: StudentTableRow) {
     />
 
     <template v-else-if="group">
+      <!-- Group header -->
+      <div class="flex items-center gap-4">
+        <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-secondary/10 text-secondary">
+          <UIcon name="i-lucide-users" class="size-6" />
+        </div>
+        <div>
+          <h1 class="text-xl font-semibold">
+            {{ group.name }}
+          </h1>
+          <div class="flex items-center gap-2 text-sm text-muted">
+            <span>{{ group.students.length }} студентов</span>
+            <span>·</span>
+            <span>{{ group.subgroups.length }} подгрупп</span>
+          </div>
+        </div>
+      </div>
+
       <UTabs
         v-if="groupTabs.length"
         v-model="activeTab"
@@ -347,7 +366,6 @@ function getStudentActions(row: StudentTableRow) {
           :data="activeTabRows"
           :columns="tableColumns"
           :loading="pending"
-          loading-animation="carousel"
           sticky="header"
         >
           <template #username-header>

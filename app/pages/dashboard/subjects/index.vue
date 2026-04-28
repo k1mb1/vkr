@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { SubjectResponse } from '#shared/types/backend'
-import type { BreadcrumbItem, TableColumn, TabsItem } from '@nuxt/ui'
-import { h, resolveComponent } from 'vue'
+import type { BreadcrumbItem } from '@nuxt/ui'
 import { useSubjectsStore } from '~/stores/subjects'
 
 const subjectsStore = useSubjectsStore()
@@ -24,7 +23,7 @@ function filter(list: SubjectResponse[]) {
 const filteredActive = computed(() => filter(activeSubjects.value))
 const filteredArchived = computed(() => filter(archivedSubjects.value))
 
-const tabs = computed<TabsItem[]>(() => [
+const tabs = computed(() => [
   {
     label: 'Активные',
     value: 'active',
@@ -44,77 +43,31 @@ const currentSubjects = computed(() => isArchived.value ? filteredArchived.value
 const currentPending = computed(() => isArchived.value ? subjectsStore.archivedSubjectsPending : subjectsStore.activeSubjectsPending)
 const currentError = computed(() => isArchived.value ? subjectsStore.archivedSubjectsError : subjectsStore.activeSubjectsError)
 
-const UButton = resolveComponent('UButton')
-
 function setActiveSubject(subject: SubjectResponse): void {
   subjectsStore.setActiveSubject(subject)
 }
 
-const columns: TableColumn<SubjectResponse>[] = [
-  {
-    accessorKey: 'name',
-    header: 'Название',
-    meta: { class: { th: 'w-2/5', td: 'w-2/5 max-w-0 overflow-hidden' } },
-    cell: ({ row }) => h('span', row.original.name),
-  },
-  {
-    accessorKey: 'description',
-    header: 'Описание',
-    meta: { class: { th: 'w-2/5', td: 'w-2/5 max-w-0 overflow-hidden' } },
-    cell: ({ row }) => h('span', row.original.description || '—'),
-  },
-  {
-    accessorKey: 'createdAt',
-    header: 'Создан',
-    meta: { class: { th: 'w-32', td: 'w-32' } },
-    cell: ({ row }) => h('span', new Date(row.original.createdAt).toLocaleDateString('ru-RU')),
-  },
-  {
-    id: 'actions',
-    header: '',
-    meta: { class: { th: 'w-12', td: 'w-12' } },
-    cell: ({ row }) => h(UButton, {
-      color: 'neutral',
-      variant: 'ghost',
-      icon: 'i-lucide-chevron-right',
-      to: `/dashboard/subjects/${row.original.id}`,
-      onClick: (e: Event) => {
-        e.stopPropagation()
-        setActiveSubject(row.original)
-      },
-    }),
-  },
-]
-
 watch(activeTab, async (value) => {
   if (value !== 'archived')
     return
-
   await subjectsStore.loadArchivedSubjectsOnce()
 })
 
 async function onRefresh() {
   if (!subjectsStore.teacherId)
     return
-
   await subjectsStore.refreshForCurrentTab(isArchived.value)
-}
-
-function onSelectRow(_e: Event, row: { original: SubjectResponse }) {
-  setActiveSubject(row.original)
-  navigateTo(`/dashboard/subjects/${row.original.id}`)
 }
 
 const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
   return [
-    { label: 'Dashboard', to: '/dashboard' },
-    { label: 'Subjects', to: '/dashboard/subjects' },
+    { label: 'Предметы', to: '/dashboard/subjects' },
   ]
 })
 </script>
 
 <template>
-  <NuxtLayout name="dashboard" panel-id="dashboard-subjects" panel-title="Subjects">
+  <NuxtLayout name="dashboard" panel-id="dashboard-subjects" panel-title="Предметы">
     <template #navbar-title>
       <UBreadcrumb :items="breadcrumbItems" />
     </template>
@@ -123,7 +76,7 @@ const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
       <SubjectsCreateToolbarForm />
     </template>
 
-    <div class="flex flex-col gap-4">
+    <div class="flex flex-col gap-6">
       <UTabs
         v-model="activeTab"
         :items="tabs"
@@ -133,10 +86,11 @@ const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
       <div class="flex items-center gap-3 flex-wrap">
         <UInput
           v-model="searchQuery"
-          placeholder="Поиск..."
+          placeholder="Поиск предметов..."
           icon="i-lucide-search"
           color="neutral"
           variant="outline"
+          class="w-full sm:w-80"
           :disabled="!subjectsStore.teacherId"
         />
 
@@ -159,23 +113,70 @@ const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
         :description="currentError.message"
       />
 
-      <UTable
-        :data="currentSubjects"
-        :columns="columns"
-        :loading="currentPending"
-        sticky
-        @select="onSelectRow"
-      >
-        <template #empty>
-          <UEmpty
-            :icon="isArchived ? 'i-lucide-archive' : 'i-lucide-book-open'"
-            :title="isArchived ? 'Архивных предметов нет' : 'Активных предметов нет'"
-            :description="!isArchived ? 'Создайте первый предмет с помощью кнопки выше.' : undefined"
-            variant="naked"
-            class="py-12 overflow-visible"
-          />
-        </template>
-      </UTable>
+      <div v-if="currentPending && currentSubjects.length === 0" class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <USkeleton v-for="i in 6" :key="i" class="h-32" />
+      </div>
+
+      <div v-else-if="currentSubjects.length === 0" class="py-12">
+        <UEmpty
+          :icon="isArchived ? 'i-lucide-archive' : 'i-lucide-book-open'"
+          :title="isArchived ? 'Архивных предметов нет' : 'Активных предметов нет'"
+          :description="!isArchived ? 'Создайте первый предмет с помощью кнопки выше.' : undefined"
+          variant="naked"
+        />
+      </div>
+
+      <div v-else class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <UCard
+          v-for="subject in currentSubjects"
+          :key="subject.id"
+          class="group cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5"
+          :ui="{ body: 'p-0' }"
+          @click="setActiveSubject(subject); navigateTo(`/dashboard/subjects/${subject.id}`)"
+        >
+          <div class="flex flex-col gap-3 p-5">
+            <div class="flex items-start justify-between gap-2">
+              <div class="flex items-center gap-3">
+                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <UIcon name="i-lucide-book-open" class="size-5" />
+                </div>
+                <div class="min-w-0">
+                  <h3 class="truncate font-semibold">
+                    {{ subject.name }}
+                  </h3>
+                  <p class="text-xs text-muted">
+                    {{ new Date(subject.createdAt).toLocaleDateString('ru-RU') }}
+                  </p>
+                </div>
+              </div>
+              <UBadge
+                v-if="subject.archived"
+                label="Архив"
+                color="neutral"
+                variant="soft"
+                size="sm"
+              />
+            </div>
+
+            <p class="line-clamp-2 text-sm text-muted">
+              {{ subject.description || 'Нет описания' }}
+            </p>
+
+            <div class="flex items-center justify-between pt-1">
+              <span class="text-xs text-muted">
+                Обновлено {{ new Date(subject.updatedAt).toLocaleDateString('ru-RU') }}
+              </span>
+              <UButton
+                color="neutral"
+                variant="ghost"
+                size="xs"
+                icon="i-lucide-chevron-right"
+                class="opacity-0 transition-opacity group-hover:opacity-100"
+              />
+            </div>
+          </div>
+        </UCard>
+      </div>
     </div>
   </NuxtLayout>
 </template>

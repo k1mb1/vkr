@@ -2,7 +2,6 @@ import type { SchemaFor } from '#shared/types/backend/valibot-utils'
 import type { InferOutput } from 'valibot'
 import type { CreateStudentRequest, UpdateStudentRequest } from './types'
 import {
-  string,
   stringMax,
   uuidV4,
 } from '#shared/types/backend/valibot-utils'

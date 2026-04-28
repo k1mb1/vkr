@@ -5,6 +5,7 @@ import { useSubjectsStore } from '~/stores/subjects'
 
 const subjectsStore = useSubjectsStore()
 const route = useRoute()
+const router = useRouter()
 const subjectId = computed(() => String(route.params.subjectId ?? ''))
 
 const subjectFromStoreLists = computed<SubjectResponse | null>(() => {
@@ -24,7 +25,13 @@ const subjectName = computed(() => {
   if (subjectFromStoreLists.value?.name)
     return subjectFromStoreLists.value.name
 
-  return 'Subject'
+  return 'Предмет'
+})
+
+onMounted(() => {
+  if (route.path === `/dashboard/subjects/${subjectId.value}`) {
+    router.replace(`/dashboard/subjects/${subjectId.value}/grades`)
+  }
 })
 
 onUnmounted(() => {
@@ -33,34 +40,43 @@ onUnmounted(() => {
 
 const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
   return [
-    { label: 'Dashboard', to: '/dashboard' },
-    { label: 'Subjects', to: '/dashboard/subjects' },
+    { label: 'Предметы', to: '/dashboard/subjects' },
     { label: subjectName.value, to: `/dashboard/subjects/${subjectId.value}` },
   ]
 })
 
-const linksToolbar = computed(() => [{
-  label: 'General',
-  icon: 'i-lucide-user',
-  to: `/dashboard/subjects/${subjectId.value}`,
-  exact: true,
-}, {
-  label: 'Оценки',
-  icon: 'i-lucide-bar-chart-2',
-  to: `/dashboard/subjects/${subjectId.value}/grades`,
-}, {
-  label: 'Lessons',
-  icon: 'i-lucide-book-open',
-  to: `/dashboard/subjects/${subjectId.value}/lessons`,
-}, {
-  label: 'Settings',
-  icon: 'i-lucide-bell',
-  to: `/dashboard/subjects/${subjectId.value}/settings`,
-}] satisfies NavigationMenuItem[])
+const linksToolbar = computed(() => [
+  {
+    label: 'Оценки',
+    icon: 'i-lucide-table',
+    to: `/dashboard/subjects/${subjectId.value}/grades`,
+    exact: true,
+  },
+  {
+    label: 'Посещаемость',
+    icon: 'i-lucide-calendar-check',
+    to: `/dashboard/subjects/${subjectId.value}/attendance`,
+  },
+  {
+    label: 'Занятия',
+    icon: 'i-lucide-book-open',
+    to: `/dashboard/subjects/${subjectId.value}/lessons`,
+  },
+  {
+    label: 'Итоги',
+    icon: 'i-lucide-trophy',
+    to: `/dashboard/subjects/${subjectId.value}/final-grades`,
+  },
+  {
+    label: 'Настройки',
+    icon: 'i-lucide-settings',
+    to: `/dashboard/subjects/${subjectId.value}/settings`,
+  },
+] satisfies NavigationMenuItem[])
 </script>
 
 <template>
-  <NuxtLayout name="dashboard" panel-id="dashboard-subjects" panel-title="Subjects">
+  <NuxtLayout name="dashboard" panel-id="dashboard-subjects" panel-title="Предметы">
     <template #navbar-title>
       <UBreadcrumb :items="breadcrumbItems" />
     </template>

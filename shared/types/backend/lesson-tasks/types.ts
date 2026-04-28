@@ -30,7 +30,7 @@ interface UpdateTaskRequest {
 }
 
 interface LessonTaskGradesResponse {
-  students: Array<{ id: string; username: string }>
+  students: Array<{ id: string, username: string }>
   grades: import('#shared/types/backend/grades').TaskGradeResponse[]
 }
 

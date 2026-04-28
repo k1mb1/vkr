@@ -2,7 +2,6 @@ import type { SchemaFor } from '#shared/types/backend/valibot-utils'
 import type { InferOutput } from 'valibot'
 import type { CreateGroupRequest, UpdateGroupRequest } from './types'
 import {
-  string,
   stringMax,
 } from '#shared/types/backend/valibot-utils'
 import * as v from 'valibot'

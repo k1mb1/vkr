@@ -41,7 +41,7 @@ interface StudentGroupResponse {
 interface SubgroupResponse {
   id: string
   name: string
-  students: StudentEntryResponse[]
+  students?: StudentEntryResponse[]
 }
 
 interface FindGroupsFilter {

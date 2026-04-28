@@ -1,231 +1,281 @@
 <script setup lang="ts">
-import type { FinalGradeResponse, SubjectGradesResponse, SubmissionStatus } from '#shared/types/backend'
-import type { TableColumn } from '@nuxt/ui'
-import { h, resolveComponent } from 'vue'
+import type { LessonResponse, SubmissionStatus, TaskGradeResponse, TaskResponse } from '#shared/types/backend'
+import { useLessonsApi } from '~/composables/api/useLessonsApi'
 import { useSubjectsApi } from '~/composables/api/useSubjectsApi'
 
 const route = useRoute()
 const subjectId = computed(() => String(route.params.subjectId ?? ''))
 
-const { findFinalGrades, findGrades } = useSubjectsApi()
+const { findGrades } = useSubjectsApi()
+const { findAll: findLessons } = useLessonsApi()
 
-const { data: finalGradesData, pending: finalPending, error: finalError, refresh: refreshFinal } = findFinalGrades(subjectId)
-const { data: taskGradesData, pending: taskPending, error: taskError, refresh: refreshTasks } = findGrades(subjectId)
+const { data: gradesData, pending: gradesPending, error: gradesError, refresh: refreshGrades } = findGrades(subjectId)
+const { data: lessonsData, pending: lessonsPending } = findLessons({ subjectId: subjectId.value })
 
-const activeTab = ref<'final' | 'tasks'>('final')
+const tasksByLessonId = ref<Record<string, TaskResponse[]>>({})
+const tasksLoading = ref(false)
+const tasksError = ref<Error | null>(null)
 
-const tabs = computed(() => [
-  { label: 'Итоговые баллы', value: 'final', icon: 'i-lucide-trophy' },
-  { label: 'По заданиям', value: 'tasks', icon: 'i-lucide-list-checks' },
-])
+watch([gradesData, lessonsData], async ([grades, lessons]) => {
+  if (!grades?.lessons?.length) {
+    tasksByLessonId.value = {}
+    return
+  }
+  const lessonIds = grades.lessons.map(l => l.lessonId)
+  tasksLoading.value = true
+  tasksError.value = null
+  try {
+    const results = await Promise.all(
+      lessonIds.map(async (lessonId) => {
+        const tasks = await $fetch<TaskResponse[]>('/api/proxy', {
+          query: { path: `/lessons/${lessonId}/tasks` },
+        })
+        return { lessonId, tasks: tasks ?? [] }
+      }),
+    )
+    tasksByLessonId.value = Object.fromEntries(results.map(r => [r.lessonId, r.tasks]))
+  }
+  catch (e) {
+    tasksError.value = e instanceof Error ? e : new Error('Failed to load tasks')
+  }
+  finally {
+    tasksLoading.value = false
+  }
+}, { immediate: true })
 
-const UBadge = resolveComponent('UBadge')
+const lessonsMap = computed(() => {
+  const map = new Map<string, LessonResponse>()
+  for (const lesson of lessonsData.value ?? []) {
+    map.set(lesson.id, lesson)
+  }
+  return map
+})
 
-// ── Final grades ──────────────────────────────────────────────────────────────
+const gradeLookup = computed(() => {
+  const map = new Map<string, TaskGradeResponse>()
+  for (const grade of gradesData.value?.grades ?? []) {
+    map.set(`${grade.studentId}:${grade.taskId}`, grade)
+  }
+  return map
+})
 
-const finalGrades = computed<FinalGradeResponse[]>(() => finalGradesData.value ?? [])
-
-const finalColumns: TableColumn<FinalGradeResponse>[] = [
-  {
-    accessorKey: 'username',
-    header: 'Студент',
-    meta: { class: { th: 'w-2/5', td: 'w-2/5' } },
-  },
-  {
-    accessorKey: 'earnedPoints',
-    header: 'Заработано',
-    meta: { class: { th: 'w-32', td: 'w-32' } },
-  },
-  {
-    accessorKey: 'maxPoints',
-    header: 'Максимум',
-    meta: { class: { th: 'w-32', td: 'w-32' } },
-  },
-  {
-    accessorKey: 'percentage',
-    header: '%',
-    meta: { class: { th: 'w-24', td: 'w-24' } },
-    cell: ({ row }) => {
-      const pct = row.original.percentage
-      if (pct === null)
-        return h('span', { class: 'text-muted' }, '—')
-      const color = pct >= 60 ? 'success' : pct >= 40 ? 'warning' : 'error'
-      return h(UBadge, { label: `${pct.toFixed(1)}%`, color, variant: 'soft', size: 'sm' })
-    },
-  },
-]
-
-// ── Task grades ───────────────────────────────────────────────────────────────
-
-const SUBMISSION_STATUS_LABELS: Record<SubmissionStatus, string> = {
-  NOT_SUBMITTED: 'Не сдано',
-  SUBMITTED: 'Сдано',
-  GRADED: 'Оценено',
-  RESUBMIT: 'На доработку',
+function getGrade(studentId: string, taskId: string): TaskGradeResponse | undefined {
+  return gradeLookup.value.get(`${studentId}:${taskId}`)
 }
 
-const SUBMISSION_STATUS_COLORS: Record<SubmissionStatus, string> = {
+function computeCoeff(lesson: LessonResponse | undefined, taskPosition: number): number {
+  if (!lesson)
+    return 1.0
+  const d = lesson.issuedTaskIndex - taskPosition
+  if (d <= 0)
+    return 1.0
+  switch (lesson.penaltyMode) {
+    case 'SUBTRACT':
+      return Math.max(0, 1 - lesson.penaltyStep * d)
+    case 'MULTIPLY':
+      return lesson.penaltyStep ** d
+    default:
+      return 1.0
+  }
+}
+
+const SUBMISSION_STATUS_COLORS: Record<SubmissionStatus, 'neutral' | 'info' | 'success' | 'warning'> = {
   NOT_SUBMITTED: 'neutral',
   SUBMITTED: 'info',
   GRADED: 'success',
   RESUBMIT: 'warning',
 }
 
-interface FlatGradeRow {
-  username: string
-  taskId: string
-  status: SubmissionStatus
-  value: number | null
-  submittedAt: string | null
+interface GradeCell {
+  grade?: TaskGradeResponse
+  task: TaskResponse
+  lesson: LessonResponse | undefined
+  coeff: number
 }
 
-const flatTaskGrades = computed<FlatGradeRow[]>(() => {
-  const data = taskGradesData.value
-  if (!data)
+interface GradeRow {
+  studentId: string
+  username: string
+  cells: GradeCell[]
+}
+
+const tableRows = computed<GradeRow[]>(() => {
+  const grades = gradesData.value
+  if (!grades)
     return []
-  return data.grades.map((g) => {
-    const student = data.students.find(s => s.id === g.studentId)
-    return {
-      username: student?.username ?? '',
-      taskId: g.taskId,
-      status: g.status,
-      value: g.value,
-      submittedAt: g.submittedAt,
+  return grades.students.map((student) => {
+    const cells: GradeCell[] = []
+    for (const lessonHeader of grades.lessons) {
+      const lesson = lessonsMap.value.get(lessonHeader.lessonId)
+      const tasks = tasksByLessonId.value[lessonHeader.lessonId] ?? []
+      for (const task of tasks) {
+        const grade = getGrade(student.id, task.id)
+        const coeff = computeCoeff(lesson, task.position)
+        cells.push({ grade, task, lesson, coeff })
+      }
     }
+    return { studentId: student.id, username: student.username, cells }
   })
 })
 
-const taskColumns: TableColumn<FlatGradeRow>[] = [
-  {
-    accessorKey: 'username',
-    header: 'Студент',
-    meta: { class: { th: 'w-2/5', td: 'w-2/5' } },
-  },
-  {
-    accessorKey: 'status',
-    header: 'Статус',
-    meta: { class: { th: 'w-36', td: 'w-36' } },
-    cell: ({ row }) =>
-      h(UBadge, {
-        label: SUBMISSION_STATUS_LABELS[row.original.status],
-        color: SUBMISSION_STATUS_COLORS[row.original.status],
-        variant: 'soft',
-        size: 'sm',
-      }),
-  },
-  {
-    accessorKey: 'value',
-    header: 'Оценка',
-    meta: { class: { th: 'w-24', td: 'w-24' } },
-    cell: ({ row }) => {
-      const val = row.original.value
-      return h('span', val !== null ? String(val) : h('span', { class: 'text-muted' }, '—'))
-    },
-  },
-  {
-    accessorKey: 'submittedAt',
-    header: 'Дата сдачи',
-    meta: { class: { th: 'w-36', td: 'w-36' } },
-    cell: ({ row }) => {
-      const dt = row.original.submittedAt
-      if (!dt)
-        return h('span', { class: 'text-muted' }, '—')
-      return h('span', new Date(dt).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' }))
-    },
-  },
-]
+const lessonSpans = computed(() => {
+  const grades = gradesData.value
+  if (!grades)
+    return []
+  const spans: Array<{ lessonId: string, lessonName: string, count: number, dateTime: string | null }> = []
+  for (const lessonHeader of grades.lessons) {
+    const tasks = tasksByLessonId.value[lessonHeader.lessonId] ?? []
+    spans.push({
+      lessonId: lessonHeader.lessonId,
+      lessonName: lessonHeader.lessonName,
+      count: tasks.length || 1,
+      dateTime: lessonHeader.dateTime,
+    })
+  }
+  return spans
+})
+
+const anyTasks = computed(() => Object.values(tasksByLessonId.value).some(t => t.length > 0))
+
+const pending = computed(() => gradesPending.value || lessonsPending.value || tasksLoading.value)
 </script>
 
 <template>
   <section class="flex flex-col gap-4">
-    <div>
+    <div class="flex items-center justify-between">
       <h1 class="text-xl font-semibold">
         Оценки
       </h1>
+      <UButton
+        color="neutral"
+        variant="ghost"
+        icon="i-lucide-refresh-cw"
+        :loading="pending"
+        @click="() => refreshGrades()"
+      />
     </div>
 
-    <UTabs
-      v-model="activeTab"
-      :items="tabs"
-      :content="false"
+    <UAlert
+      v-if="gradesError"
+      color="error"
+      variant="soft"
+      icon="i-lucide-circle-x"
+      title="Ошибка загрузки"
+      :description="gradesError.message"
     />
 
-    <!-- Итоговые баллы -->
-    <template v-if="activeTab === 'final'">
-      <div class="flex items-center gap-3">
-        <UButton
-          color="neutral"
-          variant="ghost"
-          icon="i-lucide-refresh-cw"
-          :loading="finalPending"
-          @click="() => refreshFinal()"
-        />
+    <UAlert
+      v-if="tasksError"
+      color="warning"
+      variant="soft"
+      icon="i-lucide-alert-triangle"
+      title="Ошибка загрузки заданий"
+      :description="tasksError.message"
+    />
+
+    <div v-if="!gradesData?.students?.length && !pending" class="py-12">
+      <UEmpty
+        icon="i-lucide-list-checks"
+        title="Нет данных об оценках"
+        description="Добавьте занятия и задания, чтобы увидеть таблицу оценок."
+        variant="naked"
+      />
+    </div>
+
+    <template v-else-if="gradesData?.students?.length">
+      <div class="flex items-center gap-3 text-sm text-muted">
+        <span class="flex items-center gap-1">
+          <UBadge label="Не сдано" color="neutral" variant="soft" size="sm" />
+        </span>
+        <span class="flex items-center gap-1">
+          <UBadge label="Сдано" color="info" variant="soft" size="sm" />
+        </span>
+        <span class="flex items-center gap-1">
+          <UBadge label="Оценено" color="success" variant="soft" size="sm" />
+        </span>
+        <span class="flex items-center gap-1">
+          <UBadge label="Доработка" color="warning" variant="soft" size="sm" />
+        </span>
       </div>
 
-      <UAlert
-        v-if="finalError"
-        color="error"
-        variant="soft"
-        icon="i-lucide-circle-x"
-        title="Ошибка загрузки"
-        :description="finalError.message"
-      />
-
-      <UTable
-        :data="finalGrades"
-        :columns="finalColumns"
-        :loading="finalPending"
-        sticky
-      >
-        <template #empty>
-          <UEmpty
-            icon="i-lucide-trophy"
-            title="Итоговые баллы отсутствуют"
-            description="Данные появятся после выставления оценок за задания."
-            variant="naked"
-            class="py-12"
-          />
-        </template>
-      </UTable>
-    </template>
-
-    <!-- По заданиям -->
-    <template v-else-if="activeTab === 'tasks'">
-      <div class="flex items-center gap-3">
-        <UButton
-          color="neutral"
-          variant="ghost"
-          icon="i-lucide-refresh-cw"
-          :loading="taskPending"
-          @click="() => refreshTasks()"
-        />
+      <div class="overflow-x-auto rounded-md border border-default">
+        <table class="w-full text-sm">
+          <thead class="bg-elevated/50">
+            <!-- Lesson headers -->
+            <tr>
+              <th
+                class="sticky left-0 z-20 min-w-48 border-b border-r border-default bg-elevated/95 px-3 py-2 text-left font-semibold backdrop-blur"
+                rowspan="2"
+              >
+                Студент
+              </th>
+              <th
+                v-for="span in lessonSpans"
+                :key="span.lessonId"
+                class="border-b border-r border-default px-2 py-1.5 text-center text-xs font-medium"
+                :colspan="span.count"
+              >
+                <div class="flex flex-col items-center gap-0.5">
+                  <span>{{ span.lessonName }}</span>
+                  <span class="text-[10px] text-muted">{{ span.dateTime ? new Date(span.dateTime).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) : '—' }}</span>
+                </div>
+              </th>
+              <th v-if="!anyTasks && lessonSpans.length" class="border-b border-default px-2 py-1.5 text-center text-xs text-muted">
+                Задания не загружены
+              </th>
+            </tr>
+            <!-- Task headers -->
+            <tr>
+              <template v-for="span in lessonSpans" :key="span.lessonId">
+                <th
+                  v-for="task in tasksByLessonId[span.lessonId] ?? []"
+                  :key="task.id"
+                  class="border-b border-r border-default px-1.5 py-1 text-center text-[10px] font-medium text-muted"
+                  :title="task.title"
+                >
+                  <div class="flex flex-col items-center">
+                    <span class="max-w-16 truncate">{{ task.title }}</span>
+                    <span class="text-[9px]">{{ task.maxPoints }}б</span>
+                  </div>
+                </th>
+              </template>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="row in tableRows"
+              :key="row.studentId"
+              class="border-b border-default transition-colors hover:bg-elevated/30"
+            >
+              <td class="sticky left-0 z-10 min-w-48 border-r border-default bg-default/95 px-3 py-2 font-medium backdrop-blur">
+                {{ row.username }}
+              </td>
+              <td
+                v-for="(cell, idx) in row.cells"
+                :key="idx"
+                class="border-r border-default px-1.5 py-2 text-center"
+              >
+                <template v-if="cell.grade">
+                  <UTooltip :text="cell.grade.comment || undefined">
+                    <UBadge
+                      :label="cell.grade.value !== null ? String(Math.round(cell.grade.value * cell.coeff * 100) / 100) : '—'"
+                      :color="SUBMISSION_STATUS_COLORS[cell.grade.status]"
+                      variant="soft"
+                      size="sm"
+                    />
+                  </UTooltip>
+                  <div v-if="cell.coeff < 1 && cell.grade.value !== null" class="text-[10px] text-muted line-through">
+                    {{ cell.grade.value }}
+                  </div>
+                </template>
+                <template v-else>
+                  <span class="text-muted">—</span>
+                </template>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-
-      <UAlert
-        v-if="taskError"
-        color="error"
-        variant="soft"
-        icon="i-lucide-circle-x"
-        title="Ошибка загрузки"
-        :description="taskError.message"
-      />
-
-      <UTable
-        :data="flatTaskGrades"
-        :columns="taskColumns"
-        :loading="taskPending"
-        sticky
-      >
-        <template #empty>
-          <UEmpty
-            icon="i-lucide-list-checks"
-            title="Оценки по заданиям отсутствуют"
-            description="Данные появятся после выставления оценок."
-            variant="naked"
-            class="py-12"
-          />
-        </template>
-      </UTable>
     </template>
   </section>
 </template>
