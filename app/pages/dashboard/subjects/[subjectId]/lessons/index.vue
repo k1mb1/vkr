@@ -33,7 +33,12 @@ const PENALTY_MODE_LABELS: Record<LessonResponse['penaltyMode'], string> = {
   MULTIPLY: 'Геометрический',
 }
 
-const allLessons = computed(() => data.value ?? [])
+const allLessons = computed<LessonResponse[]>(() => {
+  const val = data.value as any
+  if (Array.isArray(val)) return val
+  if (val && Array.isArray(val.content)) return val.content as LessonResponse[]
+  return []
+})
 
 const filteredLessons = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()

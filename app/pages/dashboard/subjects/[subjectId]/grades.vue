@@ -43,9 +43,16 @@ watch([gradesData, lessonsData], async ([grades, lessons]) => {
   }
 }, { immediate: true })
 
+const rawLessons = computed<LessonResponse[]>(() => {
+  const val = lessonsData.value as any
+  if (Array.isArray(val)) return val
+  if (val && Array.isArray(val.content)) return val.content as LessonResponse[]
+  return []
+})
+
 const lessonsMap = computed(() => {
   const map = new Map<string, LessonResponse>()
-  for (const lesson of lessonsData.value ?? []) {
+  for (const lesson of rawLessons.value) {
     map.set(lesson.id, lesson)
   }
   return map
@@ -103,9 +110,11 @@ const tableRows = computed<GradeRow[]>(() => {
   const grades = gradesData.value
   if (!grades)
     return []
-  return grades.students.map((student) => {
+  const students = grades.students ?? []
+  const lessons = grades.lessons ?? []
+  return students.map((student) => {
     const cells: GradeCell[] = []
-    for (const lessonHeader of grades.lessons) {
+    for (const lessonHeader of lessons) {
       const lesson = lessonsMap.value.get(lessonHeader.lessonId)
       const tasks = tasksByLessonId.value[lessonHeader.lessonId] ?? []
       for (const task of tasks) {
@@ -123,7 +132,7 @@ const lessonSpans = computed(() => {
   if (!grades)
     return []
   const spans: Array<{ lessonId: string, lessonName: string, count: number, dateTime: string | null }> = []
-  for (const lessonHeader of grades.lessons) {
+  for (const lessonHeader of grades.lessons ?? []) {
     const tasks = tasksByLessonId.value[lessonHeader.lessonId] ?? []
     spans.push({
       lessonId: lessonHeader.lessonId,
