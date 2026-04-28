@@ -1,6 +1,6 @@
 import type {
   AttendanceEntryResponse,
-  StudentAttendanceTableResponse,
+  SubjectAttendanceResponse,
   UpsertAttendanceRequestPayload,
 } from '#shared/types/backend'
 import type { MaybeRefOrGetter } from 'vue'
@@ -12,8 +12,8 @@ import { useBackendFetch } from '~/composables/useBackendFetch'
 export function useAttendanceApi() {
   const findBySubject = (
     subjectId: MaybeRefOrGetter<string>,
-  ): BackendFetchResult<StudentAttendanceTableResponse[]> => {
-    return useBackendFetch<StudentAttendanceTableResponse[], undefined>(
+  ): BackendFetchResult<SubjectAttendanceResponse> => {
+    return useBackendFetch<SubjectAttendanceResponse, undefined>(
       () => `/subjects/${toValue(subjectId)}/attendance`,
       {
         method: 'GET',

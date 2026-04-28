@@ -1,6 +1,6 @@
 interface CreateOrUpdateTeacherRequest {
-  username?: string | null
-  email?: string | null
+  username: string
+  email: string
 }
 
 interface TeacherResponse {

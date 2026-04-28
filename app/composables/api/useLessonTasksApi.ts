@@ -1,6 +1,6 @@
 import type {
   CreateTaskRequestPayload,
-  StudentTaskGradesResponse,
+  LessonTaskGradesResponse,
   TaskGradeResponse,
   TaskResponse,
   UpdateTaskRequestPayload,
@@ -66,8 +66,8 @@ export function useLessonTasksApi() {
 
   const findGrades = (
     lessonId: MaybeRefOrGetter<string>,
-  ): BackendFetchResult<StudentTaskGradesResponse[]> => {
-    return useBackendFetch<StudentTaskGradesResponse[], undefined>(
+  ): BackendFetchResult<LessonTaskGradesResponse> => {
+    return useBackendFetch<LessonTaskGradesResponse, undefined>(
       () => `/lessons/${toValue(lessonId)}/tasks/grades`,
       {
         method: 'GET',

@@ -15,20 +15,27 @@ interface UpsertAttendanceRequest {
 interface AttendanceEntryResponse {
   attendanceId: string
   lessonId: string
+  studentId: string
   presence: PresenceType
   note: string | null
 }
 
-interface StudentAttendanceTableResponse {
-  studentId: string
-  username: string
+interface SubjectAttendanceResponse {
+  lessons: Array<{
+    lessonId: string
+    lessonName: string
+    dateTime: string | null
+    type: 'LECTURE' | 'PRACTICE' | 'NONE'
+    groupId: string | null
+  }>
+  students: Array<{ id: string; username: string }>
   attendances: AttendanceEntryResponse[]
 }
 
 export type {
   AttendanceEntryResponse,
   PresenceType,
-  StudentAttendanceTableResponse,
+  SubjectAttendanceResponse,
   UpsertAttendanceRequest,
 }
 

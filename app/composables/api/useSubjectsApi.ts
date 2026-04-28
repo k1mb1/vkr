@@ -3,9 +3,9 @@ import type {
   CreateSubjectRequestPayload,
   FinalGradeResponse,
   FindSubjectsFilter,
-  StudentAttendanceTableResponse,
+  SubjectAttendanceResponse,
+  SubjectGradesResponse,
   StudentGroupPageResponse,
-  StudentTaskGradesResponse,
   SubjectResponse,
   UpdateSubjectRequestPayload,
 } from '#shared/types/backend'
@@ -72,24 +72,6 @@ export function useSubjectsApi() {
     )
   }
 
-  const archive = (
-    subjectId: MaybeRefOrGetter<string>,
-  ): BackendFetchResult<SubjectResponse> => {
-    return useBackendFetch<SubjectResponse, null>(() => `/subjects/${toValue(subjectId)}/archive`, {
-      method: 'PATCH',
-      body: null,
-    })
-  }
-
-  const unarchive = (
-    subjectId: MaybeRefOrGetter<string>,
-  ): BackendFetchResult<SubjectResponse> => {
-    return useBackendFetch<SubjectResponse, null>(() => `/subjects/${toValue(subjectId)}/unarchive`, {
-      method: 'PATCH',
-      body: null,
-    })
-  }
-
   const findGroups = (
     subjectId: MaybeRefOrGetter<string>,
   ): BackendFetchResult<StudentGroupPageResponse[]> => {
@@ -121,8 +103,8 @@ export function useSubjectsApi() {
 
   const findGrades = (
     subjectId: MaybeRefOrGetter<string>,
-  ): BackendFetchResult<StudentTaskGradesResponse[]> => {
-    return useBackendFetch<StudentTaskGradesResponse[], undefined>(
+  ): BackendFetchResult<SubjectGradesResponse> => {
+    return useBackendFetch<SubjectGradesResponse, undefined>(
       () => `/subjects/${toValue(subjectId)}/grades`,
       { method: 'GET' },
     )
@@ -139,15 +121,14 @@ export function useSubjectsApi() {
 
   const findAttendance = (
     subjectId: MaybeRefOrGetter<string>,
-  ): BackendFetchResult<StudentAttendanceTableResponse[]> => {
-    return useBackendFetch<StudentAttendanceTableResponse[], undefined>(
+  ): BackendFetchResult<SubjectAttendanceResponse> => {
+    return useBackendFetch<SubjectAttendanceResponse, undefined>(
       () => `/subjects/${toValue(subjectId)}/attendance`,
       { method: 'GET' },
     )
   }
 
   return {
-    archive,
     attachGroup,
     create,
     detachGroup,
@@ -157,7 +138,6 @@ export function useSubjectsApi() {
     findGrades,
     findGroups,
     remove,
-    unarchive,
     update,
   }
 }

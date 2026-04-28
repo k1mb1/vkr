@@ -1,7 +1,7 @@
 interface StudentResponse {
   id: string
   username: string
-  groupId?: string | null
+  groupId: string | null
   createdAt: string
   updatedAt: string
 }
@@ -24,7 +24,7 @@ interface CreateStudentRequest {
 }
 
 interface UpdateStudentRequest {
-  name?: string
+  username?: string
   groupId?: string | null
 }
 

@@ -15,7 +15,7 @@ interface ApiErrorShape {
 
 const state = reactive<CreateSubjectRequestPayload>({
   name: '',
-  description: '',
+  description: null,
   teacherId: '',
 })
 
@@ -47,9 +47,14 @@ function getErrorMessage(error: unknown): string {
   return apiError.data?.statusMessage || apiError.data?.message || apiError.message || 'Failed to create subject'
 }
 
+const descriptionModel = computed<string>({
+  get: () => state.description ?? '',
+  set: (val) => { state.description = val || null },
+})
+
 function resetForm() {
   state.name = ''
-  state.description = ''
+  state.description = null
   state.teacherId = ''
 }
 
@@ -156,7 +161,7 @@ async function onSubmit(event: { data: CreateSubjectRequestPayload }, close: () 
           label="Description"
         >
           <UTextarea
-            v-model="state.description"
+            v-model="descriptionModel"
             placeholder="Optional short description"
             :rows="3"
             :disabled="pending"

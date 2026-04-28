@@ -29,8 +29,14 @@ interface UpdateTaskRequest {
   deadline?: string
 }
 
+interface LessonTaskGradesResponse {
+  students: Array<{ id: string; username: string }>
+  grades: import('#shared/types/backend/grades').TaskGradeResponse[]
+}
+
 export type {
   CreateTaskRequest,
+  LessonTaskGradesResponse,
   TaskResponse,
   UpdateTaskRequest,
 }

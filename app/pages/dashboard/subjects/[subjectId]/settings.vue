@@ -9,7 +9,7 @@ import { useSubjectsApi } from '~/composables/api/useSubjectsApi'
 import { useSubjectsStore } from '~/stores/subjects'
 
 const subjectsStore = useSubjectsStore()
-const { archive, attachGroup, detachGroup, findGroups, remove, unarchive, update } = useSubjectsApi()
+const { attachGroup, detachGroup, findGroups, remove, update } = useSubjectsApi()
 const { findAll: findAllGroups } = useStudentsGroupsApi()
 const { findSubjectSubgroups } = useStudentsApi()
 const toast = useToast()
@@ -204,7 +204,7 @@ async function onArchiveConfirm(close: () => void) {
     return
   archivePending.value = true
   try {
-    const { error } = await archive(subjectId.value)
+    const { error } = await update(subjectId.value, { archived: true, archivedAt: new Date().toISOString() })
     if (error.value)
       throw error.value
     await Promise.all([subjectsStore.loadActiveSubjects(), subjectsStore.loadArchivedSubjects()])
@@ -227,7 +227,7 @@ async function onUnarchiveConfirm(close: () => void) {
     return
   unarchivePending.value = true
   try {
-    const { error } = await unarchive(subjectId.value)
+    const { error } = await update(subjectId.value, { archived: false, archivedAt: null })
     if (error.value)
       throw error.value
     await Promise.all([subjectsStore.loadActiveSubjects(), subjectsStore.loadArchivedSubjects()])

@@ -4,7 +4,6 @@ import type {
   BulkScheduleEntry,
   BulkScheduleRequest,
   CreateLessonRequest,
-  CreateLessonsByTypeRequest,
   DayOfWeek,
   UpdateIssuedTaskIndexRequest,
   UpdateLessonRequest,
@@ -24,11 +23,6 @@ import {
   PENALTY_MODES,
 } from './types'
 import * as v from 'valibot'
-
-const lessonCountSchema = nonNegativeInteger(
-  'Lesson count must be an integer',
-  'Lesson count cannot be negative',
-)
 
 const positiveLessonCountSchema = v.pipe(
   v.number(),
@@ -50,7 +44,7 @@ const daysOfWeekSchema: SchemaFor<DayOfWeek[][]> = v.pipe(
 
 const penaltyStepSchema = v.pipe(
   v.number(),
-  v.check(value => value > 0.0001 && value <= 1, 'Penalty step must be in range (0.0001, 1.0]'),
+  v.check(value => value >= 0.0001 && value <= 1, 'Penalty step must be in range [0.0001, 1.0]'),
 )
 
 const createLessonRequestSchema: SchemaFor<CreateLessonRequest> = v.object({
@@ -58,22 +52,11 @@ const createLessonRequestSchema: SchemaFor<CreateLessonRequest> = v.object({
   dateTime: v.optional(calendarDateTimeToIso('Lesson dateTime must be a valid date/time')),
   type: v.picklist(LESSON_TYPES),
   subjectId: uuidV4(),
+  groupId: v.optional(v.nullable(uuidV4())),
   issuanceMode: v.optional(v.picklist(ISSUANCE_MODES)),
   penaltyMode: v.optional(v.picklist(PENALTY_MODES)),
   penaltyStep: v.optional(penaltyStepSchema),
 })
-
-const createLessonsByTypeRequestSchema: SchemaFor<CreateLessonsByTypeRequest> = v.pipe(
-  v.object({
-    subjectId: uuidV4(),
-    lectureCount: lessonCountSchema,
-    practiceCount: lessonCountSchema,
-  }),
-  v.check(
-    data => data.lectureCount > 0 || data.practiceCount > 0,
-    'At least one lesson must be requested',
-  ),
-)
 
 const bulkScheduleEntrySchema: SchemaFor<BulkScheduleEntry> = v.object({
   type: v.picklist(LESSON_TYPES),
@@ -94,6 +77,7 @@ const updateLessonRequestSchema: SchemaFor<UpdateLessonRequest> = v.partial(v.ob
   name: stringMax(120, 'Lesson name is required', 'Lesson name must be 120 characters or less'),
   dateTime: isoDateTime('Lesson dateTime must be a valid ISO datetime'),
   type: v.picklist(LESSON_TYPES),
+  groupId: v.nullable(uuidV4()),
   issuanceMode: v.picklist(ISSUANCE_MODES),
   penaltyMode: v.picklist(PENALTY_MODES),
   penaltyStep: penaltyStepSchema,
@@ -104,7 +88,6 @@ const updateIssuedTaskIndexRequestSchema: SchemaFor<UpdateIssuedTaskIndexRequest
 })
 
 type CreateLessonRequestPayload = InferOutput<typeof createLessonRequestSchema>
-type CreateLessonsByTypeRequestPayload = InferOutput<typeof createLessonsByTypeRequestSchema>
 type BulkScheduleRequestPayload = InferOutput<typeof bulkScheduleRequestSchema>
 type UpdateLessonRequestPayload = InferOutput<typeof updateLessonRequestSchema>
 type UpdateIssuedTaskIndexRequestPayload = InferOutput<typeof updateIssuedTaskIndexRequestSchema>
@@ -119,7 +102,6 @@ export type {
   BulkScheduleRequestPayload,
   CreateLessonFormState,
   CreateLessonRequestPayload,
-  CreateLessonsByTypeRequestPayload,
   UpdateIssuedTaskIndexRequestPayload,
   UpdateLessonRequestPayload,
 }
@@ -127,7 +109,6 @@ export type {
 export {
   bulkScheduleRequestSchema,
   createLessonRequestSchema,
-  createLessonsByTypeRequestSchema,
   updateIssuedTaskIndexRequestSchema,
   updateLessonRequestSchema,
 }

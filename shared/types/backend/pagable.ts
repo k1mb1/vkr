@@ -11,9 +11,6 @@ interface PageInfo {
   totalPages: number
   size: number
   number: number
-  first: boolean
-  last: boolean
-  empty: boolean
 }
 
 interface PageResponse<T> extends PageInfo {

@@ -1,6 +1,11 @@
+interface CreateGroupStudentEntry {
+  username: string
+  subgroupIndex: number | null
+}
+
 interface CreateGroupRequest {
   groupName: string
-  studentNames: string[][]
+  students: CreateGroupStudentEntry[]
 }
 
 interface StudentGroupPageResponse {
@@ -14,6 +19,12 @@ interface StudentEntryResponse {
   username: string
 }
 
+interface GroupStudentEntryResponse {
+  id: string
+  username: string
+  subgroupId: string | null
+}
+
 interface GroupSubjectResponse {
   id: string
   name: string
@@ -23,7 +34,7 @@ interface StudentGroupResponse {
   id: string
   name: string
   subjects: GroupSubjectResponse[]
-  students: StudentEntryResponse[]
+  students: GroupStudentEntryResponse[]
   subgroups: SubgroupResponse[]
 }
 
@@ -43,7 +54,9 @@ interface UpdateGroupRequest {
 
 export type {
   CreateGroupRequest,
+  CreateGroupStudentEntry,
   FindGroupsFilter,
+  GroupStudentEntryResponse,
   GroupSubjectResponse,
   StudentEntryResponse,
   StudentGroupPageResponse,

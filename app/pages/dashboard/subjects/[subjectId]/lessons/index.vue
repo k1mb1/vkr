@@ -115,7 +115,6 @@ function onSelectRow(_e: Event, row: { original: LessonResponse }) {
 
     <div class="flex flex-wrap gap-2">
       <LessonsCreateLessonModal :subject-id="subjectId" :after-create="onAfterCreate" />
-      <LessonsCreateLessonsByTypeModal :subject-id="subjectId" :after-create="onAfterCreate" />
       <LessonsCreateBulkScheduleModal :subject-id="subjectId" :after-create="onAfterCreate" />
     </div>
 

@@ -10,10 +10,11 @@ const props = defineProps<{
 type Mode = 'direct' | 'subgroups'
 
 const mode = ref<Mode>('subgroups')
+const subgroupCount = ref(2)
 
 const state = reactive<CreateGroupRequestPayload>({
   groupName: '',
-  studentNames: [[], []],
+  students: [],
 })
 
 const drafts = ref<string[]>(['', ''])
@@ -23,19 +24,18 @@ const pending = ref(false)
 const { create } = useStudentsGroupsApi()
 const toast = useToast()
 
-const displaySubgroups = computed(() =>
-  mode.value === 'direct'
-    ? [{ index: 0, names: state.studentNames[0] ?? [], label: 'Студенты' }]
-    : state.studentNames.map((names, i) => ({
-        index: i,
-        names,
-        label: `${state.groupName || 'ГРУППА'}/${i + 1}`,
-      })),
-)
+const displaySubgroups = computed(() => {
+  if (mode.value === 'direct') {
+    return [{ index: 0, names: state.students.map(s => s.username), label: 'Студенты' }]
+  }
+  return Array.from({ length: subgroupCount.value }, (_, i) => ({
+    index: i,
+    names: state.students.filter(s => s.subgroupIndex === i).map(s => s.username),
+    label: `${state.groupName || 'ГРУППА'}/${i + 1}`,
+  }))
+})
 
-const totalStudents = computed(() =>
-  state.studentNames.reduce((n, sg) => n + sg.length, 0),
-)
+const totalStudents = computed(() => state.students.length)
 
 const modeTabs = [
   { value: 'direct', label: 'Один список' },
@@ -46,13 +46,17 @@ function setMode(next: Mode) {
   if (next === mode.value)
     return
   if (next === 'direct') {
-    state.studentNames = [state.studentNames.flat()]
+    state.students.forEach(s => s.subgroupIndex = null)
+    subgroupCount.value = 1
     drafts.value = ['']
   }
   else {
-    if (state.studentNames.length < 2) {
-      state.studentNames.push([])
-      drafts.value.push('')
+    state.students.forEach(s => s.subgroupIndex = s.subgroupIndex ?? 0)
+    if (subgroupCount.value < 2) {
+      subgroupCount.value = 2
+    }
+    if (drafts.value.length < subgroupCount.value) {
+      drafts.value.push(...Array(subgroupCount.value - drafts.value.length).fill(''))
     }
   }
   mode.value = next
@@ -62,12 +66,27 @@ function addNames(sgIndex: number, raw: string) {
   const names = raw.split(/[,\n\t]+/).map(s => s.trim()).filter(Boolean)
   if (!names.length)
     return
-  state.studentNames[sgIndex]!.push(...names)
+  for (const name of names) {
+    state.students.push({
+      username: name,
+      subgroupIndex: mode.value === 'direct' ? null : sgIndex,
+    })
+  }
   drafts.value[sgIndex] = ''
 }
 
 function removeName(sgIndex: number, nameIndex: number) {
-  state.studentNames[sgIndex]!.splice(nameIndex, 1)
+  if (mode.value === 'direct') {
+    state.students.splice(nameIndex, 1)
+    return
+  }
+  const subgroupStudents = state.students.filter(s => s.subgroupIndex === sgIndex)
+  const toRemove = subgroupStudents[nameIndex]
+  if (toRemove) {
+    const realIndex = state.students.indexOf(toRemove)
+    if (realIndex !== -1)
+      state.students.splice(realIndex, 1)
+  }
 }
 
 function onDraftKeydown(e: KeyboardEvent, sgIndex: number) {
@@ -76,8 +95,16 @@ function onDraftKeydown(e: KeyboardEvent, sgIndex: number) {
     e.preventDefault()
     addNames(sgIndex, draft)
   }
-  else if (e.key === 'Backspace' && draft === '' && (state.studentNames[sgIndex]?.length ?? 0) > 0) {
-    state.studentNames[sgIndex]!.pop()
+  else if (e.key === 'Backspace' && draft === '') {
+    const subgroupStudents = mode.value === 'direct'
+      ? state.students
+      : state.students.filter(s => s.subgroupIndex === sgIndex)
+    if (subgroupStudents.length > 0) {
+      const last = subgroupStudents[subgroupStudents.length - 1]!
+      const realIndex = state.students.indexOf(last)
+      if (realIndex !== -1)
+        state.students.splice(realIndex, 1)
+    }
   }
 }
 
@@ -93,21 +120,28 @@ function onDraftPaste(e: ClipboardEvent, sgIndex: number) {
 }
 
 function addSubgroup() {
-  state.studentNames.push([])
+  subgroupCount.value++
   drafts.value.push('')
 }
 
 function removeSubgroup(index: number) {
-  if (state.studentNames.length <= 1)
+  if (subgroupCount.value <= 1)
     return
-  state.studentNames.splice(index, 1)
+  state.students = state.students.filter(s => s.subgroupIndex !== index)
+  state.students.forEach(s => {
+    if (s.subgroupIndex !== null && s.subgroupIndex > index) {
+      s.subgroupIndex--
+    }
+  })
+  subgroupCount.value--
   drafts.value.splice(index, 1)
 }
 
 function resetForm() {
   state.groupName = ''
-  state.studentNames = [[], []]
+  state.students = []
   mode.value = 'subgroups'
+  subgroupCount.value = 2
   drafts.value = ['', '']
 }
 
@@ -184,7 +218,7 @@ async function onSubmit(event: { data: CreateGroupRequestPayload }, close: () =>
           />
         </UFormField>
 
-        <UFormField name="studentNames" hint="Enter или запятая — добавить имя; вставка списка столбиком работает автоматически">
+        <UFormField name="students" hint="Enter или запятая — добавить имя; вставка списка столбиком работает автоматически">
           <div class="space-y-3">
             <div v-for="sg in displaySubgroups" :key="sg.index">
               <div class="mb-1.5 flex items-center justify-between">
@@ -195,7 +229,7 @@ async function onSubmit(event: { data: CreateGroupRequestPayload }, close: () =>
                   </UBadge>
                 </span>
                 <UButton
-                  v-if="mode === 'subgroups' && state.studentNames.length > 1"
+                  v-if="mode === 'subgroups' && subgroupCount > 1"
                   icon="i-lucide-trash-2"
                   color="neutral"
                   variant="ghost"
@@ -256,7 +290,7 @@ async function onSubmit(event: { data: CreateGroupRequestPayload }, close: () =>
           <p class="text-sm text-muted">
             {{ totalStudents }} студент{{ totalStudents === 1 ? '' : totalStudents > 1 && totalStudents < 5 ? 'а' : 'ов' }}
             <template v-if="mode === 'subgroups'">
-              в {{ state.studentNames.length }} подгрупп{{ state.studentNames.length === 1 ? 'е' : 'ах' }}
+              в {{ subgroupCount }} подгрупп{{ subgroupCount === 1 ? 'е' : 'ах' }}
             </template>
           </p>
 

@@ -25,9 +25,28 @@ interface FinalGradeResponse {
   percentage: number | null
 }
 
+interface SubjectLessonHeader {
+  lessonId: string
+  lessonName: string
+  dateTime: string | null
+  type: 'LECTURE' | 'PRACTICE' | 'NONE'
+  groupId: string | null
+}
+
+interface SubjectStudentBrief {
+  id: string
+  username: string
+}
+
+interface SubjectGradesResponse {
+  lessons: SubjectLessonHeader[]
+  students: SubjectStudentBrief[]
+  grades: import('#shared/types/backend/grades').TaskGradeResponse[]
+}
+
 interface CreateSubjectRequest {
   name: string
-  description?: string
+  description: string | null
   teacherId: string
 }
 
@@ -36,8 +55,10 @@ interface FindSubjectsFilter {
 }
 
 interface UpdateSubjectRequest {
-  name: string
+  name?: string
   description?: string | null
+  archived?: boolean
+  archivedAt?: string | null
 }
 
 const DEFAULT_FIND_SUBJECTS_FILTER: FindSubjectsFilter = {
@@ -49,7 +70,10 @@ export type {
   CreateSubjectRequest,
   FinalGradeResponse,
   FindSubjectsFilter,
+  SubjectGradesResponse,
+  SubjectLessonHeader,
   SubjectResponse,
+  SubjectStudentBrief,
   UpdateSubjectRequest,
 }
 

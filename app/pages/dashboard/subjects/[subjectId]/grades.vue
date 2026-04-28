@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { FinalGradeResponse, StudentTaskGradesResponse, SubmissionStatus } from '#shared/types/backend'
+import type { FinalGradeResponse, SubjectGradesResponse, SubmissionStatus } from '#shared/types/backend'
 import type { TableColumn } from '@nuxt/ui'
 import { h, resolveComponent } from 'vue'
 import { useSubjectsApi } from '~/composables/api/useSubjectsApi'
@@ -80,15 +80,19 @@ interface FlatGradeRow {
 }
 
 const flatTaskGrades = computed<FlatGradeRow[]>(() => {
-  return (taskGradesData.value ?? []).flatMap((row: StudentTaskGradesResponse) =>
-    row.grades.map(g => ({
-      username: row.username,
+  const data = taskGradesData.value
+  if (!data)
+    return []
+  return data.grades.map((g) => {
+    const student = data.students.find(s => s.id === g.studentId)
+    return {
+      username: student?.username ?? '',
       taskId: g.taskId,
       status: g.status,
       value: g.value,
       submittedAt: g.submittedAt,
-    })),
-  )
+    }
+  })
 })
 
 const taskColumns: TableColumn<FlatGradeRow>[] = [

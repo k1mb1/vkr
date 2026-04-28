@@ -227,7 +227,7 @@ async function onRenameStudent() {
     return
   editPending.value = true
   try {
-    const { error: err } = await studentsApi.update(editingStudent.value.id, { name: editUsername.value.trim() })
+    const { error: err } = await studentsApi.update(editingStudent.value.id, { username: editUsername.value.trim() })
     if (err.value)
       throw err.value
     toast.add({ title: 'Студент переименован', color: 'success', icon: 'i-lucide-check' })

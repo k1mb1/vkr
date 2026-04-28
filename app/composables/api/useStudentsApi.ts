@@ -1,4 +1,5 @@
 import type {
+  CreateStudentRequestPayload,
   FindStudentsFilter,
   PageQuery,
   PageRequest,
@@ -10,6 +11,7 @@ import type {
 import type { MaybeRefOrGetter } from 'vue'
 import type { BackendFetchResult } from '~/composables/useBackendFetch'
 import {
+  createStudentRequestSchema,
   DEFAULT_PAGE_REQUEST,
   toPageQuery,
   updateStudentRequestSchema,
@@ -24,6 +26,16 @@ export function useStudentsApi() {
     return useBackendFetch<PageResponse<StudentResponse>, undefined, PageQuery>(`/students`, {
       method: 'GET',
       query: () => toPageQuery(toValue(request)),
+    })
+  }
+
+  const create = (
+    payload: MaybeRefOrGetter<CreateStudentRequestPayload>,
+  ): BackendFetchResult<StudentResponse> => {
+    return useBackendFetch<StudentResponse, CreateStudentRequestPayload>(`/students`, {
+      method: 'POST',
+      body: () => toValue(payload),
+      bodySchema: createStudentRequestSchema,
     })
   }
 
@@ -70,6 +82,7 @@ export function useStudentsApi() {
   }
 
   return {
+    create,
     delete: remove,
     findAll,
     findById,

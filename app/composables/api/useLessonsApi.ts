@@ -1,7 +1,6 @@
 import type {
   BulkScheduleRequestPayload,
   CreateLessonRequestPayload,
-  CreateLessonsByTypeRequestPayload,
   FindLessonsFilter,
   LessonResponse,
   UpdateIssuedTaskIndexRequestPayload,
@@ -12,7 +11,6 @@ import type { BackendFetchResult } from '~/composables/useBackendFetch'
 import {
   bulkScheduleRequestSchema,
   createLessonRequestSchema,
-  createLessonsByTypeRequestSchema,
   updateIssuedTaskIndexRequestSchema,
   updateLessonRequestSchema,
 } from '#shared/types/backend'
@@ -39,16 +37,6 @@ export function useLessonsApi() {
       method: 'POST',
       body: () => toValue(request),
       bodySchema: createLessonRequestSchema,
-    })
-  }
-
-  const createBulkByType = (
-    request: MaybeRefOrGetter<CreateLessonsByTypeRequestPayload>,
-  ): BackendFetchResult<LessonResponse[]> => {
-    return useBackendFetch<LessonResponse[], CreateLessonsByTypeRequestPayload>(`/lessons/bulk-by-type`, {
-      method: 'POST',
-      body: () => toValue(request),
-      bodySchema: createLessonsByTypeRequestSchema,
     })
   }
 
@@ -90,15 +78,6 @@ export function useLessonsApi() {
     )
   }
 
-  const archive = (
-    lessonId: MaybeRefOrGetter<string>,
-  ): BackendFetchResult<LessonResponse> => {
-    return useBackendFetch<LessonResponse, null>(() => `/lessons/${toValue(lessonId)}/archive`, {
-      method: 'PATCH',
-      body: null,
-    })
-  }
-
   const issue = (
     lessonId: MaybeRefOrGetter<string>,
   ): BackendFetchResult<LessonResponse> => {
@@ -118,9 +97,7 @@ export function useLessonsApi() {
   }
 
   return {
-    archive,
     create,
-    createBulkByType,
     createBulkSchedule,
     findAll,
     issue,

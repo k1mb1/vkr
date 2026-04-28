@@ -28,14 +28,7 @@ interface TaskGradeResponse {
   updatedAt: string
 }
 
-interface StudentTaskGradesResponse {
-  studentId: string
-  username: string
-  grades: TaskGradeResponse[]
-}
-
 export type {
-  StudentTaskGradesResponse,
   SubmissionStatus,
   TaskGradeResponse,
   UpsertTaskGradeRequest,

@@ -34,15 +34,10 @@ interface CreateLessonRequest {
   dateTime?: string
   type: LessonType
   subjectId: string
+  groupId?: string | null
   issuanceMode?: IssuanceMode
   penaltyMode?: PenaltyMode
   penaltyStep?: number
-}
-
-interface CreateLessonsByTypeRequest {
-  subjectId: string
-  lectureCount: number
-  practiceCount: number
 }
 
 interface FindLessonsFilter {
@@ -65,6 +60,7 @@ interface UpdateLessonRequest {
   name?: string
   dateTime?: string
   type?: LessonType
+  groupId?: string | null
   issuanceMode?: IssuanceMode
   penaltyMode?: PenaltyMode
   penaltyStep?: number
@@ -95,7 +91,6 @@ export type {
   BulkScheduleEntry,
   BulkScheduleRequest,
   CreateLessonRequest,
-  CreateLessonsByTypeRequest,
   DayOfWeek,
   FindLessonsFilter,
   IssuanceMode,

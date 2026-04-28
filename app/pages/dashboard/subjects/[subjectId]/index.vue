@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { FinalGradeResponse, StudentAttendanceTableResponse } from '#shared/types/backend'
+import type { FinalGradeResponse, SubjectAttendanceResponse } from '#shared/types/backend'
 import type { TableColumn } from '@nuxt/ui'
 import { h, resolveComponent } from 'vue'
 import { useAttendanceApi } from '~/composables/api/useAttendanceApi'
@@ -68,13 +68,17 @@ interface AttendanceRow {
 }
 
 const attendanceRows = computed<AttendanceRow[]>(() => {
-  return (attendanceData.value ?? []).map((row: StudentAttendanceTableResponse) => {
-    const presentCount = row.attendances.filter(a => a.presence === 'PRESENT').length
-    const absentCount = row.attendances.filter(a => a.presence === 'NOT_PRESENT').length
-    const noneCount = row.attendances.filter(a => a.presence === 'NONE').length
+  const data = attendanceData.value
+  if (!data)
+    return []
+  return data.students.map((student) => {
+    const studentAttendances = data.attendances.filter(a => a.studentId === student.id)
+    const presentCount = studentAttendances.filter(a => a.presence === 'PRESENT').length
+    const absentCount = studentAttendances.filter(a => a.presence === 'NOT_PRESENT').length
+    const noneCount = studentAttendances.filter(a => a.presence === 'NONE').length
     const denominator = presentCount + absentCount
     const rate = denominator > 0 ? `${Math.round((presentCount / denominator) * 100)}%` : '—'
-    return { studentId: row.studentId, username: row.username, presentCount, absentCount, noneCount, rate }
+    return { studentId: student.id, username: student.username, presentCount, absentCount, noneCount, rate }
   })
 })
 
