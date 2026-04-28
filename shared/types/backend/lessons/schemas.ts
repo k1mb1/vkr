@@ -1,5 +1,14 @@
 import type { SchemaFor } from '#shared/types/backend/valibot-utils'
 import type { InferInput, InferOutput } from 'valibot'
+import type {
+  BulkScheduleEntry,
+  BulkScheduleRequest,
+  CreateLessonRequest,
+  CreateLessonsByTypeRequest,
+  DayOfWeek,
+  UpdateIssuedTaskIndexRequest,
+  UpdateLessonRequest,
+} from './types'
 import {
   calendarDateTimeToIso,
   calendarDateToIso,
@@ -8,98 +17,13 @@ import {
   stringMax,
   uuidV4,
 } from '#shared/types/backend/valibot-utils'
+import {
+  DAY_OF_WEEK,
+  ISSUANCE_MODES,
+  LESSON_TYPES,
+  PENALTY_MODES,
+} from './types'
 import * as v from 'valibot'
-
-const LESSON_TYPES = [
-  'NONE',
-  'LECTURE',
-  'PRACTICE',
-] as const
-type LessonType = (typeof LESSON_TYPES)[number]
-
-const ISSUANCE_MODES = [
-  'AUTO',
-  'MANUAL',
-] as const
-type IssuanceMode = (typeof ISSUANCE_MODES)[number]
-
-const PENALTY_MODES = [
-  'NONE',
-  'SUBTRACT',
-  'MULTIPLY',
-] as const
-type PenaltyMode = (typeof PENALTY_MODES)[number]
-
-const DAY_OF_WEEK = [
-  'MONDAY',
-  'TUESDAY',
-  'WEDNESDAY',
-  'THURSDAY',
-  'FRIDAY',
-  'SATURDAY',
-  'SUNDAY',
-] as const
-type DayOfWeek = (typeof DAY_OF_WEEK)[number]
-
-interface CreateLessonRequest {
-  name: string
-  dateTime?: string
-  type: LessonType
-  subjectId: string
-  issuanceMode?: IssuanceMode
-  penaltyMode?: PenaltyMode
-  penaltyStep?: number
-}
-
-interface CreateLessonsByTypeRequest {
-  subjectId: string
-  lectureCount: number
-  practiceCount: number
-}
-
-interface BulkScheduleEntry {
-  type: LessonType
-  startDate: string
-  totalCount: number
-  daysOfWeek: DayOfWeek[][]
-}
-
-interface BulkScheduleRequest {
-  subjectId: string
-  schedules: BulkScheduleEntry[]
-}
-
-interface UpdateLessonRequest {
-  name?: string
-  dateTime?: string
-  type?: LessonType
-  issuanceMode?: IssuanceMode
-  penaltyMode?: PenaltyMode
-  penaltyStep?: number
-}
-
-interface UpdateIssuedTaskIndexRequest {
-  issuedTaskIndex: number
-}
-
-interface LessonResponse {
-  id: string
-  name: string
-  dateTime: string | null
-  type: LessonType
-  subjectId: string
-  groupId: string | null
-  subgroupNumber: number | null
-  issuanceMode: IssuanceMode
-  issuedAt: string | null
-  issuedTaskIndex: number
-  penaltyMode: PenaltyMode
-  penaltyStep: number
-  archived: boolean
-  archivedAt: string | null
-  createdAt: string
-  updatedAt: string
-}
 
 const lessonCountSchema = nonNegativeInteger(
   'Lesson count must be an integer',
@@ -114,7 +38,7 @@ const positiveLessonCountSchema = v.pipe(
 
 const startDateSchema = calendarDateToIso('Start date must be a valid date')
 
-const daysOfWeekSchema = v.pipe(
+const daysOfWeekSchema: SchemaFor<DayOfWeek[][]> = v.pipe(
   v.array(
     v.pipe(
       v.array(v.picklist(DAY_OF_WEEK)),
@@ -129,7 +53,7 @@ const penaltyStepSchema = v.pipe(
   v.check(value => value > 0.0001 && value <= 1, 'Penalty step must be in range (0.0001, 1.0]'),
 )
 
-const createLessonRequestSchema = v.object({
+const createLessonRequestSchema: SchemaFor<CreateLessonRequest> = v.object({
   name: stringMax(120, 'Lesson name is required', 'Lesson name must be 120 characters or less'),
   dateTime: v.optional(calendarDateTimeToIso('Lesson dateTime must be a valid date/time')),
   type: v.picklist(LESSON_TYPES),
@@ -151,14 +75,14 @@ const createLessonsByTypeRequestSchema: SchemaFor<CreateLessonsByTypeRequest> = 
   ),
 )
 
-const bulkScheduleEntrySchema = v.object({
+const bulkScheduleEntrySchema: SchemaFor<BulkScheduleEntry> = v.object({
   type: v.picklist(LESSON_TYPES),
   startDate: startDateSchema,
   totalCount: positiveLessonCountSchema,
   daysOfWeek: daysOfWeekSchema,
 })
 
-const bulkScheduleRequestSchema = v.object({
+const bulkScheduleRequestSchema: SchemaFor<BulkScheduleRequest> = v.object({
   subjectId: uuidV4(),
   schedules: v.pipe(
     v.array(bulkScheduleEntrySchema),
@@ -190,24 +114,13 @@ type BulkScheduleEntryFormState = InferInput<typeof bulkScheduleEntrySchema>
 type BulkScheduleFormState = InferInput<typeof bulkScheduleRequestSchema>
 
 export type {
-  BulkScheduleEntry,
   BulkScheduleEntryFormState,
   BulkScheduleFormState,
-  BulkScheduleRequest,
   BulkScheduleRequestPayload,
   CreateLessonFormState,
-  CreateLessonRequest,
   CreateLessonRequestPayload,
-  CreateLessonsByTypeRequest,
   CreateLessonsByTypeRequestPayload,
-  DayOfWeek,
-  IssuanceMode,
-  LessonResponse,
-  LessonType,
-  PenaltyMode,
-  UpdateIssuedTaskIndexRequest,
   UpdateIssuedTaskIndexRequestPayload,
-  UpdateLessonRequest,
   UpdateLessonRequestPayload,
 }
 
@@ -215,10 +128,6 @@ export {
   bulkScheduleRequestSchema,
   createLessonRequestSchema,
   createLessonsByTypeRequestSchema,
-  DAY_OF_WEEK,
-  ISSUANCE_MODES,
-  LESSON_TYPES,
-  PENALTY_MODES,
   updateIssuedTaskIndexRequestSchema,
   updateLessonRequestSchema,
 }

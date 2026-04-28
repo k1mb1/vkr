@@ -1,23 +1,11 @@
 import type { SchemaFor } from '#shared/types/backend/valibot-utils'
 import type { InferOutput } from 'valibot'
+import type { UpdateTeacherRequest } from './types'
 import {
   email,
   stringMax,
 } from '#shared/types/backend/valibot-utils'
 import * as v from 'valibot'
-
-interface UpdateTeacherRequest {
-  username?: string
-  email?: string
-}
-
-interface TeacherResponse {
-  id: string
-  username: string
-  email: string
-  createdAt: string
-  updatedAt: string
-}
 
 const updateTeacherRequestSchema: SchemaFor<UpdateTeacherRequest> = v.partial(v.object({
   username: stringMax(120),
@@ -27,8 +15,6 @@ const updateTeacherRequestSchema: SchemaFor<UpdateTeacherRequest> = v.partial(v.
 type UpdateTeacherRequestPayload = InferOutput<typeof updateTeacherRequestSchema>
 
 export type {
-  TeacherResponse,
-  UpdateTeacherRequest,
   UpdateTeacherRequestPayload,
 }
 

@@ -1,46 +1,11 @@
-import type { StudentEntryResponse } from '#shared/types/backend/student-groups'
 import type { SchemaFor } from '#shared/types/backend/valibot-utils'
 import type { InferOutput } from 'valibot'
+import type { CreateStudentRequest, UpdateStudentRequest } from './types'
 import {
   string,
   uuidV4,
 } from '#shared/types/backend/valibot-utils'
 import * as v from 'valibot'
-
-interface StudentResponse {
-  id: string
-  username: string
-  groupId?: string | null
-  createdAt: string
-  updatedAt: string
-}
-
-interface StudentSubjectSubgroup {
-  id: string
-  name: string
-  students: string[]
-}
-
-interface StudentSubjectSubgroupsResponse {
-  subjectId: string
-  subjectName: string
-  subgroups: StudentSubjectSubgroup[]
-}
-
-interface CreateStudentRequest {
-  username: string
-  groupId?: string | null
-}
-
-interface UpdateStudentRequest {
-  name?: string
-  groupId?: string | null
-}
-
-interface FindStudentsFilter {
-  username?: string
-  groupId?: string
-}
 
 const createStudentRequestSchema: SchemaFor<CreateStudentRequest> = v.object({
   username: string('Username is required'),
@@ -56,14 +21,7 @@ type CreateStudentRequestPayload = InferOutput<typeof createStudentRequestSchema
 type UpdateStudentRequestPayload = InferOutput<typeof updateStudentRequestSchema>
 
 export type {
-  CreateStudentRequest,
   CreateStudentRequestPayload,
-  FindStudentsFilter,
-  StudentEntryResponse,
-  StudentResponse,
-  StudentSubjectSubgroup,
-  StudentSubjectSubgroupsResponse,
-  UpdateStudentRequest,
   UpdateStudentRequestPayload,
 }
 

@@ -1,11 +1,3 @@
-import type { SchemaFor } from '#shared/types/backend/valibot-utils'
-import type { InferOutput } from 'valibot'
-import {
-  stringMax,
-  uuidV4,
-} from '#shared/types/backend/valibot-utils'
-import * as v from 'valibot'
-
 interface SubjectResponse {
   id: string
   name: string
@@ -43,28 +35,24 @@ interface FindSubjectsFilter {
   archived?: boolean
 }
 
+interface UpdateSubjectRequest {
+  name: string
+  description?: string | null
+}
+
 const DEFAULT_FIND_SUBJECTS_FILTER: FindSubjectsFilter = {
   archived: false,
 }
 
-const createSubjectRequestSchema: SchemaFor<CreateSubjectRequest> = v.object({
-  name: stringMax(120),
-  description: v.optional(stringMax(500)),
-  teacherId: uuidV4(),
-})
-
-type CreateSubjectRequestPayload = InferOutput<typeof createSubjectRequestSchema>
-
 export type {
   AttachGroupToSubjectResponse,
   CreateSubjectRequest,
-  CreateSubjectRequestPayload,
   FinalGradeResponse,
   FindSubjectsFilter,
   SubjectResponse,
+  UpdateSubjectRequest,
 }
 
 export {
-  createSubjectRequestSchema,
   DEFAULT_FIND_SUBJECTS_FILTER,
 }
