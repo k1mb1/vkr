@@ -10,11 +10,10 @@ const subjectId = computed(() => String(route.params.subjectId ?? ''))
 const UButton = resolveComponent('UButton')
 const UBadge = resolveComponent('UBadge')
 
-const { findAllBySubjectId } = useLessonsApi()
-const { data, pending, error, refresh } = findAllBySubjectId(subjectId)
+const { findAll } = useLessonsApi()
+const { data, pending, error, refresh } = findAll({ subjectId: subjectId.value })
 
 const searchQuery = ref('')
-const activeTab = ref<'active' | 'archived'>('active')
 
 const LESSON_TYPE_LABELS: Record<LessonType, string> = {
   NONE: 'Без типа',
@@ -35,23 +34,12 @@ const PENALTY_MODE_LABELS: Record<LessonResponse['penaltyMode'], string> = {
 }
 
 const allLessons = computed(() => data.value ?? [])
-const activeLessons = computed(() => allLessons.value.filter(l => !l.archived))
-const archivedLessons = computed(() => allLessons.value.filter(l => l.archived))
-
-const tabs = computed(() => [
-  { label: 'Активные', value: 'active', icon: 'i-lucide-book-open', badge: activeLessons.value.length || undefined },
-  { label: 'Архивные', value: 'archived', icon: 'i-lucide-archive', badge: archivedLessons.value.length || undefined },
-])
-
-const currentList = computed(() =>
-  activeTab.value === 'archived' ? archivedLessons.value : activeLessons.value,
-)
 
 const filteredLessons = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
   if (!q)
-    return currentList.value
-  return currentList.value.filter(l => l.name.toLowerCase().includes(q))
+    return allLessons.value
+  return allLessons.value.filter(l => l.name.toLowerCase().includes(q))
 })
 
 function onAfterCreate() {
@@ -131,12 +119,6 @@ function onSelectRow(_e: Event, row: { original: LessonResponse }) {
       <LessonsCreateBulkScheduleModal :subject-id="subjectId" :after-create="onAfterCreate" />
     </div>
 
-    <UTabs
-      v-model="activeTab"
-      :items="tabs"
-      :content="false"
-    />
-
     <div class="flex items-center gap-3 flex-wrap">
       <UInput
         v-model="searchQuery"
@@ -172,9 +154,9 @@ function onSelectRow(_e: Event, row: { original: LessonResponse }) {
     >
       <template #empty>
         <UEmpty
-          :icon="activeTab === 'archived' ? 'i-lucide-archive' : 'i-lucide-book-open'"
-          :title="activeTab === 'archived' ? 'Архивных занятий нет' : 'Занятий нет'"
-          :description="activeTab !== 'archived' ? 'Создайте первое занятие с помощью кнопок выше.' : undefined"
+          icon="i-lucide-book-open"
+          title="Занятий нет"
+          description="Создайте первое занятие с помощью кнопок выше."
           variant="naked"
           class="py-12 overflow-visible"
         />

@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import type {
-  BulkScheduleEntryFormState,
-  BulkScheduleFormState,
   BulkScheduleRequestPayload,
   DayOfWeek,
   LessonResponse,
+  LessonType,
 } from '#shared/types/backend'
+import type { DateValue } from '@internationalized/date'
 import { bulkScheduleRequestSchema, DAY_OF_WEEK, LESSON_TYPES } from '#shared/types/backend'
 import { getLocalTimeZone, today } from '@internationalized/date'
 import { useLessonsApi } from '~/composables/api/useLessonsApi'
@@ -29,19 +29,19 @@ function createEmptyWeek(): DayOfWeek[] {
   return ['MONDAY']
 }
 
-function createEmptyScheduleEntry(): BulkScheduleEntryFormState {
+function createEmptyScheduleEntry() {
   return {
-    type: 'LECTURE',
-    startDate: today(getLocalTimeZone()),
+    type: 'LECTURE' as LessonType,
+    startDate: today(getLocalTimeZone()) as DateValue,
     totalCount: 1,
     daysOfWeek: [createEmptyWeek()],
   }
 }
 
-const state: BulkScheduleFormState = reactive<BulkScheduleFormState>({
+const state = reactive({
   subjectId: props.subjectId,
   schedules: [createEmptyScheduleEntry()],
-}) as unknown as BulkScheduleFormState
+})
 
 const pending = ref(false)
 const { createBulkSchedule } = useLessonsApi()
@@ -229,8 +229,11 @@ async function onSubmit(event: { data: BulkScheduleRequestPayload }, close: () =
               </UFormField>
 
               <UFormField :name="`schedules.${entryIndex}.startDate`" label="Start date" required>
-                <UInputDate
+                <!-- <UInputDate
                   v-model="entry.startDate"
+                  :disabled="pending"
+                /> -->
+                <UInputDate
                   :disabled="pending"
                 />
               </UFormField>

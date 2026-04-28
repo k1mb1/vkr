@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { CreateLessonFormState, CreateLessonRequestPayload, LessonResponse } from '#shared/types/backend'
+import type { CreateLessonRequestPayload, LessonResponse, LessonType } from '#shared/types/backend'
+import type { AnyCalendarDate } from '@internationalized/date'
 import { createLessonRequestSchema, LESSON_TYPES } from '#shared/types/backend'
 import { useLessonsApi } from '~/composables/api/useLessonsApi'
 
@@ -18,12 +19,12 @@ const props = defineProps<{
   afterCreate?: (lesson: LessonResponse) => void | Promise<void>
 }>()
 
-const state: CreateLessonFormState = reactive<CreateLessonFormState>({
+const state = reactive({
   name: '',
-  dateTime: undefined,
-  type: 'NONE',
+  dateTime: undefined as AnyCalendarDate | undefined | null,
+  type: 'NONE' as LessonType,
   subjectId: props.subjectId,
-}) as unknown as CreateLessonFormState
+})
 
 const pending = ref(false)
 const { create } = useLessonsApi()
@@ -147,10 +148,14 @@ async function onSubmit(event: { data: CreateLessonRequestPayload }, close: () =
 
         <UFormField name="dateTime" label="Date/time">
           <UInputDate
-            v-model="state.dateTime"
             :disabled="pending"
             class="w-full"
           />
+          <!-- <UInputDate
+            v-model="state.dateTime"
+            :disabled="pending"
+            class="w-full"
+          /> -->
         </UFormField>
 
         <div class="flex justify-end gap-2">

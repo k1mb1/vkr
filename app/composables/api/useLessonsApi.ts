@@ -2,6 +2,7 @@ import type {
   BulkScheduleRequestPayload,
   CreateLessonRequestPayload,
   CreateLessonsByTypeRequestPayload,
+  FindLessonsFilter,
   LessonResponse,
   UpdateIssuedTaskIndexRequestPayload,
   UpdateLessonRequestPayload,
@@ -19,57 +20,57 @@ import { toValue } from 'vue'
 import { useBackendFetch } from '~/composables/useBackendFetch'
 
 export function useLessonsApi() {
-  const findAllBySubjectId = (
-    subjectId: MaybeRefOrGetter<string>,
+  const findAll = (
+    filter: MaybeRefOrGetter<FindLessonsFilter>,
   ): BackendFetchResult<LessonResponse[]> => {
-    return useBackendFetch<LessonResponse[], undefined, { subjectId: string }>(
+    return useBackendFetch<LessonResponse[], undefined, FindLessonsFilter>(
       `/lessons`,
       {
         method: 'GET',
-        query: () => ({ subjectId: toValue(subjectId) }),
+        query: () => (toValue(filter)),
       },
     )
   }
 
   const create = (
-    payload: MaybeRefOrGetter<CreateLessonRequestPayload>,
+    request: MaybeRefOrGetter<CreateLessonRequestPayload>,
   ): BackendFetchResult<LessonResponse> => {
     return useBackendFetch<LessonResponse, CreateLessonRequestPayload>(`/lessons`, {
       method: 'POST',
-      body: () => toValue(payload),
+      body: () => toValue(request),
       bodySchema: createLessonRequestSchema,
     })
   }
 
   const createBulkByType = (
-    payload: MaybeRefOrGetter<CreateLessonsByTypeRequestPayload>,
+    request: MaybeRefOrGetter<CreateLessonsByTypeRequestPayload>,
   ): BackendFetchResult<LessonResponse[]> => {
     return useBackendFetch<LessonResponse[], CreateLessonsByTypeRequestPayload>(`/lessons/bulk-by-type`, {
       method: 'POST',
-      body: () => toValue(payload),
+      body: () => toValue(request),
       bodySchema: createLessonsByTypeRequestSchema,
     })
   }
 
   const createBulkSchedule = (
-    payload: MaybeRefOrGetter<BulkScheduleRequestPayload>,
+    request: MaybeRefOrGetter<BulkScheduleRequestPayload>,
   ): BackendFetchResult<LessonResponse[]> => {
     return useBackendFetch<LessonResponse[], BulkScheduleRequestPayload>(`/lessons/bulk-schedule`, {
       method: 'POST',
-      body: () => toValue(payload),
+      body: () => toValue(request),
       bodySchema: bulkScheduleRequestSchema,
     })
   }
 
   const update = (
     lessonId: MaybeRefOrGetter<string>,
-    payload: MaybeRefOrGetter<UpdateLessonRequestPayload>,
+    request: MaybeRefOrGetter<UpdateLessonRequestPayload>,
   ): BackendFetchResult<LessonResponse> => {
     return useBackendFetch<LessonResponse, UpdateLessonRequestPayload>(
       () => `/lessons/${toValue(lessonId)}`,
       {
         method: 'PATCH',
-        body: () => toValue(payload),
+        body: () => toValue(request),
         bodySchema: updateLessonRequestSchema,
       },
     )
@@ -77,13 +78,13 @@ export function useLessonsApi() {
 
   const updateIssuedTaskIndex = (
     lessonId: MaybeRefOrGetter<string>,
-    payload: MaybeRefOrGetter<UpdateIssuedTaskIndexRequestPayload>,
+    request: MaybeRefOrGetter<UpdateIssuedTaskIndexRequestPayload>,
   ): BackendFetchResult<LessonResponse> => {
     return useBackendFetch<LessonResponse, UpdateIssuedTaskIndexRequestPayload>(
       () => `/lessons/${toValue(lessonId)}/issued-task-index`,
       {
         method: 'PATCH',
-        body: () => toValue(payload),
+        body: () => toValue(request),
         bodySchema: updateIssuedTaskIndexRequestSchema,
       },
     )
@@ -121,7 +122,7 @@ export function useLessonsApi() {
     create,
     createBulkByType,
     createBulkSchedule,
-    findAllBySubjectId,
+    findAll,
     issue,
     remove,
     update,

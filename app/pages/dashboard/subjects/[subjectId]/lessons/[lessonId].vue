@@ -7,8 +7,8 @@ const route = useRoute()
 const subjectId = computed(() => String(route.params.subjectId ?? ''))
 const lessonId = computed(() => String(route.params.lessonId ?? ''))
 
-const { findAllBySubjectId, updateIssuedTaskIndex } = useLessonsApi()
-const { data, pending, error, refresh } = findAllBySubjectId(subjectId)
+const { findAll, updateIssuedTaskIndex } = useLessonsApi()
+const { data, pending, error, refresh } = findAll({ subjectId: subjectId.value })
 
 const lesson = computed<LessonResponse | null>(() =>
   data.value?.find(l => l.id === lessonId.value) ?? null,
@@ -104,12 +104,6 @@ async function onSaveIssuedTaskIndex(event: { data: UpdateIssuedTaskIndexRequest
           :label="LESSON_TYPE_LABELS[lesson.type]"
           :color="LESSON_TYPE_COLORS[lesson.type]"
           variant="soft"
-        />
-        <UBadge
-          v-if="lesson.archived"
-          label="Архив"
-          color="neutral"
-          variant="outline"
         />
       </template>
     </div>
@@ -241,15 +235,6 @@ async function onSaveIssuedTaskIndex(event: { data: UpdateIssuedTaskIndexRequest
             </dt>
             <dd class="mt-0.5 text-sm">
               {{ formatDate(lesson.updatedAt) }}
-            </dd>
-          </div>
-
-          <div v-if="lesson.archived">
-            <dt class="text-sm text-muted">
-              Архивировано
-            </dt>
-            <dd class="mt-0.5 text-sm">
-              {{ lesson.archivedAt ? formatDate(lesson.archivedAt) : '—' }}
             </dd>
           </div>
         </dl>
