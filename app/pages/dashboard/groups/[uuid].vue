@@ -54,20 +54,14 @@ const tableColumns: TableColumn<StudentTableRow>[] = [
     header: '№',
     meta: {
       class: {
-        th: 'w-16 text-left',
-        td: 'w-16 text-left',
+        th: 'w-16',
+        td: 'w-16',
       },
     },
   },
   {
     accessorKey: 'username',
     header: 'Имя',
-    meta: {
-      class: {
-        th: 'text-left',
-        td: 'text-left',
-      },
-    },
   },
   {
     id: 'actions',
@@ -311,8 +305,8 @@ function getStudentActions(row: StudentTableRow) {
 </script>
 
 <template>
-  <div class="flex flex-col gap-6 p-4 sm:p-6">
-    <div v-if="pending && !group" class="space-y-4">
+  <div class="flex flex-col gap-6">
+    <div v-if="pending && !group" class="flex flex-col gap-4">
       <USkeleton class="h-8 w-1/3" />
       <USkeleton class="h-36 w-full" />
       <USkeleton class="h-36 w-full" />
@@ -329,9 +323,11 @@ function getStudentActions(row: StudentTableRow) {
     <template v-else-if="group">
       <!-- Group header -->
       <div class="flex items-center gap-4">
-        <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-secondary/10 text-secondary">
-          <UIcon name="i-lucide-users" class="size-6" />
-        </div>
+        <UAvatar
+          icon="i-lucide-users"
+          size="xl"
+          class="rounded-xl bg-secondary/10 text-secondary"
+        />
         <div>
           <h1 class="text-xl font-semibold">
             {{ group.name }}
@@ -404,14 +400,14 @@ function getStudentActions(row: StudentTableRow) {
         </UTable>
       </UCard>
 
-      <UEmpty
-        v-else
-        icon="i-lucide-users"
-        title="В группе пока нет студентов и подгрупп"
-        description="Добавьте студентов в группу или создайте подгруппы."
-        variant="naked"
-        class="rounded-lg border border-default py-8"
-      />
+      <UCard v-else>
+        <UEmpty
+          icon="i-lucide-users"
+          title="В группе пока нет студентов и подгрупп"
+          description="Добавьте студентов в группу или создайте подгруппы."
+          variant="naked"
+        />
+      </UCard>
     </template>
 
     <UEmpty
@@ -430,13 +426,12 @@ function getStudentActions(row: StudentTableRow) {
       @update:open="(v) => { if (!v) closeEditStudent() }"
     >
       <template #body="{ close }">
-        <div class="space-y-4">
+        <div class="flex flex-col gap-4">
           <UFormField label="Имя" required>
             <UInput
               v-model="editUsername"
               placeholder="Введите имя"
               :disabled="editPending"
-              class="w-full"
               @keydown.enter="onRenameStudent"
             />
           </UFormField>
@@ -471,7 +466,7 @@ function getStudentActions(row: StudentTableRow) {
       @update:open="(v) => { if (!v && !removePending) removingStudentId = null }"
     >
       <template #body="{ close }">
-        <div class="space-y-4">
+        <div class="flex flex-col gap-4">
           <p class="text-sm text-muted">
             Студент будет откреплён от группы, но не удалён из системы.
           </p>
@@ -507,7 +502,7 @@ function getStudentActions(row: StudentTableRow) {
       @update:open="(v) => { if (!v && !deletePending) deletingStudentId = null }"
     >
       <template #body="{ close }">
-        <div class="space-y-4">
+        <div class="flex flex-col gap-4">
           <p class="text-sm text-muted">
             Студент будет удалён из системы безвозвратно.
           </p>
