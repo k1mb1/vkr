@@ -11,20 +11,26 @@ const { findBySubject, upsertByLesson } = useAttendanceApi()
 const { data, pending, error, refresh } = findBySubject(subjectId)
 const toast = useToast()
 
-const UBadge = resolveComponent('UBadge')
+const UIcon = resolveComponent('UIcon')
 
-const PRESENCE_CYCLE: PresenceType[] = ['NONE', 'PRESENT', 'NOT_PRESENT', 'LATE']
-const PRESENCE_LABELS: Record<PresenceType, string> = {
-  NONE: '—',
-  PRESENT: '✓',
-  NOT_PRESENT: '✗',
-  LATE: 'Опозд',
+const PRESENCE_CYCLE: PresenceType[] = ['NONE', 'PRESENT', 'LATE', 'NOT_PRESENT']
+const PRESENCE_ICONS: Record<PresenceType, string> = {
+  NONE: 'i-lucide-minus',
+  PRESENT: 'i-lucide-check',
+  NOT_PRESENT: 'i-lucide-x',
+  LATE: 'i-lucide-clock',
 }
 const PRESENCE_COLORS: Record<PresenceType, 'neutral' | 'success' | 'error' | 'warning'> = {
   NONE: 'neutral',
   PRESENT: 'success',
   NOT_PRESENT: 'error',
   LATE: 'warning',
+}
+const PRESENCE_ICON_CLASSES: Record<PresenceType, string> = {
+  NONE: 'cursor-pointer size-5 text-muted',
+  PRESENT: 'cursor-pointer size-5 text-success',
+  NOT_PRESENT: 'cursor-pointer size-5 text-error',
+  LATE: 'cursor-pointer size-5 text-warning',
 }
 
 const tableData = computed(() => data.value)
@@ -69,12 +75,9 @@ const lessonColumns = computed<TableColumn<AttendanceRow>[]>(() => {
     meta: { class: { th: 'w-20 text-center', td: 'w-20 text-center' } },
     cell: ({ row }) => {
       const presence = (row.original[lesson.lessonId] as PresenceType) ?? 'NONE'
-      return h(UBadge, {
-        label: PRESENCE_LABELS[presence],
-        color: PRESENCE_COLORS[presence],
-        variant: 'soft',
-        size: 'sm',
-        class: 'cursor-pointer select-none',
+      return h(UIcon, {
+        name: PRESENCE_ICONS[presence],
+        class: PRESENCE_ICON_CLASSES[presence],
         onClick: () => onToggleAttendance(lesson.lessonId, row.original.studentId, presence),
       })
     },
@@ -145,16 +148,16 @@ async function onToggleAttendance(lessonId: string, studentId: string, current: 
 
     <div class="flex items-center gap-3 text-sm text-muted">
       <span class="flex items-center gap-1">
-        <UBadge label="✓" color="success" variant="soft" size="sm" /> Присутствовал
+        <UIcon name="i-lucide-minus" class="size-4 text-muted" /> Не отмечено
       </span>
       <span class="flex items-center gap-1">
-        <UBadge label="✗" color="error" variant="soft" size="sm" /> Отсутствовал
+        <UIcon name="i-lucide-check" class="size-4 text-success" /> Присутствовал
       </span>
       <span class="flex items-center gap-1">
-        <UBadge label="Опозд" color="warning" variant="soft" size="sm" /> Опоздание
+        <UIcon name="i-lucide-clock" class="size-4 text-warning" /> Опоздание
       </span>
       <span class="flex items-center gap-1">
-        <UBadge label="—" color="neutral" variant="soft" size="sm" /> Не отмечено
+        <UIcon name="i-lucide-x" class="size-4 text-error" /> Отсутствовал
       </span>
       <span class="ml-auto">Кликните по ячейке чтобы изменить статус</span>
     </div>
