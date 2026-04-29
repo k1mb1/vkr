@@ -15,8 +15,15 @@ const { data: lessonsData, pending: lessonsPending, error: lessonsError, refresh
 const { data: tasksData, pending: tasksPending, error: tasksError, refresh: refreshTasks } = findTasks(lessonId)
 const { data: gradesData, pending: gradesPending, error: gradesError, refresh: refreshGrades } = findGrades(lessonId)
 
+const rawLessons = computed<LessonResponse[]>(() => {
+  const val = lessonsData.value as any
+  if (Array.isArray(val)) return val
+  if (val && Array.isArray(val.content)) return val.content as LessonResponse[]
+  return []
+})
+
 const lesson = computed<LessonResponse | null>(() =>
-  lessonsData.value?.find(l => l.id === lessonId.value) ?? null,
+  rawLessons.value.find(l => l.id === lessonId.value) ?? null,
 )
 
 const notFound = computed(() => !lessonsPending.value && !lessonsError.value && lessonsData.value !== null && !lesson.value)

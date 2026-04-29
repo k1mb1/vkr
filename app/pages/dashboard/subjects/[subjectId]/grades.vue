@@ -16,7 +16,7 @@ const tasksByLessonId = ref<Record<string, TaskResponse[]>>({})
 const tasksLoading = ref(false)
 const tasksError = ref<Error | null>(null)
 
-watch([gradesData, lessonsData], async ([grades, lessons]) => {
+watch([gradesData, lessonsData], async ([grades, _lessons]) => {
   if (!grades?.lessons?.length) {
     tasksByLessonId.value = {}
     return
@@ -93,6 +93,77 @@ const SUBMISSION_STATUS_COLORS: Record<SubmissionStatus, 'neutral' | 'info' | 's
   RESUBMIT: 'warning',
 }
 
+interface LessonSummaryCell {
+  totalPoints: number
+  maxPoints: number
+}
+
+interface LessonSummaryRow {
+  studentId: string
+  username: string
+  lessons: Record<string, LessonSummaryCell>
+  mandatoryTotal: number
+  mandatoryDone: number
+  allMandatoryDone: boolean
+}
+
+const summaryRows = computed<LessonSummaryRow[]>(() => {
+  const grades = gradesData.value
+  if (!grades)
+    return []
+
+  return grades.students.map((student) => {
+    const lessons: Record<string, LessonSummaryCell> = {}
+    let mandatoryTotal = 0
+    let mandatoryDone = 0
+
+    for (const lessonHeader of grades.lessons ?? []) {
+      const lesson = lessonsMap.value.get(lessonHeader.lessonId)
+      const tasks = tasksByLessonId.value[lessonHeader.lessonId] ?? []
+      let lessonTotal = 0
+      let lessonMax = 0
+
+      for (const task of tasks) {
+        const grade = getGrade(student.id, task.id)
+        const coeff = computeCoeff(lesson, task.position)
+        lessonMax += task.maxPoints * coeff
+
+        if (grade?.value !== null && grade?.value !== undefined) {
+          lessonTotal += grade.value * coeff
+        }
+
+        if (task.isMandatory) {
+          mandatoryTotal++
+          if (grade && (grade.status === 'GRADED' || grade.status === 'SUBMITTED')) {
+            mandatoryDone++
+          }
+        }
+      }
+
+      lessons[lessonHeader.lessonId] = {
+        totalPoints: Math.round(lessonTotal * 100) / 100,
+        maxPoints: Math.round(lessonMax * 100) / 100,
+      }
+    }
+
+    return {
+      studentId: student.id,
+      username: student.username,
+      lessons,
+      mandatoryTotal,
+      mandatoryDone,
+      allMandatoryDone: mandatoryTotal === 0 || mandatoryDone === mandatoryTotal,
+    }
+  })
+})
+
+const summaryLessons = computed(() => {
+  const grades = gradesData.value
+  if (!grades)
+    return []
+  return grades.lessons ?? []
+})
+
 interface GradeCell {
   grade?: TaskGradeResponse
   task: TaskResponse
@@ -145,6 +216,11 @@ const lessonSpans = computed(() => {
 })
 
 const anyTasks = computed(() => Object.values(tasksByLessonId.value).some(t => t.length > 0))
+const hasMandatoryTasks = computed(() =>
+  Object.values(tasksByLessonId.value)
+    .flat()
+    .some(t => t.isMandatory),
+)
 
 const pending = computed(() => gradesPending.value || lessonsPending.value || tasksLoading.value)
 </script>
@@ -192,6 +268,90 @@ const pending = computed(() => gradesPending.value || lessonsPending.value || ta
     </div>
 
     <template v-else-if="gradesData?.students?.length">
+      <!-- Summary table by lessons -->
+      <h2 class="text-lg font-semibold">
+        По занятиям
+      </h2>
+
+      <div class="overflow-x-auto rounded-md border border-default">
+        <table class="w-full text-sm">
+          <thead class="bg-elevated/50">
+            <tr>
+              <th
+                class="sticky left-0 z-20 min-w-48 border-b border-r border-default bg-elevated/95 px-3 py-2 text-left font-semibold backdrop-blur"
+              >
+                Студент
+              </th>
+              <th
+                v-for="lesson in summaryLessons"
+                :key="lesson.lessonId"
+                class="border-b border-r border-default px-2 py-1.5 text-center text-xs font-medium"
+              >
+                <div class="flex flex-col items-center gap-0.5">
+                  <span>{{ lesson.lessonName }}</span>
+                  <span class="text-[10px] text-muted">{{ lesson.dateTime ? new Date(lesson.dateTime).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) : '—' }}</span>
+                </div>
+              </th>
+              <th
+                v-if="hasMandatoryTasks"
+                class="border-b border-default px-3 py-2 text-center text-xs font-medium"
+              >
+                Обязательные
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="row in summaryRows"
+              :key="row.studentId"
+              class="border-b border-default transition-colors hover:bg-elevated/30"
+            >
+              <td class="sticky left-0 z-10 min-w-48 border-r border-default bg-default/95 px-3 py-2 font-medium backdrop-blur">
+                {{ row.username }}
+              </td>
+              <td
+                v-for="lesson in summaryLessons"
+                :key="lesson.lessonId"
+                class="border-r border-default px-2 py-2 text-center"
+              >
+                <span class="tabular-nums">
+                  {{ row.lessons[lesson.lessonId]?.totalPoints ?? 0 }} / {{ row.lessons[lesson.lessonId]?.maxPoints ?? 0 }}
+                </span>
+              </td>
+              <td
+                v-if="hasMandatoryTasks"
+                class="border-default px-3 py-2 text-center"
+              >
+                <template v-if="row.mandatoryTotal > 0">
+                  <UBadge
+                    v-if="row.allMandatoryDone"
+                    label="Все сданы"
+                    color="success"
+                    variant="soft"
+                    size="sm"
+                  />
+                  <UBadge
+                    v-else
+                    :label="`${row.mandatoryDone} / ${row.mandatoryTotal}`"
+                    color="error"
+                    variant="soft"
+                    size="sm"
+                  />
+                </template>
+                <template v-else>
+                  <span class="text-muted">—</span>
+                </template>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Detailed table by tasks -->
+      <h2 class="text-lg font-semibold">
+        По заданиям
+      </h2>
+
       <div class="flex items-center gap-3 text-sm text-muted">
         <span class="flex items-center gap-1">
           <UBadge label="Не сдано" color="neutral" variant="soft" size="sm" />
