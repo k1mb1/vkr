@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import type { PresenceType } from '#shared/types/backend'
+import type { LessonType, PresenceType } from '#shared/types/backend'
 import type { TableColumn } from '@nuxt/ui'
+import { LESSON_TYPES } from '#shared/types/backend'
 import { h, resolveComponent } from 'vue'
 import { useAttendanceApi } from '~/composables/api/useAttendanceApi'
 
@@ -45,7 +46,20 @@ const PRESENCE_META: Record<
   },
 }
 
+const LESSON_TYPE_LABELS: Record<LessonType, string> = {
+  NONE: 'Без типа',
+  LECTURE: 'Лекция',
+  PRACTICE: 'Практика',
+}
+
+const LESSON_TYPE_ICONS: Record<LessonType, string> = {
+  NONE: 'i-lucide-minus',
+  LECTURE: 'i-lucide-presentation',
+  PRACTICE: 'i-lucide-code',
+}
+
 const searchQuery = ref('')
+const activeType = ref<string>('ALL')
 
 const tableData = computed(() => data.value)
 
@@ -171,11 +185,45 @@ function lessonDateLabel(dateTime: string | null): string {
   return new Date(dateTime).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
 }
 
+const typeTabs = computed(() => {
+  const d = tableData.value
+  if (!d)
+    return []
+
+  const allCount = d.lessons.length
+  const tabs = [
+    { label: 'Все', value: 'ALL', icon: 'i-lucide-layout-grid', badge: allCount || undefined },
+  ]
+
+  for (const type of LESSON_TYPES) {
+    const count = d.lessons.filter(l => l.type === type).length
+    if (count > 0) {
+      tabs.push({
+        label: LESSON_TYPE_LABELS[type],
+        value: type,
+        icon: LESSON_TYPE_ICONS[type],
+        badge: count,
+      })
+    }
+  }
+
+  return tabs
+})
+
+const filteredLessons = computed(() => {
+  const d = tableData.value
+  if (!d)
+    return []
+  if (activeType.value === 'ALL')
+    return d.lessons
+  return d.lessons.filter(l => l.type === activeType.value)
+})
+
 const lessonColumns = computed<TableColumn<AttendanceRow>[]>(() => {
   const d = tableData.value
   if (!d)
     return []
-  return d.lessons.map(lesson => ({
+  return filteredLessons.value.map(lesson => ({
     accessorKey: lesson.lessonId,
     header: () => h('div', { class: 'flex flex-col items-center gap-0.5' }, [
       h('span', { class: 'text-xs font-medium' }, lesson.lessonName),
@@ -242,7 +290,12 @@ const columns = computed<TableColumn<AttendanceRow>[]>(() => [
     accessorKey: 'username',
     header: 'Студент',
     footer: 'Итого',
-    meta: { class: { th: 'w-48 min-w-48 sticky left-0 bg-default z-10', td: 'w-48 min-w-48 sticky left-0 bg-default z-10' } },
+    meta: {
+      class: {
+        th: 'w-48 min-w-48 sticky left-0 bg-default z-20',
+        td: 'w-48 min-w-48 sticky left-0 bg-default z-10',
+      },
+    },
   },
   ...lessonColumns.value,
 ])
@@ -262,6 +315,13 @@ const columns = computed<TableColumn<AttendanceRow>[]>(() => [
         @click="() => refresh()"
       />
     </div>
+
+    <UTabs
+      v-if="typeTabs.length > 1"
+      v-model="activeType"
+      :items="typeTabs"
+      :content="false"
+    />
 
     <div class="flex flex-wrap items-center gap-3">
       <UInput
