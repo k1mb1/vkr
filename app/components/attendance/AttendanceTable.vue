@@ -22,35 +22,32 @@ const emit = defineEmits<{
 const { upsertByLesson } = useAttendanceApi()
 const toast = useToast()
 
-const UIcon = resolveComponent('UIcon')
+const UButton = resolveComponent('UButton')
+const UBadge = resolveComponent('UBadge')
 
 const PRESENCE_META: Record<
   PresenceType,
-  { icon: string, label: string, colorClass: string, bgClass: string }
+  { icon: string, label: string, color: string }
 > = {
   NONE: {
     icon: 'i-lucide-minus',
     label: 'Не отмечено',
-    colorClass: 'text-muted',
-    bgClass: 'bg-transparent hover:bg-elevated/50',
+    color: 'neutral',
   },
   PRESENT: {
     icon: 'i-lucide-check',
     label: 'Присутствовал',
-    colorClass: 'text-success',
-    bgClass: 'bg-success/10 hover:bg-success/20',
+    color: 'success',
   },
   LATE: {
     icon: 'i-lucide-clock',
     label: 'Опоздание',
-    colorClass: 'text-warning',
-    bgClass: 'bg-warning/10 hover:bg-warning/20',
+    color: 'warning',
   },
   NOT_PRESENT: {
     icon: 'i-lucide-x',
     label: 'Отсутствовал',
-    colorClass: 'text-error',
-    bgClass: 'bg-error/10 hover:bg-error/20',
+    color: 'error',
   },
 }
 
@@ -202,28 +199,16 @@ const lessonColumns = computed<TableColumn<AttendanceRow>[]>(() => {
       const total = d.students.length
       const items = [
         summary.present > 0
-          ? h('span', { class: 'inline-flex items-center gap-0.5 text-[10px] font-medium text-success', title: 'Присутствовали' }, [
-              h(UIcon, { name: 'i-lucide-check', class: 'size-3' }),
-              summary.present,
-            ])
+          ? h(UBadge, { color: 'success', variant: 'subtle', size: 'sm', icon: 'i-lucide-check', label: summary.present })
           : null,
         summary.late > 0
-          ? h('span', { class: 'inline-flex items-center gap-0.5 text-[10px] font-medium text-warning', title: 'Опоздали' }, [
-              h(UIcon, { name: 'i-lucide-clock', class: 'size-3' }),
-              summary.late,
-            ])
+          ? h(UBadge, { color: 'warning', variant: 'subtle', size: 'sm', icon: 'i-lucide-clock', label: summary.late })
           : null,
         summary.notPresent > 0
-          ? h('span', { class: 'inline-flex items-center gap-0.5 text-[10px] font-medium text-error', title: 'Отсутствовали' }, [
-              h(UIcon, { name: 'i-lucide-x', class: 'size-3' }),
-              summary.notPresent,
-            ])
+          ? h(UBadge, { color: 'error', variant: 'subtle', size: 'sm', icon: 'i-lucide-x', label: summary.notPresent })
           : null,
         summary.none > 0
-          ? h('span', { class: 'inline-flex items-center gap-0.5 text-[10px] font-medium text-muted', title: 'Не отмечено' }, [
-              h(UIcon, { name: 'i-lucide-minus', class: 'size-3' }),
-              summary.none,
-            ])
+          ? h(UBadge, { color: 'neutral', variant: 'subtle', size: 'sm', icon: 'i-lucide-minus', label: summary.none })
           : null,
       ].filter(Boolean)
 
@@ -237,17 +222,18 @@ const lessonColumns = computed<TableColumn<AttendanceRow>[]>(() => {
       const presence = (row.original[lesson.lessonId] as PresenceType) ?? 'NONE'
       const meta = PRESENCE_META[presence]
       const isPending = upsertPending.value.has(`${lesson.lessonId}:${row.original.studentId}`)
-      return h('div', {
-        class: ['flex h-full w-full items-center justify-center transition-colors', meta.bgClass, isPending && 'opacity-50'],
-      }, [
-        h('button', {
-          class: 'inline-flex h-8 w-8 items-center justify-center rounded-md transition-all active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+      return h('div', { class: 'flex h-full w-full items-center justify-center' }, [
+        h(UButton, {
+          icon: meta.icon,
+          color: meta.color,
+          variant: presence === 'NONE' ? 'ghost' : 'soft',
+          size: 'sm',
+          square: true,
           title: meta.label,
+          loading: isPending,
           disabled: isPending,
           onClick: () => onToggleAttendance(lesson.lessonId, row.original.studentId, presence),
-        }, [
-          h(UIcon, { name: meta.icon, class: ['size-4', meta.colorClass] }),
-        ]),
+        }),
       ])
     },
   }))
@@ -271,42 +257,20 @@ const columns = computed<TableColumn<AttendanceRow>[]>(() => [
 
 <template>
   <div class="flex flex-col gap-4">
-    <div class="flex flex-wrap items-center gap-3">
-      <UInput
-        v-model="searchQuery"
-        placeholder="Поиск студентов..."
-        icon="i-lucide-search"
-        color="neutral"
-        variant="outline"
-        class="w-full sm:w-80"
-      />
-    </div>
+    <UInput
+      v-model="searchQuery"
+      placeholder="Поиск студентов..."
+      icon="i-lucide-search"
+      color="neutral"
+      variant="outline"
+      class="w-full sm:w-80"
+    />
 
     <div class="flex flex-wrap items-center gap-4 text-sm text-muted">
-      <span class="flex items-center gap-1.5">
-        <span class="inline-flex h-5 w-5 items-center justify-center rounded bg-success/10">
-          <UIcon name="i-lucide-check" class="size-3.5 text-success" />
-        </span>
-        Присутствовал
-      </span>
-      <span class="flex items-center gap-1.5">
-        <span class="inline-flex h-5 w-5 items-center justify-center rounded bg-warning/10">
-          <UIcon name="i-lucide-clock" class="size-3.5 text-warning" />
-        </span>
-        Опоздание
-      </span>
-      <span class="flex items-center gap-1.5">
-        <span class="inline-flex h-5 w-5 items-center justify-center rounded bg-error/10">
-          <UIcon name="i-lucide-x" class="size-3.5 text-error" />
-        </span>
-        Отсутствовал
-      </span>
-      <span class="flex items-center gap-1.5">
-        <span class="inline-flex h-5 w-5 items-center justify-center rounded bg-elevated/50">
-          <UIcon name="i-lucide-minus" class="size-3.5 text-muted" />
-        </span>
-        Не отмечено
-      </span>
+      <UBadge color="success" variant="subtle" size="sm" icon="i-lucide-check" label="Присутствовал" />
+      <UBadge color="warning" variant="subtle" size="sm" icon="i-lucide-clock" label="Опоздание" />
+      <UBadge color="error" variant="subtle" size="sm" icon="i-lucide-x" label="Отсутствовал" />
+      <UBadge color="neutral" variant="subtle" size="sm" icon="i-lucide-minus" label="Не отмечено" />
       <span class="ml-auto text-xs">Кликните по ячейке, чтобы изменить статус</span>
     </div>
 
