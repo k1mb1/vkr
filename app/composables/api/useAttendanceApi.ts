@@ -31,6 +31,7 @@ export function useAttendanceApi() {
         method: 'PUT',
         body: () => toValue(payload),
         bodySchema: upsertAttendanceRequestSchema,
+        getCachedData: () => undefined,
       },
     )
   }
