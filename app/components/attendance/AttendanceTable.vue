@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { PresenceType, SubjectAttendanceResponse } from '#shared/types/backend'
+import { PRESENCE_TYPES } from '#shared/types/backend'
 import type { TableColumn } from '@nuxt/ui'
 import { h, resolveComponent } from 'vue'
 import { useAttendanceApi } from '~/composables/api/useAttendanceApi'
@@ -22,8 +23,6 @@ const { upsertByLesson } = useAttendanceApi()
 const toast = useToast()
 
 const UIcon = resolveComponent('UIcon')
-
-const PRESENCE_CYCLE: PresenceType[] = ['NONE', 'PRESENT', 'LATE', 'NOT_PRESENT']
 
 const PRESENCE_META: Record<
   PresenceType,
@@ -148,10 +147,10 @@ function getLessonSummary(lessonId: string): LessonSummary {
 const upsertPending = ref<Set<string>>(new Set())
 
 function nextPresence(current: PresenceType): PresenceType {
-  const idx = PRESENCE_CYCLE.indexOf(current)
+  const idx = PRESENCE_TYPES.indexOf(current)
   if (idx === -1)
     return 'NONE'
-  return PRESENCE_CYCLE[(idx + 1) % PRESENCE_CYCLE.length]!
+  return PRESENCE_TYPES[(idx + 1) % PRESENCE_TYPES.length]!
 }
 
 async function onToggleAttendance(lessonId: string, studentId: string, current: PresenceType) {
