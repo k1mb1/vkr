@@ -25,15 +25,9 @@ interface GroupStudentEntryResponse {
   subgroupId: string | null
 }
 
-interface GroupSubjectResponse {
-  id: string
-  name: string
-}
-
 interface StudentGroupResponse {
   id: string
   name: string
-  subjects: GroupSubjectResponse[]
   students: GroupStudentEntryResponse[]
   subgroups: SubgroupResponse[]
 }
@@ -41,7 +35,7 @@ interface StudentGroupResponse {
 interface SubgroupResponse {
   id: string
   name: string
-  students?: StudentEntryResponse[]
+  students: StudentEntryResponse[]
 }
 
 interface FindGroupsFilter {
@@ -57,7 +51,6 @@ export type {
   CreateGroupStudentEntry,
   FindGroupsFilter,
   GroupStudentEntryResponse,
-  GroupSubjectResponse,
   StudentEntryResponse,
   StudentGroupPageResponse,
   StudentGroupResponse,

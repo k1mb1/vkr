@@ -10,7 +10,7 @@ const { findGrades } = useSubjectsApi()
 const { findAll: findLessons } = useLessonsApi()
 
 const { data: gradesData, pending: gradesPending, error: gradesError, refresh: refreshGrades } = findGrades(subjectId)
-const { data: lessonsData, pending: lessonsPending } = findLessons({ subjectId: subjectId.value })
+const { data: lessonsData, pending: lessonsPending } = findLessons({ filter: { subjectId: subjectId.value } })
 
 const tasksByLessonId = ref<Record<string, TaskResponse[]>>({})
 const tasksLoading = ref(false)
@@ -45,8 +45,10 @@ watch([gradesData, lessonsData], async ([grades, _lessons]) => {
 
 const rawLessons = computed<LessonResponse[]>(() => {
   const val = lessonsData.value as any
-  if (Array.isArray(val)) return val
-  if (val && Array.isArray(val.content)) return val.content as LessonResponse[]
+  if (Array.isArray(val))
+    return val
+  if (val && Array.isArray(val.content))
+    return val.content as LessonResponse[]
   return []
 })
 

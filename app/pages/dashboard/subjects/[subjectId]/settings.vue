@@ -1,17 +1,14 @@
 <script setup lang="ts">
-import type { AttachGroupToSubjectResponse, StudentGroupPageResponse, UpdateSubjectRequestPayload } from '#shared/types/backend'
-import type { TableColumn } from '@nuxt/ui'
+import type { AttachGroupToSubjectResponse, UpdateSubjectRequestPayload } from '#shared/types/backend'
 import { updateSubjectRequestSchema } from '#shared/types/backend'
-import { h, resolveComponent } from 'vue'
-import { useStudentsApi } from '~/composables/api/useStudentsApi'
+import { ref } from 'vue'
 import { useStudentsGroupsApi } from '~/composables/api/useStudentsGroups'
 import { useSubjectsApi } from '~/composables/api/useSubjectsApi'
 import { useSubjectsStore } from '~/stores/subjects'
 
 const subjectsStore = useSubjectsStore()
-const { attachGroup, detachGroup, findGroups, remove, update } = useSubjectsApi()
+const { attachGroup, remove, update } = useSubjectsApi()
 const { findAll: findAllGroups } = useStudentsGroupsApi()
-const { findSubjectSubgroups } = useStudentsApi()
 const toast = useToast()
 const route = useRoute()
 const subjectId = computed(() => String(route.params.subjectId ?? ''))
@@ -65,70 +62,12 @@ async function onSaveInfo(event: { data: UpdateSubjectRequestPayload }) {
   }
 }
 
-// ── Attached groups ───────────────────────────────────────────────────────────
-
-const {
-  data: attachedGroupsData,
-  pending: attachedGroupsPending,
-  error: attachedGroupsError,
-  refresh: refreshAttachedGroups,
-} = findGroups(subjectId)
-
-const attachedGroups = computed<StudentGroupPageResponse[]>(() => attachedGroupsData.value ?? [])
-const attachedGroupIds = computed(() => new Set(attachedGroups.value.map(g => g.id)))
-
-const detachingId = ref<string | null>(null)
-const UButton = resolveComponent('UButton')
-
-const attachedGroupsColumns: TableColumn<StudentGroupPageResponse>[] = [
-  {
-    accessorKey: 'name',
-    header: 'Группа',
-    meta: { class: { th: 'w-2/3', td: 'w-2/3' } },
-  },
-  {
-    id: 'actions',
-    header: '',
-    meta: { class: { th: 'w-32', td: 'w-32' } },
-    cell: ({ row }) =>
-      h(UButton, {
-        color: 'error',
-        variant: 'ghost',
-        size: 'sm',
-        icon: 'i-lucide-unlink',
-        loading: detachingId.value === row.original.id,
-        disabled: detachingId.value !== null,
-        onClick: () => onDetachGroup(row.original.id, row.original.name),
-      }, () => 'Открепить'),
-  },
-]
-
-async function onDetachGroup(groupId: string, groupName: string) {
-  if (detachingId.value)
-    return
-  detachingId.value = groupId
-  try {
-    const { error } = await detachGroup(subjectId.value, groupId)
-    if (error.value)
-      throw error.value
-    await Promise.all([refreshAttachedGroups(), refreshSubgroups()])
-    toast.add({ title: `Группа «${groupName}» откреплена`, color: 'success', icon: 'i-lucide-check' })
-  }
-  catch (err) {
-    toast.add({ title: 'Ошибка', description: getErrorMessage(err), color: 'error', icon: 'i-lucide-circle-alert' })
-  }
-  finally {
-    detachingId.value = null
-  }
-}
-
 // ── Attach group ──────────────────────────────────────────────────────────────
 
 const { data: groupsData, pending: groupsPending } = findAllGroups({ size: 100 })
 
 const groupOptions = computed(() =>
   (groupsData.value?.content ?? [])
-    .filter(g => !attachedGroupIds.value.has(g.id))
     .map(g => ({ label: g.name, value: g.id })),
 )
 
@@ -154,7 +93,6 @@ async function onAttachGroup() {
       icon: 'i-lucide-check',
     })
     selectedGroupId.value = undefined
-    await Promise.all([refreshAttachedGroups(), refreshSubgroups()])
   }
   catch (err) {
     toast.add({ title: 'Ошибка', description: getErrorMessage(err), color: 'error', icon: 'i-lucide-circle-alert' })
@@ -163,37 +101,6 @@ async function onAttachGroup() {
     attachPending.value = false
   }
 }
-
-// ── Subgroups ─────────────────────────────────────────────────────────────────
-
-const {
-  data: subgroupsData,
-  pending: subgroupsPending,
-  error: subgroupsError,
-  refresh: refreshSubgroups,
-} = findSubjectSubgroups(subjectId)
-
-interface SubgroupRow { id: string, name: string, studentCount: number, students: string[] }
-
-const subgroupRows = computed<SubgroupRow[]>(() =>
-  (subgroupsData.value?.subgroups ?? []).map(sg => ({
-    id: sg.id,
-    name: sg.name,
-    studentCount: sg.students.length,
-    students: sg.students,
-  })),
-)
-
-const subgroupColumns: TableColumn<SubgroupRow>[] = [
-  { accessorKey: 'name', header: 'Подгруппа', meta: { class: { th: 'w-1/3', td: 'w-1/3' } } },
-  { accessorKey: 'studentCount', header: 'Студентов', meta: { class: { th: 'w-28', td: 'w-28' } } },
-  {
-    accessorKey: 'students',
-    header: 'Состав',
-    meta: { class: { td: 'max-w-0 overflow-hidden text-ellipsis whitespace-nowrap' } },
-    cell: ({ row }) => row.original.students.join(', ') || '—',
-  },
-]
 
 // ── Archive / Unarchive ───────────────────────────────────────────────────────
 
@@ -327,56 +234,7 @@ async function onDeleteConfirm(close: () => void) {
       </UForm>
     </UCard>
 
-    <!-- 2. Прикреплённые группы -->
-    <UCard>
-      <template #header>
-        <div class="flex items-center justify-between">
-          <div>
-            <h2 class="font-semibold">
-              Прикреплённые группы
-            </h2>
-            <p class="mt-0.5 text-sm text-muted">
-              Группы, студенты которых участвуют в этом предмете.
-            </p>
-          </div>
-          <UButton
-            color="neutral"
-            variant="ghost"
-            icon="i-lucide-refresh-cw"
-            :loading="attachedGroupsPending"
-            @click="() => refreshAttachedGroups()"
-          />
-        </div>
-      </template>
-
-      <UAlert
-        v-if="attachedGroupsError"
-        color="error"
-        variant="soft"
-        icon="i-lucide-circle-x"
-        title="Ошибка загрузки"
-        :description="attachedGroupsError.message"
-        class="mb-4"
-      />
-
-      <UTable
-        :data="attachedGroups"
-        :columns="attachedGroupsColumns"
-        :loading="attachedGroupsPending"
-      >
-        <template #empty>
-          <UEmpty
-            icon="i-lucide-users"
-            title="Групп нет"
-            description="Прикрепите группу ниже."
-            variant="naked"
-            class="py-6"
-          />
-        </template>
-      </UTable>
-    </UCard>
-
-    <!-- 3. Прикрепить группу -->
+    <!-- 2. Прикрепить группу -->
     <UCard>
       <template #header>
         <div>
@@ -422,56 +280,7 @@ async function onDeleteConfirm(close: () => void) {
       </div>
     </UCard>
 
-    <!-- 4. Подгруппы предмета -->
-    <UCard>
-      <template #header>
-        <div class="flex items-center justify-between">
-          <div>
-            <h2 class="font-semibold">
-              Подгруппы предмета
-            </h2>
-            <p class="mt-0.5 text-sm text-muted">
-              Распределение студентов по подгруппам.
-            </p>
-          </div>
-          <UButton
-            color="neutral"
-            variant="ghost"
-            icon="i-lucide-refresh-cw"
-            :loading="subgroupsPending"
-            @click="() => refreshSubgroups()"
-          />
-        </div>
-      </template>
-
-      <UAlert
-        v-if="subgroupsError"
-        color="error"
-        variant="soft"
-        icon="i-lucide-circle-x"
-        title="Ошибка загрузки"
-        :description="subgroupsError.message"
-        class="mb-4"
-      />
-
-      <UTable
-        :data="subgroupRows"
-        :columns="subgroupColumns"
-        :loading="subgroupsPending"
-      >
-        <template #empty>
-          <UEmpty
-            icon="i-lucide-users"
-            title="Подгруппы не найдены"
-            description="Подгруппы появятся после прикрепления группы."
-            variant="naked"
-            class="py-6"
-          />
-        </template>
-      </UTable>
-    </UCard>
-
-    <!-- 5. Архивирование -->
+    <!-- 3. Архивирование -->
     <UCard>
       <template #header>
         <div>
@@ -549,7 +358,7 @@ async function onDeleteConfirm(close: () => void) {
       </template>
     </UCard>
 
-    <!-- 6. Удалить предмет -->
+    <!-- 4. Удалить предмет -->
     <UCard>
       <template #header>
         <div>

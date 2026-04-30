@@ -11,14 +11,16 @@ const lessonId = computed(() => String(route.params.lessonId ?? ''))
 const { findAll, updateIssuedTaskIndex } = useLessonsApi()
 const { findAll: findTasks, findGrades, upsertGrade } = useLessonTasksApi()
 
-const { data: lessonsData, pending: lessonsPending, error: lessonsError, refresh: refreshLessons } = findAll({ subjectId: subjectId.value })
+const { data: lessonsData, pending: lessonsPending, error: lessonsError, refresh: refreshLessons } = findAll({ filter: { subjectId: subjectId.value } })
 const { data: tasksData, pending: tasksPending, error: tasksError, refresh: refreshTasks } = findTasks(lessonId)
 const { data: gradesData, pending: gradesPending, error: gradesError, refresh: refreshGrades } = findGrades(lessonId)
 
 const rawLessons = computed<LessonResponse[]>(() => {
   const val = lessonsData.value as any
-  if (Array.isArray(val)) return val
-  if (val && Array.isArray(val.content)) return val.content as LessonResponse[]
+  if (Array.isArray(val))
+    return val
+  if (val && Array.isArray(val.content))
+    return val.content as LessonResponse[]
   return []
 })
 
@@ -105,7 +107,10 @@ const gradePending = ref(false)
 
 const isGradeEditOpen = computed({
   get: () => !!editingGrade.value,
-  set: (val) => { if (!val) editingGrade.value = null },
+  set: (val) => {
+    if (!val)
+      editingGrade.value = null
+  },
 })
 
 function openGradeEdit(studentId: string, taskId: string) {

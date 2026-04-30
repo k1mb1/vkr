@@ -3,6 +3,9 @@ import type {
   CreateLessonRequestPayload,
   FindLessonsFilter,
   LessonResponse,
+  PageQuery,
+  PageRequest,
+  PageResponse,
   UpdateIssuedTaskIndexRequestPayload,
   UpdateLessonRequestPayload,
 } from '#shared/types/backend'
@@ -11,6 +14,8 @@ import type { BackendFetchResult } from '~/composables/useBackendFetch'
 import {
   bulkScheduleRequestSchema,
   createLessonRequestSchema,
+  DEFAULT_PAGE_REQUEST,
+  toPageQuery,
   updateIssuedTaskIndexRequestSchema,
   updateLessonRequestSchema,
 } from '#shared/types/backend'
@@ -19,13 +24,13 @@ import { useBackendFetch } from '~/composables/useBackendFetch'
 
 export function useLessonsApi() {
   const findAll = (
-    filter: MaybeRefOrGetter<FindLessonsFilter>,
-  ): BackendFetchResult<LessonResponse[]> => {
-    return useBackendFetch<LessonResponse[], undefined, FindLessonsFilter>(
+    request: MaybeRefOrGetter<PageRequest<FindLessonsFilter>> = DEFAULT_PAGE_REQUEST,
+  ): BackendFetchResult<PageResponse<LessonResponse>> => {
+    return useBackendFetch<PageResponse<LessonResponse>, undefined, PageQuery>(
       `/lessons`,
       {
         method: 'GET',
-        query: () => (toValue(filter)),
+        query: () => toPageQuery(toValue(request)),
       },
     )
   }

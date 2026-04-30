@@ -5,7 +5,6 @@ import type {
   PageRequest,
   PageResponse,
   StudentResponse,
-  StudentSubjectSubgroupsResponse,
   UpdateStudentRequestPayload,
 } from '#shared/types/backend'
 import type { MaybeRefOrGetter } from 'vue'
@@ -70,23 +69,11 @@ export function useStudentsApi() {
     })
   }
 
-  const findSubjectSubgroups = (
-    subjectId: MaybeRefOrGetter<string>,
-  ): BackendFetchResult<StudentSubjectSubgroupsResponse> => {
-    return useBackendFetch<StudentSubjectSubgroupsResponse, undefined>(
-      () => `/students/subjects/${toValue(subjectId)}`,
-      {
-        method: 'GET',
-      },
-    )
-  }
-
   return {
     create,
     delete: remove,
     findAll,
     findById,
-    findSubjectSubgroups,
     remove,
     update,
   }

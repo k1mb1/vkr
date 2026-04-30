@@ -1,3 +1,5 @@
+import type { LessonType } from '../lessons'
+
 interface SubjectResponse {
   id: string
   name: string
@@ -29,7 +31,7 @@ interface SubjectLessonHeader {
   lessonId: string
   lessonName: string
   dateTime: string | null
-  type: 'LECTURE' | 'PRACTICE' | 'NONE'
+  type: LessonType
   groupId: string | null
 }
 
@@ -77,6 +79,21 @@ export type {
   UpdateSubjectRequest,
 }
 
+interface SubjectGradesFilter {
+  lessonType?: LessonType
+  groupId?: string
+}
+
+interface SubjectAttendanceFilter {
+  lessonType?: LessonType
+  groupId?: string
+}
+
 export {
   DEFAULT_FIND_SUBJECTS_FILTER,
+}
+
+export type {
+  SubjectAttendanceFilter,
+  SubjectGradesFilter,
 }

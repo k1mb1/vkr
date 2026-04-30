@@ -13,11 +13,11 @@ interface TaskResponse {
 
 interface CreateTaskRequest {
   title: string
-  description?: string | null
+  description: string | null
   maxPoints: number
   position: number
   isMandatory: boolean
-  deadline?: string
+  deadline: string | null
 }
 
 interface UpdateTaskRequest {
@@ -26,7 +26,7 @@ interface UpdateTaskRequest {
   maxPoints?: number
   position?: number
   isMandatory?: boolean
-  deadline?: string
+  deadline?: string | null
 }
 
 interface LessonTaskGradesResponse {

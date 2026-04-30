@@ -56,7 +56,7 @@ function setMode(next: Mode) {
       subgroupCount.value = 2
     }
     if (drafts.value.length < subgroupCount.value) {
-      drafts.value.push(...Array.from({ length: subgroupCount.value - drafts.value.length }, () => ''))
+      drafts.value.push(...Array.from({ length: subgroupCount.value - drafts.value.length }).fill(''))
     }
   }
   mode.value = next

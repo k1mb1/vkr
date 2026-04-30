@@ -11,11 +11,11 @@ const maxPointsSchema = v.pipe(
 
 const createTaskRequestSchema: SchemaFor<CreateTaskRequest> = v.object({
   title: stringMax(200, 'Task title is required', 'Task title must be 200 characters or less'),
-  description: v.optional(v.nullable(v.pipe(v.string(), v.maxLength(5000, 'Description must be 5000 characters or less')))),
+  description: v.nullable(v.pipe(v.string(), v.maxLength(5000, 'Description must be 5000 characters or less'))),
   maxPoints: maxPointsSchema,
   position: nonNegativeInteger('Task position must be an integer', 'Task position cannot be negative'),
   isMandatory: v.boolean(),
-  deadline: v.optional(calendarDateTimeToIso('Task deadline must be a valid date/time')),
+  deadline: v.nullable(calendarDateTimeToIso('Task deadline must be a valid date/time')),
 })
 
 const updateTaskRequestSchema: SchemaFor<UpdateTaskRequest> = v.partial(v.object({
@@ -24,7 +24,7 @@ const updateTaskRequestSchema: SchemaFor<UpdateTaskRequest> = v.partial(v.object
   maxPoints: maxPointsSchema,
   position: nonNegativeInteger('Task position must be an integer', 'Task position cannot be negative'),
   isMandatory: v.boolean(),
-  deadline: isoDateTime('Task deadline must be a valid ISO datetime'),
+  deadline: v.nullable(isoDateTime('Task deadline must be a valid ISO datetime')),
 }))
 
 type CreateTaskRequestPayload = InferOutput<typeof createTaskRequestSchema>

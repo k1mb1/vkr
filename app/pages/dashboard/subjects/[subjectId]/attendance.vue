@@ -17,20 +17,20 @@ const PRESENCE_CYCLE: PresenceType[] = ['NONE', 'PRESENT', 'LATE', 'NOT_PRESENT'
 const PRESENCE_ICONS: Record<PresenceType, string> = {
   NONE: 'i-lucide-minus',
   PRESENT: 'i-lucide-check',
-  NOT_PRESENT: 'i-lucide-x',
   LATE: 'i-lucide-clock',
+  NOT_PRESENT: 'i-lucide-x',
 }
-const PRESENCE_COLORS: Record<PresenceType, 'neutral' | 'success' | 'error' | 'warning'> = {
+const PRESENCE_COLORS: Record<PresenceType, 'neutral' | 'success' | 'warning' | 'error'> = {
   NONE: 'neutral',
   PRESENT: 'success',
-  NOT_PRESENT: 'error',
   LATE: 'warning',
+  NOT_PRESENT: 'error',
 }
 const PRESENCE_ICON_CLASSES: Record<PresenceType, string> = {
   NONE: 'cursor-pointer size-5 text-muted',
   PRESENT: 'cursor-pointer size-5 text-success',
-  NOT_PRESENT: 'cursor-pointer size-5 text-error',
   LATE: 'cursor-pointer size-5 text-warning',
+  NOT_PRESENT: 'cursor-pointer size-5 text-error',
 }
 
 const tableData = computed(() => data.value)
@@ -154,10 +154,10 @@ async function onToggleAttendance(lessonId: string, studentId: string, current: 
         <UIcon name="i-lucide-check" class="size-4 text-success" /> Присутствовал
       </span>
       <span class="flex items-center gap-1">
-        <UIcon name="i-lucide-clock" class="size-4 text-warning" /> Опоздание
+        <UIcon name="i-lucide-x" class="size-4 text-error" /> Отсутствовал
       </span>
       <span class="flex items-center gap-1">
-        <UIcon name="i-lucide-x" class="size-4 text-error" /> Отсутствовал
+        <UIcon name="i-lucide-clock" class="size-4 text-warning" /> Опоздание
       </span>
       <span class="ml-auto">Кликните по ячейке чтобы изменить статус</span>
     </div>

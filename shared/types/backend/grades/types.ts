@@ -12,7 +12,7 @@ interface UpsertTaskGradeRequest {
   value?: number | null
   comment?: string | null
   status: SubmissionStatus
-  submittedAt?: string
+  submittedAt?: string | null
 }
 
 interface TaskGradeResponse {

@@ -1,4 +1,5 @@
 export * from '#shared/types/backend/attendance'
+export * from '#shared/types/backend/error'
 export * from '#shared/types/backend/grades'
 export * from '#shared/types/backend/lesson-tasks'
 export * from '#shared/types/backend/lessons'

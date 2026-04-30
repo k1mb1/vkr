@@ -6,7 +6,6 @@ import type {
   PageResponse,
   StudentGroupPageResponse,
   StudentGroupResponse,
-  SubgroupResponse,
   UpdateGroupRequestPayload,
 } from '#shared/types/backend'
 import type { MaybeRefOrGetter } from 'vue'
@@ -48,19 +47,6 @@ export function useStudentsGroupsApi() {
     })
   }
 
-  const findSubgroups = (
-    groupId: MaybeRefOrGetter<string>,
-    request: MaybeRefOrGetter<PageRequest> = DEFAULT_PAGE_REQUEST,
-  ): BackendFetchResult<PageResponse<SubgroupResponse>> => {
-    return useBackendFetch<PageResponse<SubgroupResponse>, undefined, PageRequest>(
-      () => `/groups/${toValue(groupId)}/subgroups`,
-      {
-        method: 'GET',
-        query: () => toValue(request),
-      },
-    )
-  }
-
   const update = (
     groupId: MaybeRefOrGetter<string>,
     payload: MaybeRefOrGetter<UpdateGroupRequestPayload>,
@@ -75,11 +61,20 @@ export function useStudentsGroupsApi() {
     )
   }
 
+  const remove = (
+    groupId: MaybeRefOrGetter<string>,
+  ): BackendFetchResult<undefined> => {
+    return useBackendFetch<undefined, null>(() => `/groups/${toValue(groupId)}`, {
+      method: 'DELETE',
+      body: null,
+    })
+  }
+
   return {
-    findSubgroups,
     findAll,
     create,
     findById,
     update,
+    remove,
   }
 }

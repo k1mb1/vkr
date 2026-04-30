@@ -3,8 +3,9 @@ import type {
   CreateSubjectRequestPayload,
   FinalGradeResponse,
   FindSubjectsFilter,
-  StudentGroupPageResponse,
+  SubjectAttendanceFilter,
   SubjectAttendanceResponse,
+  SubjectGradesFilter,
   SubjectGradesResponse,
   SubjectResponse,
   UpdateSubjectRequestPayload,
@@ -72,15 +73,6 @@ export function useSubjectsApi() {
     )
   }
 
-  const findGroups = (
-    subjectId: MaybeRefOrGetter<string>,
-  ): BackendFetchResult<StudentGroupPageResponse[]> => {
-    return useBackendFetch<StudentGroupPageResponse[], undefined>(
-      () => `/subjects/${toValue(subjectId)}/groups`,
-      { method: 'GET' },
-    )
-  }
-
   const attachGroup = (
     subjectId: MaybeRefOrGetter<string>,
     groupId: MaybeRefOrGetter<string>,
@@ -91,22 +83,16 @@ export function useSubjectsApi() {
     )
   }
 
-  const detachGroup = (
-    subjectId: MaybeRefOrGetter<string>,
-    groupId: MaybeRefOrGetter<string>,
-  ): BackendFetchResult<undefined> => {
-    return useBackendFetch<undefined, null>(
-      () => `/subjects/${toValue(subjectId)}/groups/${toValue(groupId)}`,
-      { method: 'DELETE', body: null },
-    )
-  }
-
   const findGrades = (
     subjectId: MaybeRefOrGetter<string>,
+    filter?: MaybeRefOrGetter<SubjectGradesFilter>,
   ): BackendFetchResult<SubjectGradesResponse> => {
-    return useBackendFetch<SubjectGradesResponse, undefined>(
+    return useBackendFetch<SubjectGradesResponse, undefined, SubjectGradesFilter>(
       () => `/subjects/${toValue(subjectId)}/grades`,
-      { method: 'GET' },
+      {
+        method: 'GET',
+        query: () => filter ? toValue(filter) : undefined,
+      },
     )
   }
 
@@ -121,22 +107,24 @@ export function useSubjectsApi() {
 
   const findAttendance = (
     subjectId: MaybeRefOrGetter<string>,
+    filter?: MaybeRefOrGetter<SubjectAttendanceFilter>,
   ): BackendFetchResult<SubjectAttendanceResponse> => {
-    return useBackendFetch<SubjectAttendanceResponse, undefined>(
+    return useBackendFetch<SubjectAttendanceResponse, undefined, SubjectAttendanceFilter>(
       () => `/subjects/${toValue(subjectId)}/attendance`,
-      { method: 'GET' },
+      {
+        method: 'GET',
+        query: () => filter ? toValue(filter) : undefined,
+      },
     )
   }
 
   return {
     attachGroup,
     create,
-    detachGroup,
     findAttendance,
     findAllByTeacherId,
     findFinalGrades,
     findGrades,
-    findGroups,
     remove,
     update,
   }

@@ -11,7 +11,7 @@ const UButton = resolveComponent('UButton')
 const UBadge = resolveComponent('UBadge')
 
 const { findAll } = useLessonsApi()
-const { data, pending, error, refresh } = findAll({ subjectId: subjectId.value })
+const { data, pending, error, refresh } = findAll({ filter: { subjectId: subjectId.value } })
 
 const searchQuery = ref('')
 
@@ -35,8 +35,10 @@ const PENALTY_MODE_LABELS: Record<LessonResponse['penaltyMode'], string> = {
 
 const allLessons = computed<LessonResponse[]>(() => {
   const val = data.value as any
-  if (Array.isArray(val)) return val
-  if (val && Array.isArray(val.content)) return val.content as LessonResponse[]
+  if (Array.isArray(val))
+    return val
+  if (val && Array.isArray(val.content))
+    return val.content as LessonResponse[]
   return []
 })
 

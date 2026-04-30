@@ -1,3 +1,5 @@
+import type { LessonType } from '../lessons'
+
 const PRESENCE_TYPES = [
   'NONE',
   'PRESENT',
@@ -26,7 +28,7 @@ interface SubjectAttendanceResponse {
     lessonId: string
     lessonName: string
     dateTime: string | null
-    type: 'LECTURE' | 'PRACTICE' | 'NONE'
+    type: LessonType
     groupId: string | null
   }>
   students: Array<{ id: string, username: string }>

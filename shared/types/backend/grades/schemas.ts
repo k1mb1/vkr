@@ -10,7 +10,7 @@ const upsertTaskGradeRequestSchema: SchemaFor<UpsertTaskGradeRequest> = v.object
   value: v.optional(v.nullable(v.number())),
   comment: v.optional(v.nullable(v.pipe(v.string(), v.maxLength(5000, 'Comment must be 5000 characters or less')))),
   status: v.picklist(SUBMISSION_STATUSES),
-  submittedAt: v.optional(isoDateTime('submittedAt must be a valid ISO datetime')),
+  submittedAt: v.optional(v.nullable(isoDateTime('submittedAt must be a valid ISO datetime'))),
 })
 
 type UpsertTaskGradeRequestPayload = InferOutput<typeof upsertTaskGradeRequestSchema>
