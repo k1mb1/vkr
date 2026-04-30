@@ -7,7 +7,7 @@ const refreshHandler = useState<null | (() => void | Promise<void>)>(
   () => null,
 )
 
-const refreshGroupsList = () => refreshHandler.value?.()
+const _refreshGroupsList = () => refreshHandler.value?.()
 
 const breadcrumbItems = computed(() => {
   const items = [

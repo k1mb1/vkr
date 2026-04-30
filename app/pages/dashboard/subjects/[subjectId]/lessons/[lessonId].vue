@@ -12,7 +12,7 @@ const { findAll, updateIssuedTaskIndex } = useLessonsApi()
 const { findAll: findTasks, findGrades, upsertGrade } = useLessonTasksApi()
 
 const { data: lessonsData, pending: lessonsPending, error: lessonsError, refresh: refreshLessons } = findAll({ filter: { subjectId: subjectId.value } })
-const { data: tasksData, pending: tasksPending, error: tasksError, refresh: refreshTasks } = findTasks(lessonId)
+const { data: tasksData, pending: tasksPending, error: tasksError, refresh: _refreshTasks } = findTasks(lessonId)
 const { data: gradesData, pending: gradesPending, error: gradesError, refresh: refreshGrades } = findGrades(lessonId)
 
 const rawLessons = computed<LessonResponse[]>(() => {

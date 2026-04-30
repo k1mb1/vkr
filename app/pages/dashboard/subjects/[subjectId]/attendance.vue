@@ -20,7 +20,7 @@ const PRESENCE_ICONS: Record<PresenceType, string> = {
   LATE: 'i-lucide-clock',
   NOT_PRESENT: 'i-lucide-x',
 }
-const PRESENCE_COLORS: Record<PresenceType, 'neutral' | 'success' | 'warning' | 'error'> = {
+const _PRESENCE_COLORS: Record<PresenceType, 'neutral' | 'success' | 'warning' | 'error'> = {
   NONE: 'neutral',
   PRESENT: 'success',
   LATE: 'warning',

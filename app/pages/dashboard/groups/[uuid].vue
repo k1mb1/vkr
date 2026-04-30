@@ -20,7 +20,7 @@ const {
 } = findById(groupId)
 
 const group = computed<StudentGroupResponse | null>(() => data.value ?? null)
-const studentsCount = computed(() => group.value?.students?.length ?? 0)
+const _studentsCount = computed(() => group.value?.students?.length ?? 0)
 const subgroupTabPrefix = 'subgroup:'
 
 type SortDirection = 'asc' | 'desc'
