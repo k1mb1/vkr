@@ -1,6 +1,6 @@
-import type { useFetch } from 'nuxt/app'
 import type { FetchError } from 'ofetch'
 import type { MaybeRefOrGetter, Ref } from 'vue'
+import { useFetch } from 'nuxt/app'
 import { ref, toValue } from 'vue'
 
 type UseFetchOptionsFor<T> = NonNullable<Parameters<typeof useFetch<T>>[1]>
@@ -8,8 +8,6 @@ type BackendFetchResult<T> = ReturnType<typeof useFetch<T>>
 type BackendFetchOptions<T> = UseFetchOptionsFor<T> & {
   requiresAuth?: MaybeRefOrGetter<boolean>
 }
-
-const _useProxyFetch = createUseFetch({ baseURL: '/api/proxy' })
 
 function useBackendFetch<T>(
   url: string | (() => string),
@@ -23,7 +21,8 @@ function useBackendFetch<T>(
     requestHeaders = h
   }
 
-  return _useProxyFetch<T>(url as string, {
+  return useFetch<T>(url as string, {
+    baseURL: '/api/proxy',
     ...opts,
     headers: requestHeaders,
   }) as BackendFetchResult<T>
