@@ -8,17 +8,8 @@ import type {
 import type { DateValue } from '@internationalized/date'
 import { bulkScheduleRequestSchema, DAY_OF_WEEK, LESSON_TYPES } from '#shared/types/backend'
 import { getLocalTimeZone, today } from '@internationalized/date'
-import { useLessonsApi } from '~/composables/api/useLessonsApi'
-
-interface ApiErrorPayload {
-  statusMessage?: string
-  message?: string
-}
-
-interface ApiErrorShape {
-  message?: string
-  data?: ApiErrorPayload
-}
+import { createLessonsBulkSchedule } from '~/composables/api/useLessonsApi'
+import { useApiError } from '~/composables/useApiError'
 
 const props = defineProps<{
   subjectId: string
@@ -44,8 +35,7 @@ const state = reactive({
 })
 
 const pending = ref(false)
-const { createBulkSchedule } = useLessonsApi()
-const toast = useToast()
+const { toastError, toast } = useApiError()
 
 watch(() => props.subjectId, (value) => {
   state.subjectId = value
@@ -60,19 +50,6 @@ function onAfterLeave() {
   if (!pending.value) {
     resetForm()
   }
-}
-
-function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message
-  }
-
-  if (typeof error === 'string') {
-    return error
-  }
-
-  const apiError = error as ApiErrorShape
-  return apiError.data?.statusMessage || apiError.data?.message || apiError.message || 'Failed to bulk schedule lessons'
 }
 
 function addScheduleEntry() {
@@ -131,40 +108,26 @@ async function onSubmit(event: { data: BulkScheduleRequestPayload }, close: () =
   }
 
   pending.value = true
+  const { data: createdLessons, error } = await createLessonsBulkSchedule(event.data)
+  pending.value = false
 
-  try {
-    const { data, error } = await createBulkSchedule(event.data)
-
-    if (error.value || !data.value) {
-      throw error.value || new Error('Lessons were not returned by API')
-    }
-
-    const createdLessons: LessonResponse[] = data.value
-
-    toast.add({
-      title: 'Bulk schedule created',
-      description: `${createdLessons.length} lessons were created.`,
-      color: 'success',
-      icon: 'i-lucide-check',
-    })
-
-    close()
-    resetForm()
-
-    if (props.afterCreate) {
-      await props.afterCreate(createdLessons)
-    }
+  if (error.value) {
+    toastError(error.value, 'Create failed')
+    return
   }
-  catch (error: unknown) {
-    toast.add({
-      title: 'Create failed',
-      description: getErrorMessage(error),
-      color: 'error',
-      icon: 'i-lucide-circle-alert',
-    })
-  }
-  finally {
-    pending.value = false
+
+  toast.add({
+    title: 'Bulk schedule created',
+    description: `${createdLessons.value!.length} lessons were created.`,
+    color: 'success',
+    icon: 'i-lucide-check',
+  })
+
+  close()
+  resetForm()
+
+  if (props.afterCreate) {
+    await props.afterCreate(createdLessons.value!)
   }
 }
 </script>

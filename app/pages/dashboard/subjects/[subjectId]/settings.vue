@@ -2,14 +2,13 @@
 import type { AttachGroupToSubjectResponse, UpdateSubjectRequestPayload } from '#shared/types/backend'
 import { updateSubjectRequestSchema } from '#shared/types/backend'
 import { ref } from 'vue'
-import { useStudentsGroupsApi } from '~/composables/api/useStudentsGroups'
-import { useSubjectsApi } from '~/composables/api/useSubjectsApi'
+import { useStudentGroups } from '~/composables/api/useStudentsGroups'
+import { attachGroupToSubject, deleteSubject, updateSubject } from '~/composables/api/useSubjectsApi'
 import { useSubjectsStore } from '~/stores/subjects'
 
 const subjectsStore = useSubjectsStore()
-const { attachGroup, remove, update } = useSubjectsApi()
-const { findAll: findAllGroups } = useStudentsGroupsApi()
 const toast = useToast()
+const { toastError } = useApiError()
 const route = useRoute()
 const subjectId = computed(() => String(route.params.subjectId ?? ''))
 
@@ -18,13 +17,6 @@ const subject = computed(() =>
   ?? subjectsStore.archivedSubjects.find(s => s.id === subjectId.value)
   ?? null,
 )
-
-function getErrorMessage(err: unknown): string {
-  if (err instanceof Error)
-    return err.message
-  const e = err as { data?: { statusMessage?: string, message?: string }, message?: string }
-  return e?.data?.statusMessage || e?.data?.message || e?.message || 'Что-то пошло не так'
-}
 
 // ── Edit info ─────────────────────────────────────────────────────────────────
 
@@ -42,29 +34,22 @@ async function onSaveInfo(event: { data: UpdateSubjectRequestPayload }) {
   if (editPending.value)
     return
   editPending.value = true
-  try {
-    const { data, error } = await update(subjectId.value, {
-      name: event.data.name,
-      description: event.data.description || null,
-    })
-    if (error.value)
-      throw error.value
-    if (!data.value)
-      throw new Error('Нет ответа от сервера')
-    await Promise.all([subjectsStore.loadActiveSubjects(), subjectsStore.loadArchivedSubjectsOnce()])
-    toast.add({ title: 'Изменения сохранены', color: 'success', icon: 'i-lucide-check' })
+  const { error } = await updateSubject(subjectId.value, {
+    name: event.data.name,
+    description: event.data.description || null,
+  })
+  editPending.value = false
+  if (error.value) {
+    toastError(error.value, 'Ошибка')
+    return
   }
-  catch (err) {
-    toast.add({ title: 'Ошибка', description: getErrorMessage(err), color: 'error', icon: 'i-lucide-circle-alert' })
-  }
-  finally {
-    editPending.value = false
-  }
+  await Promise.all([subjectsStore.loadActiveSubjects(), subjectsStore.loadArchivedSubjectsOnce()])
+  toast.add({ title: 'Изменения сохранены', color: 'success', icon: 'i-lucide-check' })
 }
 
 // ── Attach group ──────────────────────────────────────────────────────────────
 
-const { data: groupsData, pending: groupsPending } = findAllGroups({ size: 100 })
+const { data: groupsData, pending: groupsPending } = useStudentGroups({ size: 100 })
 
 const groupOptions = computed(() =>
   (groupsData.value?.content ?? [])
@@ -79,27 +64,20 @@ async function onAttachGroup() {
   if (!selectedGroupId.value || attachPending.value)
     return
   attachPending.value = true
-  try {
-    const { data, error } = await attachGroup(subjectId.value, selectedGroupId.value)
-    if (error.value)
-      throw error.value
-    if (!data.value)
-      throw new Error('Нет ответа от сервера')
-    lastAttachResult.value = data.value
-    toast.add({
-      title: 'Группа прикреплена',
-      description: `${data.value.groupName}: добавлено ${data.value.addedStudentsCount} студентов. Всего: ${data.value.totalStudentsInSubject}.`,
-      color: 'success',
-      icon: 'i-lucide-check',
-    })
-    selectedGroupId.value = undefined
+  const { data: result, error } = await attachGroupToSubject(subjectId.value, selectedGroupId.value)
+  attachPending.value = false
+  if (error.value) {
+    toastError(error.value, 'Ошибка')
+    return
   }
-  catch (err) {
-    toast.add({ title: 'Ошибка', description: getErrorMessage(err), color: 'error', icon: 'i-lucide-circle-alert' })
-  }
-  finally {
-    attachPending.value = false
-  }
+  lastAttachResult.value = result.value
+  toast.add({
+    title: 'Группа прикреплена',
+    description: `${result.value!.groupName}: добавлено ${result.value!.addedStudentsCount} студентов. Всего: ${result.value!.totalStudentsInSubject}.`,
+    color: 'success',
+    icon: 'i-lucide-check',
+  })
+  selectedGroupId.value = undefined
 }
 
 // ── Archive / Unarchive ───────────────────────────────────────────────────────
@@ -110,21 +88,16 @@ async function onArchiveConfirm(close: () => void) {
   if (archivePending.value)
     return
   archivePending.value = true
-  try {
-    const { error } = await update(subjectId.value, { archived: true, archivedAt: new Date().toISOString() })
-    if (error.value)
-      throw error.value
-    await Promise.all([subjectsStore.loadActiveSubjects(), subjectsStore.loadArchivedSubjects()])
-    toast.add({ title: 'Предмет архивирован', color: 'success', icon: 'i-lucide-check' })
-    close()
-    await navigateTo('/dashboard/subjects')
+  const { error } = await updateSubject(subjectId.value, { archived: true, archivedAt: new Date().toISOString() })
+  archivePending.value = false
+  if (error.value) {
+    toastError(error.value, 'Ошибка')
+    return
   }
-  catch (err) {
-    toast.add({ title: 'Ошибка', description: getErrorMessage(err), color: 'error', icon: 'i-lucide-circle-alert' })
-  }
-  finally {
-    archivePending.value = false
-  }
+  await Promise.all([subjectsStore.loadActiveSubjects(), subjectsStore.loadArchivedSubjects()])
+  toast.add({ title: 'Предмет архивирован', color: 'success', icon: 'i-lucide-check' })
+  close()
+  await navigateTo('/dashboard/subjects')
 }
 
 const unarchivePending = ref(false)
@@ -133,20 +106,15 @@ async function onUnarchiveConfirm(close: () => void) {
   if (unarchivePending.value)
     return
   unarchivePending.value = true
-  try {
-    const { error } = await update(subjectId.value, { archived: false, archivedAt: null })
-    if (error.value)
-      throw error.value
-    await Promise.all([subjectsStore.loadActiveSubjects(), subjectsStore.loadArchivedSubjects()])
-    toast.add({ title: 'Предмет разархивирован', color: 'success', icon: 'i-lucide-check' })
-    close()
+  const { error } = await updateSubject(subjectId.value, { archived: false, archivedAt: null })
+  unarchivePending.value = false
+  if (error.value) {
+    toastError(error.value, 'Ошибка')
+    return
   }
-  catch (err) {
-    toast.add({ title: 'Ошибка', description: getErrorMessage(err), color: 'error', icon: 'i-lucide-circle-alert' })
-  }
-  finally {
-    unarchivePending.value = false
-  }
+  await Promise.all([subjectsStore.loadActiveSubjects(), subjectsStore.loadArchivedSubjects()])
+  toast.add({ title: 'Предмет разархивирован', color: 'success', icon: 'i-lucide-check' })
+  close()
 }
 
 // ── Delete ────────────────────────────────────────────────────────────────────
@@ -157,21 +125,16 @@ async function onDeleteConfirm(close: () => void) {
   if (deletePending.value)
     return
   deletePending.value = true
-  try {
-    const { error } = await remove(subjectId.value)
-    if (error.value)
-      throw error.value
-    await Promise.all([subjectsStore.loadActiveSubjects(), subjectsStore.loadArchivedSubjects()])
-    toast.add({ title: 'Предмет удалён', color: 'success', icon: 'i-lucide-check' })
-    close()
-    await navigateTo('/dashboard/subjects')
+  const { error } = await deleteSubject(subjectId.value)
+  deletePending.value = false
+  if (error.value) {
+    toastError(error.value, 'Ошибка')
+    return
   }
-  catch (err) {
-    toast.add({ title: 'Ошибка', description: getErrorMessage(err), color: 'error', icon: 'i-lucide-circle-alert' })
-  }
-  finally {
-    deletePending.value = false
-  }
+  await Promise.all([subjectsStore.loadActiveSubjects(), subjectsStore.loadArchivedSubjects()])
+  toast.add({ title: 'Предмет удалён', color: 'success', icon: 'i-lucide-check' })
+  close()
+  await navigateTo('/dashboard/subjects')
 }
 </script>
 

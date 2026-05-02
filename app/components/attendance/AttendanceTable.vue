@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import type { PresenceType, SubjectAttendanceResponse } from '#shared/types/backend'
-import { PRESENCE_TYPES } from '#shared/types/backend'
 import type { TableColumn } from '@nuxt/ui'
+import { PRESENCE_TYPES } from '#shared/types/backend'
 import { h, resolveComponent } from 'vue'
-import { useAttendanceApi } from '~/composables/api/useAttendanceApi'
+import { upsertLessonAttendance } from '~/composables/api/useAttendanceApi'
+import { useApiError } from '~/composables/useApiError'
 
 interface Props {
   data: SubjectAttendanceResponse | null
@@ -19,8 +20,7 @@ const emit = defineEmits<{
   refresh: []
 }>()
 
-const { upsertByLesson } = useAttendanceApi()
-const toast = useToast()
+const { toastError } = useApiError()
 
 const UButton = resolveComponent('UButton')
 const UBadge = resolveComponent('UBadge')
@@ -156,25 +156,17 @@ async function onToggleAttendance(lessonId: string, studentId: string, current: 
     return
   const next = nextPresence(current)
   upsertPending.value.add(key)
-  try {
-    const { error: err } = await upsertByLesson(lessonId, {
-      studentId,
-      presence: next,
-      note: null,
-    })
-    if (err.value)
-      throw err.value
+  const { error } = await upsertLessonAttendance(lessonId, {
+    studentId,
+    presence: next,
+    note: null,
+  })
+  upsertPending.value.delete(key)
+  if (error.value) {
+    toastError(error.value, 'Не удалось обновить посещаемость')
+  }
+  else {
     emit('refresh')
-  }
-  catch (e: unknown) {
-    toast.add({
-      title: 'Ошибка',
-      description: e instanceof Error ? e.message : 'Не удалось обновить посещаемость',
-      color: 'error',
-    })
-  }
-  finally {
-    upsertPending.value.delete(key)
   }
 }
 

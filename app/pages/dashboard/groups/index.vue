@@ -1,13 +1,11 @@
 <script setup lang="ts">
 import { PAGE_DEFAULTS } from '#shared/types/backend'
-import { useStudentsGroupsApi } from '~/composables/api/useStudentsGroups'
+import { useStudentGroups } from '~/composables/api/useStudentsGroups'
 
 const page = ref(PAGE_DEFAULTS.page + 1)
 const pageSize = PAGE_DEFAULTS.size
 
-const { findAll } = useStudentsGroupsApi()
-
-const { data, pending, error, refresh } = findAll(computed(() => ({
+const { data, pending, error, refresh } = useStudentGroups(computed(() => ({
   page: page.value - 1,
   size: pageSize,
 })))

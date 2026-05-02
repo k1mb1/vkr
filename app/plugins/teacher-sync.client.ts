@@ -1,4 +1,4 @@
-import { useTeachersApi } from '~/composables/api/useTeachersApi'
+import { upsertTeacher } from '~/composables/api/useTeachersApi'
 
 interface ApiErrorPayload {
   message?: string
@@ -22,8 +22,6 @@ export default defineNuxtPlugin(() => {
   const router = useRouter()
   const route = useRoute()
   const { user, loggedIn } = useOidcAuth()
-  const { createOrUpdate } = useTeachersApi()
-
   const syncedUserSub = useState<string | null>('teacher-sync-user-sub', () => null)
   const syncInFlight = useState<boolean>('teacher-sync-in-flight', () => false)
   const teacherSyncError = useState<string | null>('teacher-sync-error', () => null)
@@ -49,7 +47,7 @@ export default defineNuxtPlugin(() => {
     teacherSyncError.value = null
 
     try {
-      const request = await createOrUpdate(teacherId, {
+      const request = await upsertTeacher(teacherId, {
         username,
         email,
       })

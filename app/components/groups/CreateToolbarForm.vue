@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import type { CreateGroupRequestPayload, StudentGroupResponse } from '#shared/types/backend'
+import type { CreateGroupRequestPayload } from '#shared/types/backend'
 import { createGroupRequestSchema } from '#shared/types/backend'
-import { useStudentsGroupsApi } from '~/composables/api/useStudentsGroups'
+import { createStudentGroup } from '~/composables/api/useStudentsGroups'
+import { useApiError } from '~/composables/useApiError'
 
 const props = defineProps<{
   afterCreate?: () => void | Promise<void>
@@ -21,8 +22,8 @@ const drafts = ref<string[]>(['', ''])
 const draftRefs = ref<Array<{ inputRef?: HTMLInputElement | null }>>([])
 
 const pending = ref(false)
-const { create } = useStudentsGroupsApi()
 const toast = useToast()
+const { toastError } = useApiError()
 
 const displaySubgroups = computed(() => {
   if (mode.value === 'direct') {
@@ -56,8 +57,7 @@ function setMode(next: Mode) {
       subgroupCount.value = 2
     }
     if (drafts.value.length < subgroupCount.value) {
-      // eslint-disable-next-line
-      drafts.value.push(...Array.from({ length: subgroupCount.value - drafts.value.length }, () => ''))
+      drafts.value.push(...Array.from<string>({ length: subgroupCount.value - drafts.value.length }).fill(''))
     }
   }
   mode.value = next
@@ -151,36 +151,21 @@ function onAfterLeave() {
     resetForm()
 }
 
-function getErrorMessage(error: unknown): string {
-  if (error instanceof Error)
-    return error.message
-  if (typeof error === 'string')
-    return error
-  const e = error as { data?: { statusMessage?: string, message?: string }, message?: string }
-  return e.data?.statusMessage || e.data?.message || e.message || 'Failed to create group'
-}
-
 async function onSubmit(event: { data: CreateGroupRequestPayload }, close: () => void) {
   if (pending.value)
     return
   pending.value = true
-  try {
-    const { data, error } = await create(event.data)
-    if (error.value || !data.value)
-      throw error.value || new Error('Group was not returned by API')
-    const created: StudentGroupResponse = data.value
-    toast.add({ title: 'Группа создана', description: `«${created.name}» готова.`, color: 'success', icon: 'i-lucide-check' })
-    close()
-    resetForm()
-    if (props.afterCreate)
-      await props.afterCreate()
+  const { data: created, error } = await createStudentGroup(event.data)
+  pending.value = false
+  if (error.value) {
+    toastError(error.value, 'Ошибка создания')
+    return
   }
-  catch (e) {
-    toast.add({ title: 'Ошибка создания', description: getErrorMessage(e), color: 'error', icon: 'i-lucide-circle-alert' })
-  }
-  finally {
-    pending.value = false
-  }
+  toast.add({ title: 'Группа создана', description: `«${created.value!.name}» готова.`, color: 'success', icon: 'i-lucide-check' })
+  close()
+  resetForm()
+  if (props.afterCreate)
+    await props.afterCreate()
 }
 </script>
 

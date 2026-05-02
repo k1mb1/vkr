@@ -14,118 +14,92 @@ import type { MaybeRefOrGetter } from 'vue'
 import type {
   BackendFetchOptions,
   BackendFetchResult,
+  BackendResult,
 } from '~/composables/useBackendFetch'
-import { createSubjectRequestSchema, DEFAULT_FIND_SUBJECTS_FILTER, updateSubjectRequestSchema } from '#shared/types/backend'
+import { DEFAULT_FIND_SUBJECTS_FILTER } from '#shared/types/backend'
 import { toValue } from 'vue'
-import { useBackendFetch } from '~/composables/useBackendFetch'
+import { $backendFetch, useBackendFetch } from '~/composables/useBackendFetch'
 
-export function useSubjectsApi() {
-  type FindAllByTeacherIdOptions = Omit<
-    BackendFetchOptions<SubjectResponse[], undefined, FindSubjectsFilter>,
-    'method' | 'query'
-  >
+type FindSubjectsByTeacherOptions = Omit<BackendFetchOptions<SubjectResponse[]>, 'method' | 'query'>
 
-  const create = (
-    payload: MaybeRefOrGetter<CreateSubjectRequestPayload>,
-  ): BackendFetchResult<SubjectResponse> => {
-    return useBackendFetch<SubjectResponse, CreateSubjectRequestPayload>(`/subjects`, {
-      method: 'POST',
-      body: () => toValue(payload),
-      bodySchema: createSubjectRequestSchema,
-    })
-  }
+export function useSubjectsByTeacher(
+  teacherId: MaybeRefOrGetter<string>,
+  filter: MaybeRefOrGetter<FindSubjectsFilter> = DEFAULT_FIND_SUBJECTS_FILTER,
+  options?: FindSubjectsByTeacherOptions,
+): BackendFetchResult<SubjectResponse[]> {
+  return useBackendFetch<SubjectResponse[]>(
+    () => `/subjects/teachers/${toValue(teacherId)}`,
+    {
+      ...(options ?? {}),
+      method: 'GET',
+      query: () => toValue(filter),
+    },
+  )
+}
 
-  const update = (
-    subjectId: MaybeRefOrGetter<string>,
-    payload: MaybeRefOrGetter<UpdateSubjectRequestPayload>,
-  ): BackendFetchResult<SubjectResponse> => {
-    return useBackendFetch<SubjectResponse, UpdateSubjectRequestPayload>(
-      () => `/subjects/${toValue(subjectId)}`,
-      {
-        method: 'PATCH',
-        body: () => toValue(payload),
-        bodySchema: updateSubjectRequestSchema,
-      },
-    )
-  }
+export function useSubjectGrades(
+  subjectId: MaybeRefOrGetter<string>,
+  filter?: MaybeRefOrGetter<SubjectGradesFilter>,
+): BackendFetchResult<SubjectGradesResponse> {
+  return useBackendFetch<SubjectGradesResponse>(
+    () => `/subjects/${toValue(subjectId)}/grades`,
+    {
+      method: 'GET',
+      query: () => filter ? toValue(filter) : undefined,
+    },
+  )
+}
 
-  const remove = (
-    subjectId: MaybeRefOrGetter<string>,
-  ): BackendFetchResult<undefined> => {
-    return useBackendFetch<undefined, null>(
-      () => `/subjects/${toValue(subjectId)}`,
-      { method: 'DELETE', body: null },
-    )
-  }
+export function useSubjectFinalGrades(
+  subjectId: MaybeRefOrGetter<string>,
+): BackendFetchResult<FinalGradeResponse[]> {
+  return useBackendFetch<FinalGradeResponse[]>(
+    () => `/subjects/${toValue(subjectId)}/final-grades`,
+    { method: 'GET' },
+  )
+}
 
-  const findAllByTeacherId = (
-    teacherId: MaybeRefOrGetter<string>,
-    filter: MaybeRefOrGetter<FindSubjectsFilter> = DEFAULT_FIND_SUBJECTS_FILTER,
-    options?: FindAllByTeacherIdOptions,
-  ): BackendFetchResult<SubjectResponse[]> => {
-    return useBackendFetch<SubjectResponse[], undefined, FindSubjectsFilter>(
-      () => `/subjects/teachers/${toValue(teacherId)}`,
-      {
-        ...(options ?? {}),
-        method: 'GET',
-        query: () => toValue(filter),
-      },
-    )
-  }
+export function useSubjectAttendance(
+  subjectId: MaybeRefOrGetter<string>,
+  filter?: MaybeRefOrGetter<SubjectAttendanceFilter>,
+): BackendFetchResult<SubjectAttendanceResponse> {
+  return useBackendFetch<SubjectAttendanceResponse>(
+    () => `/subjects/${toValue(subjectId)}/attendance`,
+    {
+      method: 'GET',
+      query: () => filter ? toValue(filter) : undefined,
+    },
+  )
+}
 
-  const attachGroup = (
-    subjectId: MaybeRefOrGetter<string>,
-    groupId: MaybeRefOrGetter<string>,
-  ): BackendFetchResult<AttachGroupToSubjectResponse> => {
-    return useBackendFetch<AttachGroupToSubjectResponse, null>(
-      () => `/subjects/${toValue(subjectId)}/groups/${toValue(groupId)}`,
-      { method: 'POST', body: null },
-    )
-  }
+export function createSubject(
+  payload: CreateSubjectRequestPayload,
+): Promise<BackendResult<SubjectResponse>> {
+  return $backendFetch<SubjectResponse>(`/subjects`, { method: 'POST', body: payload })
+}
 
-  const findGrades = (
-    subjectId: MaybeRefOrGetter<string>,
-    filter?: MaybeRefOrGetter<SubjectGradesFilter>,
-  ): BackendFetchResult<SubjectGradesResponse> => {
-    return useBackendFetch<SubjectGradesResponse, undefined, SubjectGradesFilter>(
-      () => `/subjects/${toValue(subjectId)}/grades`,
-      {
-        method: 'GET',
-        query: () => filter ? toValue(filter) : undefined,
-      },
-    )
-  }
+export function updateSubject(
+  subjectId: MaybeRefOrGetter<string>,
+  payload: UpdateSubjectRequestPayload,
+): Promise<BackendResult<SubjectResponse>> {
+  return $backendFetch<SubjectResponse>(`/subjects/${toValue(subjectId)}`, {
+    method: 'PATCH',
+    body: payload,
+  })
+}
 
-  const findFinalGrades = (
-    subjectId: MaybeRefOrGetter<string>,
-  ): BackendFetchResult<FinalGradeResponse[]> => {
-    return useBackendFetch<FinalGradeResponse[], undefined>(
-      () => `/subjects/${toValue(subjectId)}/final-grades`,
-      { method: 'GET' },
-    )
-  }
+export function deleteSubject(
+  subjectId: MaybeRefOrGetter<string>,
+): Promise<BackendResult<void>> {
+  return $backendFetch<void>(`/subjects/${toValue(subjectId)}`, { method: 'DELETE' })
+}
 
-  const findAttendance = (
-    subjectId: MaybeRefOrGetter<string>,
-    filter?: MaybeRefOrGetter<SubjectAttendanceFilter>,
-  ): BackendFetchResult<SubjectAttendanceResponse> => {
-    return useBackendFetch<SubjectAttendanceResponse, undefined, SubjectAttendanceFilter>(
-      () => `/subjects/${toValue(subjectId)}/attendance`,
-      {
-        method: 'GET',
-        query: () => filter ? toValue(filter) : undefined,
-      },
-    )
-  }
-
-  return {
-    attachGroup,
-    create,
-    findAttendance,
-    findAllByTeacherId,
-    findFinalGrades,
-    findGrades,
-    remove,
-    update,
-  }
+export function attachGroupToSubject(
+  subjectId: MaybeRefOrGetter<string>,
+  groupId: MaybeRefOrGetter<string>,
+): Promise<BackendResult<AttachGroupToSubjectResponse>> {
+  return $backendFetch<AttachGroupToSubjectResponse>(
+    `/subjects/${toValue(subjectId)}/groups/${toValue(groupId)}`,
+    { method: 'POST' },
+  )
 }

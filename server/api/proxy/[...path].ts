@@ -4,7 +4,7 @@ import { getProxyRequestHeaders, proxyRequest } from 'h3'
 
 const TRAILING_SLASH_RE = /\/+$/
 const LEADING_SLASH_RE = /^\/+/
-const ABSOLUTE_PROTOCOL_RE = /^[a-z][a-z\d+.-]*:\/\//i
+
 const DEFAULT_PROXY_TIMEOUT_MS = 15000
 
 type HttpMethod
@@ -49,23 +49,6 @@ function normalizeMethod(method?: string): HttpMethod {
 
 function joinUrl(base: string, path: string): string {
   return `${base.replace(TRAILING_SLASH_RE, '')}/${path.replace(LEADING_SLASH_RE, '')}`
-}
-
-function resolveTargetPath(path: unknown): string {
-  if (typeof path !== 'string') {
-    throw createError({ statusCode: 400, message: 'Invalid proxy path' })
-  }
-
-  const normalizedPath = path.trim() || '/'
-  if (normalizedPath.startsWith('//') || ABSOLUTE_PROTOCOL_RE.test(normalizedPath)) {
-    throw createError({ statusCode: 400, message: 'Invalid proxy path' })
-  }
-
-  if (!normalizedPath.startsWith('/')) {
-    throw createError({ statusCode: 400, message: 'Proxy path must start with "/"' })
-  }
-
-  return normalizedPath
 }
 
 function resolveTimeoutMs(value: unknown): number {
@@ -120,8 +103,10 @@ export default defineEventHandler(async (event: H3Event) => {
 
   const method = normalizeMethod(event.method)
 
-  const { path = '/', ...query } = getQuery(event) as Record<string, unknown>
-  const targetPath = resolveTargetPath(path)
+  const pathParam = getRouterParam(event, 'path') ?? ''
+  const targetPath = `/${pathParam}`
+  const query = getQuery(event) as Record<string, unknown>
+
   const baseTargetUrl = joinUrl(String(backendUrl), targetPath)
   const targetUrl = appendQueryToUrl(baseTargetUrl, query)
 

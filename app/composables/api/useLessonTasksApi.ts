@@ -7,110 +7,76 @@ import type {
   UpsertTaskGradeRequestPayload,
 } from '#shared/types/backend'
 import type { MaybeRefOrGetter } from 'vue'
-import type { BackendFetchResult } from '~/composables/useBackendFetch'
-import {
-  createTaskRequestSchema,
-  updateTaskRequestSchema,
-  upsertTaskGradeRequestSchema,
-} from '#shared/types/backend'
+import type { BackendFetchResult, BackendResult } from '~/composables/useBackendFetch'
 import { toValue } from 'vue'
-import { useBackendFetch } from '~/composables/useBackendFetch'
+import { $backendFetch, useBackendFetch } from '~/composables/useBackendFetch'
 
-export function useLessonTasksApi() {
-  const findAll = (
-    lessonId: MaybeRefOrGetter<string>,
-  ): BackendFetchResult<TaskResponse[]> => {
-    return useBackendFetch<TaskResponse[], undefined>(() => `/lessons/${toValue(lessonId)}/tasks`, {
-      method: 'GET',
-    })
-  }
+export function useLessonTasks(
+  lessonId: MaybeRefOrGetter<string>,
+): BackendFetchResult<TaskResponse[]> {
+  return useBackendFetch<TaskResponse[]>(() => `/lessons/${toValue(lessonId)}/tasks`, {
+    method: 'GET',
+  })
+}
 
-  const create = (
-    lessonId: MaybeRefOrGetter<string>,
-    payload: MaybeRefOrGetter<CreateTaskRequestPayload>,
-  ): BackendFetchResult<TaskResponse> => {
-    return useBackendFetch<TaskResponse, CreateTaskRequestPayload>(
-      () => `/lessons/${toValue(lessonId)}/tasks`,
-      {
-        method: 'POST',
-        body: () => toValue(payload),
-        bodySchema: createTaskRequestSchema,
-      },
-    )
-  }
+export function useLessonTaskGrades(
+  lessonId: MaybeRefOrGetter<string>,
+): BackendFetchResult<LessonTaskGradesResponse> {
+  return useBackendFetch<LessonTaskGradesResponse>(
+    () => `/lessons/${toValue(lessonId)}/tasks/grades`,
+    { method: 'GET' },
+  )
+}
 
-  const update = (
-    lessonId: MaybeRefOrGetter<string>,
-    taskId: MaybeRefOrGetter<string>,
-    payload: MaybeRefOrGetter<UpdateTaskRequestPayload>,
-  ): BackendFetchResult<TaskResponse> => {
-    return useBackendFetch<TaskResponse, UpdateTaskRequestPayload>(
-      () => `/lessons/${toValue(lessonId)}/tasks/${toValue(taskId)}`,
-      {
-        method: 'PATCH',
-        body: () => toValue(payload),
-        bodySchema: updateTaskRequestSchema,
-      },
-    )
-  }
+export function createLessonTask(
+  lessonId: MaybeRefOrGetter<string>,
+  payload: CreateTaskRequestPayload,
+): Promise<BackendResult<TaskResponse>> {
+  return $backendFetch<TaskResponse>(`/lessons/${toValue(lessonId)}/tasks`, {
+    method: 'POST',
+    body: payload,
+  })
+}
 
-  const remove = (
-    lessonId: MaybeRefOrGetter<string>,
-    taskId: MaybeRefOrGetter<string>,
-  ): BackendFetchResult<undefined> => {
-    return useBackendFetch<undefined, null>(() => `/lessons/${toValue(lessonId)}/tasks/${toValue(taskId)}`, {
-      method: 'DELETE',
-      body: null,
-    })
-  }
+export function updateLessonTask(
+  lessonId: MaybeRefOrGetter<string>,
+  taskId: MaybeRefOrGetter<string>,
+  payload: UpdateTaskRequestPayload,
+): Promise<BackendResult<TaskResponse>> {
+  return $backendFetch<TaskResponse>(
+    `/lessons/${toValue(lessonId)}/tasks/${toValue(taskId)}`,
+    { method: 'PATCH', body: payload },
+  )
+}
 
-  const findGrades = (
-    lessonId: MaybeRefOrGetter<string>,
-  ): BackendFetchResult<LessonTaskGradesResponse> => {
-    return useBackendFetch<LessonTaskGradesResponse, undefined>(
-      () => `/lessons/${toValue(lessonId)}/tasks/grades`,
-      {
-        method: 'GET',
-      },
-    )
-  }
+export function deleteLessonTask(
+  lessonId: MaybeRefOrGetter<string>,
+  taskId: MaybeRefOrGetter<string>,
+): Promise<BackendResult<void>> {
+  return $backendFetch<void>(
+    `/lessons/${toValue(lessonId)}/tasks/${toValue(taskId)}`,
+    { method: 'DELETE' },
+  )
+}
 
-  const upsertGrade = (
-    lessonId: MaybeRefOrGetter<string>,
-    taskId: MaybeRefOrGetter<string>,
-    payload: MaybeRefOrGetter<UpsertTaskGradeRequestPayload>,
-  ): BackendFetchResult<TaskGradeResponse> => {
-    return useBackendFetch<TaskGradeResponse, UpsertTaskGradeRequestPayload>(
-      () => `/lessons/${toValue(lessonId)}/tasks/${toValue(taskId)}/grades`,
-      {
-        method: 'PUT',
-        body: () => toValue(payload),
-        bodySchema: upsertTaskGradeRequestSchema,
-      },
-    )
-  }
+export function upsertLessonTaskGrade(
+  lessonId: MaybeRefOrGetter<string>,
+  taskId: MaybeRefOrGetter<string>,
+  payload: UpsertTaskGradeRequestPayload,
+): Promise<BackendResult<TaskGradeResponse>> {
+  return $backendFetch<TaskGradeResponse>(
+    `/lessons/${toValue(lessonId)}/tasks/${toValue(taskId)}/grades`,
+    { method: 'PUT', body: payload },
+  )
+}
 
-  const upsertGradesBulk = (
-    lessonId: MaybeRefOrGetter<string>,
-    taskId: MaybeRefOrGetter<string>,
-    payload: MaybeRefOrGetter<UpsertTaskGradeRequestPayload[]>,
-  ): BackendFetchResult<TaskGradeResponse[]> => {
-    return useBackendFetch<TaskGradeResponse[], UpsertTaskGradeRequestPayload[]>(
-      () => `/lessons/${toValue(lessonId)}/tasks/${toValue(taskId)}/grades/bulk`,
-      {
-        method: 'PUT',
-        body: () => toValue(payload),
-      },
-    )
-  }
-
-  return {
-    create,
-    findAll,
-    findGrades,
-    remove,
-    update,
-    upsertGrade,
-    upsertGradesBulk,
-  }
+export function upsertLessonTaskGradesBulk(
+  lessonId: MaybeRefOrGetter<string>,
+  taskId: MaybeRefOrGetter<string>,
+  payload: UpsertTaskGradeRequestPayload[],
+): Promise<BackendResult<TaskGradeResponse[]>> {
+  return $backendFetch<TaskGradeResponse[]>(
+    `/lessons/${toValue(lessonId)}/tasks/${toValue(taskId)}/grades/bulk`,
+    { method: 'PUT', body: payload },
+  )
 }

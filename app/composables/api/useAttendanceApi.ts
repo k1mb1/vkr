@@ -4,40 +4,25 @@ import type {
   UpsertAttendanceRequestPayload,
 } from '#shared/types/backend'
 import type { MaybeRefOrGetter } from 'vue'
-import type { BackendFetchResult } from '~/composables/useBackendFetch'
-import { upsertAttendanceRequestSchema } from '#shared/types/backend'
+import type { BackendFetchResult, BackendResult } from '~/composables/useBackendFetch'
 import { toValue } from 'vue'
-import { useBackendFetch } from '~/composables/useBackendFetch'
+import { $backendFetch, useBackendFetch } from '~/composables/useBackendFetch'
 
-export function useAttendanceApi() {
-  const findBySubject = (
-    subjectId: MaybeRefOrGetter<string>,
-  ): BackendFetchResult<SubjectAttendanceResponse> => {
-    return useBackendFetch<SubjectAttendanceResponse, undefined>(
-      () => `/subjects/${toValue(subjectId)}/attendance`,
-      {
-        method: 'GET',
-      },
-    )
-  }
+export function useAttendanceBySubject(
+  subjectId: MaybeRefOrGetter<string>,
+): BackendFetchResult<SubjectAttendanceResponse> {
+  return useBackendFetch<SubjectAttendanceResponse>(
+    () => `/subjects/${toValue(subjectId)}/attendance`,
+    { method: 'GET' },
+  )
+}
 
-  const upsertByLesson = (
-    lessonId: MaybeRefOrGetter<string>,
-    payload: MaybeRefOrGetter<UpsertAttendanceRequestPayload>,
-  ): BackendFetchResult<AttendanceEntryResponse> => {
-    return useBackendFetch<AttendanceEntryResponse, UpsertAttendanceRequestPayload>(
-      () => `/lessons/${toValue(lessonId)}/attendance`,
-      {
-        method: 'PUT',
-        body: () => toValue(payload),
-        bodySchema: upsertAttendanceRequestSchema,
-        getCachedData: () => undefined,
-      },
-    )
-  }
-
-  return {
-    findBySubject,
-    upsertByLesson,
-  }
+export function upsertLessonAttendance(
+  lessonId: MaybeRefOrGetter<string>,
+  payload: UpsertAttendanceRequestPayload,
+): Promise<BackendResult<AttendanceEntryResponse>> {
+  return $backendFetch<AttendanceEntryResponse>(
+    `/lessons/${toValue(lessonId)}/attendance`,
+    { method: 'PUT', body: payload },
+  )
 }

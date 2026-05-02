@@ -2,17 +2,8 @@
 import type { CreateLessonRequestPayload, LessonResponse, LessonType } from '#shared/types/backend'
 import type { AnyCalendarDate } from '@internationalized/date'
 import { createLessonRequestSchema, LESSON_TYPES } from '#shared/types/backend'
-import { useLessonsApi } from '~/composables/api/useLessonsApi'
-
-interface ApiErrorPayload {
-  statusMessage?: string
-  message?: string
-}
-
-interface ApiErrorShape {
-  message?: string
-  data?: ApiErrorPayload
-}
+import { createLesson } from '~/composables/api/useLessonsApi'
+import { useApiError } from '~/composables/useApiError'
 
 const props = defineProps<{
   subjectId: string
@@ -27,25 +18,11 @@ const state = reactive({
 })
 
 const pending = ref(false)
-const { create } = useLessonsApi()
-const toast = useToast()
+const { toastError, toast } = useApiError()
 
 watch(() => props.subjectId, (value) => {
   state.subjectId = value
 }, { immediate: true })
-
-function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message
-  }
-
-  if (typeof error === 'string') {
-    return error
-  }
-
-  const apiError = error as ApiErrorShape
-  return apiError.data?.statusMessage || apiError.data?.message || apiError.message || 'Failed to create lesson'
-}
 
 function resetForm() {
   state.name = ''
@@ -66,40 +43,26 @@ async function onSubmit(event: { data: CreateLessonRequestPayload }, close: () =
   }
 
   pending.value = true
+  const { data: createdLesson, error } = await createLesson(event.data)
+  pending.value = false
 
-  try {
-    const { data, error } = await create(event.data)
-
-    if (error.value || !data.value) {
-      throw error.value || new Error('Lesson was not returned by API')
-    }
-
-    const createdLesson: LessonResponse = data.value
-
-    toast.add({
-      title: 'Lesson created',
-      description: `"${createdLesson.name}" is ready.`,
-      color: 'success',
-      icon: 'i-lucide-check',
-    })
-
-    close()
-    resetForm()
-
-    if (props.afterCreate) {
-      await props.afterCreate(createdLesson)
-    }
+  if (error.value) {
+    toastError(error.value, 'Create failed')
+    return
   }
-  catch (error: unknown) {
-    toast.add({
-      title: 'Create failed',
-      description: getErrorMessage(error),
-      color: 'error',
-      icon: 'i-lucide-circle-alert',
-    })
-  }
-  finally {
-    pending.value = false
+
+  toast.add({
+    title: 'Lesson created',
+    description: `"${createdLesson.value!.name}" is ready.`,
+    color: 'success',
+    icon: 'i-lucide-check',
+  })
+
+  close()
+  resetForm()
+
+  if (props.afterCreate) {
+    await props.afterCreate(createdLesson.value!)
   }
 }
 </script>

@@ -1,14 +1,13 @@
 <script setup lang="ts">
 import type { LessonResponse, LessonType, SubjectAttendanceResponse } from '#shared/types/backend'
 import { LESSON_TYPES } from '#shared/types/backend'
-import { useLessonsApi } from '~/composables/api/useLessonsApi'
+import { useLessons } from '~/composables/api/useLessonsApi'
 import { useBackendFetch } from '~/composables/useBackendFetch'
 
 const route = useRoute()
 const subjectId = computed(() => String(route.params.subjectId ?? ''))
 
-const { findAll } = useLessonsApi()
-const { data: lessonsData, pending: lessonsPending } = findAll({ filter: { subjectId: subjectId.value } })
+const { data: lessonsData, pending: lessonsPending } = useLessons({ filter: { subjectId: subjectId.value } })
 
 const allLessons = computed<LessonResponse[]>(() => {
   const val = lessonsData.value as any
@@ -22,7 +21,7 @@ const allLessons = computed<LessonResponse[]>(() => {
 const activeType = ref<string>('')
 const hasLoaded = ref(false)
 
-const { data, pending, error, execute, refresh } = useBackendFetch<SubjectAttendanceResponse, undefined>(
+const { data, pending, error, execute, refresh } = useBackendFetch<SubjectAttendanceResponse>(
   () => `/subjects/${subjectId.value}/attendance`,
   {
     method: 'GET',

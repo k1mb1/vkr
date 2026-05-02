@@ -152,7 +152,7 @@ async function executeRequest() {
   loading.value = true
 
   try {
-    const response = await useBackendFetch<unknown, DebugRequestBody, QueryRecord>(normalizedPath, {
+    const response = await useBackendFetch<unknown>(normalizedPath, {
       method: method.value,
       requiresAuth: requiresAuth.value,
       query,

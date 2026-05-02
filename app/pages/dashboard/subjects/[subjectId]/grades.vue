@@ -1,16 +1,13 @@
 <script setup lang="ts">
 import type { LessonResponse, SubmissionStatus, TaskGradeResponse, TaskResponse } from '#shared/types/backend'
-import { useLessonsApi } from '~/composables/api/useLessonsApi'
-import { useSubjectsApi } from '~/composables/api/useSubjectsApi'
+import { useLessons } from '~/composables/api/useLessonsApi'
+import { useSubjectGrades } from '~/composables/api/useSubjectsApi'
 
 const route = useRoute()
 const subjectId = computed(() => String(route.params.subjectId ?? ''))
 
-const { findGrades } = useSubjectsApi()
-const { findAll: findLessons } = useLessonsApi()
-
-const { data: gradesData, pending: gradesPending, error: gradesError, refresh: refreshGrades } = findGrades(subjectId)
-const { data: lessonsData, pending: lessonsPending } = findLessons({ filter: { subjectId: subjectId.value } })
+const { data: gradesData, pending: gradesPending, error: gradesError, refresh: refreshGrades } = useSubjectGrades(subjectId)
+const { data: lessonsData, pending: lessonsPending } = useLessons({ filter: { subjectId: subjectId.value } })
 
 const tasksByLessonId = ref<Record<string, TaskResponse[]>>({})
 const tasksLoading = ref(false)
@@ -27,9 +24,7 @@ watch([gradesData, lessonsData], async ([grades, _lessons]) => {
   try {
     const results = await Promise.all(
       lessonIds.map(async (lessonId) => {
-        const tasks = await $fetch<TaskResponse[]>('/api/proxy', {
-          query: { path: `/lessons/${lessonId}/tasks` },
-        })
+        const tasks = await $fetch<TaskResponse[]>(`/api/proxy/lessons/${lessonId}/tasks`)
         return { lessonId, tasks: tasks ?? [] }
       }),
     )

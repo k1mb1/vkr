@@ -1,19 +1,16 @@
 <script setup lang="ts">
 import type { LessonResponse, LessonType, SubmissionStatus, TaskGradeResponse, TaskResponse, UpdateIssuedTaskIndexRequestPayload } from '#shared/types/backend'
 import { updateIssuedTaskIndexRequestSchema } from '#shared/types/backend'
-import { useLessonsApi } from '~/composables/api/useLessonsApi'
-import { useLessonTasksApi } from '~/composables/api/useLessonTasksApi'
+import { updateLessonIssuedTaskIndex, useLessons } from '~/composables/api/useLessonsApi'
+import { upsertLessonTaskGrade, useLessonTaskGrades, useLessonTasks } from '~/composables/api/useLessonTasksApi'
 
 const route = useRoute()
 const subjectId = computed(() => String(route.params.subjectId ?? ''))
 const lessonId = computed(() => String(route.params.lessonId ?? ''))
 
-const { findAll, updateIssuedTaskIndex } = useLessonsApi()
-const { findAll: findTasks, findGrades, upsertGrade } = useLessonTasksApi()
-
-const { data: lessonsData, pending: lessonsPending, error: lessonsError, refresh: refreshLessons } = findAll({ filter: { subjectId: subjectId.value } })
-const { data: tasksData, pending: tasksPending, error: tasksError, refresh: _refreshTasks } = findTasks(lessonId)
-const { data: gradesData, pending: gradesPending, error: gradesError, refresh: refreshGrades } = findGrades(lessonId)
+const { data: lessonsData, pending: lessonsPending, error: lessonsError, refresh: refreshLessons } = useLessons({ filter: { subjectId: subjectId.value } })
+const { data: tasksData, pending: tasksPending, error: tasksError, refresh: _refreshTasks } = useLessonTasks(lessonId)
+const { data: gradesData, pending: gradesPending, error: gradesError, refresh: refreshGrades } = useLessonTaskGrades(lessonId)
 
 const rawLessons = computed<LessonResponse[]>(() => {
   const val = lessonsData.value as any
@@ -66,6 +63,7 @@ function formatDate(dt: string): string {
 // ── Issued task index form ────────────────────────────────────────────────────
 
 const toast = useToast()
+const { toastError } = useApiError()
 const issuedTaskIndexPending = ref(false)
 const issuedTaskIndexState = reactive<UpdateIssuedTaskIndexRequestPayload>({ issuedTaskIndex: 0 })
 
@@ -74,30 +72,18 @@ watch(lesson, (val) => {
     issuedTaskIndexState.issuedTaskIndex = val.issuedTaskIndex
 }, { immediate: true })
 
-function getErrorMessage(e: unknown): string {
-  if (e instanceof Error)
-    return e.message
-  const err = e as { data?: { statusMessage?: string, message?: string }, message?: string }
-  return err.data?.statusMessage || err.data?.message || err.message || 'Что-то пошло не так'
-}
-
 async function onSaveIssuedTaskIndex(event: { data: UpdateIssuedTaskIndexRequestPayload }) {
   if (issuedTaskIndexPending.value)
     return
   issuedTaskIndexPending.value = true
-  try {
-    const { data: updated, error: err } = await updateIssuedTaskIndex(lessonId, event.data)
-    if (err.value || !updated.value)
-      throw err.value || new Error('Нет ответа от сервера')
-    toast.add({ title: 'Индекс выданного задания обновлён', color: 'success', icon: 'i-lucide-check' })
-    await refreshLessons()
+  const { error } = await updateLessonIssuedTaskIndex(lessonId, event.data)
+  issuedTaskIndexPending.value = false
+  if (error.value) {
+    toastError(error.value, 'Ошибка')
+    return
   }
-  catch (e) {
-    toast.add({ title: 'Ошибка', description: getErrorMessage(e), color: 'error', icon: 'i-lucide-circle-alert' })
-  }
-  finally {
-    issuedTaskIndexPending.value = false
-  }
+  toast.add({ title: 'Индекс выданного задания обновлён', color: 'success', icon: 'i-lucide-check' })
+  await refreshLessons()
 }
 
 // ── Grade editing ─────────────────────────────────────────────────────────────
@@ -131,24 +117,19 @@ async function onSaveGrade() {
   if (!editingGrade.value || gradePending.value)
     return
   gradePending.value = true
-  try {
-    const { error: err } = await upsertGrade(lessonId, editingGrade.value.taskId, {
-      studentId: editingGrade.value.studentId,
-      value: editingGrade.value.value,
-      status: editingGrade.value.status,
-    })
-    if (err.value)
-      throw err.value
-    toast.add({ title: 'Оценка сохранена', color: 'success', icon: 'i-lucide-check' })
-    closeGradeEdit()
-    await refreshGrades()
+  const { error } = await upsertLessonTaskGrade(lessonId, editingGrade.value.taskId, {
+    studentId: editingGrade.value.studentId,
+    value: editingGrade.value.value,
+    status: editingGrade.value.status,
+  })
+  gradePending.value = false
+  if (error.value) {
+    toastError(error.value, 'Ошибка')
+    return
   }
-  catch (e) {
-    toast.add({ title: 'Ошибка', description: getErrorMessage(e), color: 'error', icon: 'i-lucide-circle-alert' })
-  }
-  finally {
-    gradePending.value = false
-  }
+  toast.add({ title: 'Оценка сохранена', color: 'success', icon: 'i-lucide-check' })
+  closeGradeEdit()
+  await refreshGrades()
 }
 
 const gradeRows = computed(() => {

@@ -1,17 +1,8 @@
 <script setup lang="ts">
-import type { CreateSubjectRequestPayload, SubjectResponse } from '#shared/types/backend'
+import type { CreateSubjectRequestPayload } from '#shared/types/backend'
 import { createSubjectRequestSchema } from '#shared/types/backend'
-import { useSubjectsApi } from '~/composables/api/useSubjectsApi'
-
-interface ApiErrorPayload {
-  statusMessage?: string
-  message?: string
-}
-
-interface ApiErrorShape {
-  message?: string
-  data?: ApiErrorPayload
-}
+import { createSubject } from '~/composables/api/useSubjectsApi'
+import { useApiError } from '~/composables/useApiError'
 
 const state = reactive<CreateSubjectRequestPayload>({
   name: '',
@@ -21,9 +12,9 @@ const state = reactive<CreateSubjectRequestPayload>({
 
 const pending = ref(false)
 
-const { create } = useSubjectsApi()
 const { user } = useOidcAuth()
 const toast = useToast()
+const { toastError } = useApiError()
 
 const teacherId = computed(() => {
   const value = user.value?.sub
@@ -33,19 +24,6 @@ const teacherId = computed(() => {
 watch(teacherId, (value) => {
   state.teacherId = value ?? ''
 }, { immediate: true })
-
-function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message
-  }
-
-  if (typeof error === 'string') {
-    return error
-  }
-
-  const apiError = error as ApiErrorShape
-  return apiError.data?.statusMessage || apiError.data?.message || apiError.message || 'Failed to create subject'
-}
 
 const descriptionModel = computed<string>({
   get: () => state.description ?? '',
@@ -85,41 +63,24 @@ async function onSubmit(event: { data: CreateSubjectRequestPayload }, close: () 
   }
 
   pending.value = true
+  const { data: createdSubject, error } = await createSubject(payload)
+  pending.value = false
 
-  try {
-    const {
-      data,
-      error,
-    } = await create(payload)
-
-    if (error.value || !data.value) {
-      throw error.value || new Error('Subject was not returned by API')
-    }
-
-    const createdSubject: SubjectResponse = data.value
-
-    toast.add({
-      title: 'Subject created',
-      description: `"${createdSubject.name}" is ready.`,
-      color: 'success',
-      icon: 'i-lucide-check',
-    })
-
-    close()
-    resetForm()
-    await navigateTo(`/dashboard/subjects/${createdSubject.id}`)
+  if (error.value) {
+    toastError(error.value, 'Create failed')
+    return
   }
-  catch (error: unknown) {
-    toast.add({
-      title: 'Create failed',
-      description: getErrorMessage(error),
-      color: 'error',
-      icon: 'i-lucide-circle-alert',
-    })
-  }
-  finally {
-    pending.value = false
-  }
+
+  toast.add({
+    title: 'Subject created',
+    description: `"${createdSubject.value!.name}" is ready.`,
+    color: 'success',
+    icon: 'i-lucide-check',
+  })
+
+  close()
+  resetForm()
+  await navigateTo(`/dashboard/subjects/${createdSubject.value!.id}`)
 }
 </script>
 

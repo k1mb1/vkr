@@ -1,9 +1,8 @@
 import type { SubjectResponse } from '#shared/types/backend'
-import { useSubjectsApi } from '~/composables/api/useSubjectsApi'
+import { useSubjectsByTeacher } from '~/composables/api/useSubjectsApi'
 
 export const useSubjectsStore = defineStore('subjects', () => {
   const { user } = useOidcAuth()
-  const { findAllByTeacherId } = useSubjectsApi()
 
   const teacherId = computed(() => {
     const value = user.value?.sub
@@ -17,14 +16,14 @@ export const useSubjectsStore = defineStore('subjects', () => {
     pending: activeSubjectsPending,
     error: activeSubjectsError,
     refresh: refreshActiveSubjects,
-  } = findAllByTeacherId(safeTeacherId, { archived: false }, { immediate: false })
+  } = useSubjectsByTeacher(safeTeacherId, { archived: false }, { immediate: false })
 
   const {
     data: archivedSubjectsData,
     pending: archivedSubjectsPending,
     error: archivedSubjectsError,
     refresh: refreshArchivedSubjects,
-  } = findAllByTeacherId(safeTeacherId, { archived: true }, { immediate: false })
+  } = useSubjectsByTeacher(safeTeacherId, { archived: true }, { immediate: false })
 
   const archivedLoaded = ref(false)
   const activeSubject = ref<SubjectResponse | null>(null)

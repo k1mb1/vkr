@@ -2,7 +2,7 @@
 import type { LessonResponse, LessonType } from '#shared/types/backend'
 import type { TableColumn } from '@nuxt/ui'
 import { h, resolveComponent } from 'vue'
-import { useLessonsApi } from '~/composables/api/useLessonsApi'
+import { useLessons } from '~/composables/api/useLessonsApi'
 
 const route = useRoute()
 const subjectId = computed(() => String(route.params.subjectId ?? ''))
@@ -10,8 +10,7 @@ const subjectId = computed(() => String(route.params.subjectId ?? ''))
 const UButton = resolveComponent('UButton')
 const UBadge = resolveComponent('UBadge')
 
-const { findAll } = useLessonsApi()
-const { data, pending, error, refresh } = findAll({ filter: { subjectId: subjectId.value } })
+const { data, pending, error, refresh } = useLessons({ filter: { subjectId: subjectId.value } })
 
 const searchQuery = ref('')
 

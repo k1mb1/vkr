@@ -9,72 +9,46 @@ import type {
   UpdateGroupRequestPayload,
 } from '#shared/types/backend'
 import type { MaybeRefOrGetter } from 'vue'
-import type { BackendFetchResult } from '~/composables/useBackendFetch'
-import {
-  createGroupRequestSchema,
-  DEFAULT_PAGE_REQUEST,
-  toPageQuery,
-  updateGroupRequestSchema,
-} from '#shared/types/backend'
+import type { BackendFetchResult, BackendResult } from '~/composables/useBackendFetch'
+import { DEFAULT_PAGE_REQUEST, toPageQuery } from '#shared/types/backend'
 import { toValue } from 'vue'
-import { useBackendFetch } from '~/composables/useBackendFetch'
+import { $backendFetch, useBackendFetch } from '~/composables/useBackendFetch'
 
-export function useStudentsGroupsApi() {
-  const findAll = (
-    request: MaybeRefOrGetter<PageRequest<FindGroupsFilter>> = DEFAULT_PAGE_REQUEST,
-  ): BackendFetchResult<PageResponse<StudentGroupPageResponse>> => {
-    return useBackendFetch<PageResponse<StudentGroupPageResponse>, undefined, PageQuery>(`/groups`, {
-      method: 'GET',
-      query: () => toPageQuery(toValue(request)),
-    })
-  }
+export function useStudentGroups(
+  request: MaybeRefOrGetter<PageRequest<FindGroupsFilter>> = DEFAULT_PAGE_REQUEST,
+): BackendFetchResult<PageResponse<StudentGroupPageResponse>> {
+  return useBackendFetch<PageResponse<StudentGroupPageResponse>>(`/groups`, {
+    method: 'GET',
+    query: () => toPageQuery(toValue(request)) as PageQuery,
+  })
+}
 
-  const create = (
-    payload: MaybeRefOrGetter<CreateGroupRequestPayload>,
-  ): BackendFetchResult<StudentGroupResponse> => {
-    return useBackendFetch<StudentGroupResponse, CreateGroupRequestPayload>(`/groups`, {
-      method: 'POST',
-      body: () => toValue(payload),
-      bodySchema: createGroupRequestSchema,
-    })
-  }
+export function useStudentGroup(
+  groupId: MaybeRefOrGetter<string>,
+): BackendFetchResult<StudentGroupResponse> {
+  return useBackendFetch<StudentGroupResponse>(() => `/groups/${toValue(groupId)}`, {
+    method: 'GET',
+  })
+}
 
-  const findById = (
-    groupId: MaybeRefOrGetter<string>,
-  ): BackendFetchResult<StudentGroupResponse> => {
-    return useBackendFetch<StudentGroupResponse, undefined>(() => `/groups/${toValue(groupId)}`, {
-      method: 'GET',
-    })
-  }
+export function createStudentGroup(
+  payload: CreateGroupRequestPayload,
+): Promise<BackendResult<StudentGroupResponse>> {
+  return $backendFetch<StudentGroupResponse>(`/groups`, { method: 'POST', body: payload })
+}
 
-  const update = (
-    groupId: MaybeRefOrGetter<string>,
-    payload: MaybeRefOrGetter<UpdateGroupRequestPayload>,
-  ): BackendFetchResult<StudentGroupResponse> => {
-    return useBackendFetch<StudentGroupResponse, UpdateGroupRequestPayload>(
-      () => `/groups/${toValue(groupId)}`,
-      {
-        method: 'PATCH',
-        body: () => toValue(payload),
-        bodySchema: updateGroupRequestSchema,
-      },
-    )
-  }
+export function updateStudentGroup(
+  groupId: MaybeRefOrGetter<string>,
+  payload: UpdateGroupRequestPayload,
+): Promise<BackendResult<StudentGroupResponse>> {
+  return $backendFetch<StudentGroupResponse>(`/groups/${toValue(groupId)}`, {
+    method: 'PATCH',
+    body: payload,
+  })
+}
 
-  const remove = (
-    groupId: MaybeRefOrGetter<string>,
-  ): BackendFetchResult<undefined> => {
-    return useBackendFetch<undefined, null>(() => `/groups/${toValue(groupId)}`, {
-      method: 'DELETE',
-      body: null,
-    })
-  }
-
-  return {
-    findAll,
-    create,
-    findById,
-    update,
-    remove,
-  }
+export function deleteStudentGroup(
+  groupId: MaybeRefOrGetter<string>,
+): Promise<BackendResult<void>> {
+  return $backendFetch<void>(`/groups/${toValue(groupId)}`, { method: 'DELETE' })
 }

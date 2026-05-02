@@ -1,23 +1,21 @@
 <script setup lang="ts">
 import type { StudentGroupResponse } from '#shared/types/backend'
 import type { TableColumn, TabsItem } from '@nuxt/ui'
-import { useStudentsApi } from '~/composables/api/useStudentsApi'
-import { useStudentsGroupsApi } from '~/composables/api/useStudentsGroups'
+import { deleteStudent, updateStudent } from '~/composables/api/useStudentsApi'
+import { useStudentGroup } from '~/composables/api/useStudentsGroups'
 
 const route = useRoute()
 const groupId = computed(() => String(route.params.uuid ?? ''))
 const activeGroupName = useState<string | null>('groups-active-name', () => null)
 const toast = useToast()
-
-const { findById } = useStudentsGroupsApi()
-const studentsApi = useStudentsApi()
+const { toastError } = useApiError()
 
 const {
   data,
   pending,
   error,
   refresh,
-} = findById(groupId)
+} = useStudentGroup(groupId)
 
 const group = computed<StudentGroupResponse | null>(() => data.value ?? null)
 const _studentsCount = computed(() => group.value?.students?.length ?? 0)
@@ -199,15 +197,6 @@ const removePending = ref(false)
 const deletingStudentId = ref<string | null>(null)
 const deletePending = ref(false)
 
-function getErrorMessage(error: unknown): string {
-  if (error instanceof Error)
-    return error.message
-  if (typeof error === 'string')
-    return error
-  const e = error as { data?: { statusMessage?: string, message?: string }, message?: string }
-  return e.data?.statusMessage || e.data?.message || e.message || 'Что-то пошло не так'
-}
-
 function openEditStudent(student: { id: string, username: string }) {
   editingStudent.value = { ...student }
   editUsername.value = student.username
@@ -222,60 +211,45 @@ async function onRenameStudent() {
   if (!editingStudent.value || editPending.value)
     return
   editPending.value = true
-  try {
-    const { error: err } = await studentsApi.update(editingStudent.value.id, { username: editUsername.value.trim() })
-    if (err.value)
-      throw err.value
-    toast.add({ title: 'Студент переименован', color: 'success', icon: 'i-lucide-check' })
-    closeEditStudent()
-    await refresh()
+  const { error } = await updateStudent(editingStudent.value.id, { username: editUsername.value.trim() })
+  editPending.value = false
+  if (error.value) {
+    toastError(error.value, 'Ошибка')
+    return
   }
-  catch (e) {
-    toast.add({ title: 'Ошибка', description: getErrorMessage(e), color: 'error', icon: 'i-lucide-circle-alert' })
-  }
-  finally {
-    editPending.value = false
-  }
+  toast.add({ title: 'Студент переименован', color: 'success', icon: 'i-lucide-check' })
+  closeEditStudent()
+  await refresh()
 }
 
 async function onRemoveFromGroup() {
   if (!removingStudentId.value || removePending.value)
     return
   removePending.value = true
-  try {
-    const { error: err } = await studentsApi.update(removingStudentId.value, { groupId: null })
-    if (err.value)
-      throw err.value
-    toast.add({ title: 'Студент убран из группы', color: 'success', icon: 'i-lucide-check' })
-    removingStudentId.value = null
-    await refresh()
+  const { error } = await updateStudent(removingStudentId.value, { groupId: null })
+  removePending.value = false
+  if (error.value) {
+    toastError(error.value, 'Ошибка')
+    return
   }
-  catch (e) {
-    toast.add({ title: 'Ошибка', description: getErrorMessage(e), color: 'error', icon: 'i-lucide-circle-alert' })
-  }
-  finally {
-    removePending.value = false
-  }
+  toast.add({ title: 'Студент убран из группы', color: 'success', icon: 'i-lucide-check' })
+  removingStudentId.value = null
+  await refresh()
 }
 
 async function onDeleteStudent() {
   if (!deletingStudentId.value || deletePending.value)
     return
   deletePending.value = true
-  try {
-    const { error: err } = await studentsApi.remove(deletingStudentId.value)
-    if (err.value)
-      throw err.value
-    toast.add({ title: 'Студент удалён', color: 'success', icon: 'i-lucide-check' })
-    deletingStudentId.value = null
-    await refresh()
+  const { error } = await deleteStudent(deletingStudentId.value)
+  deletePending.value = false
+  if (error.value) {
+    toastError(error.value, 'Ошибка')
+    return
   }
-  catch (e) {
-    toast.add({ title: 'Ошибка', description: getErrorMessage(e), color: 'error', icon: 'i-lucide-circle-alert' })
-  }
-  finally {
-    deletePending.value = false
-  }
+  toast.add({ title: 'Студент удалён', color: 'success', icon: 'i-lucide-check' })
+  deletingStudentId.value = null
+  await refresh()
 }
 
 function getStudentActions(row: StudentTableRow) {

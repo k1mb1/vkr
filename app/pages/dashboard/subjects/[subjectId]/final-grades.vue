@@ -2,13 +2,12 @@
 import type { FinalGradeResponse } from '#shared/types/backend'
 import type { TableColumn } from '@nuxt/ui'
 import { h, resolveComponent } from 'vue'
-import { useSubjectsApi } from '~/composables/api/useSubjectsApi'
+import { useSubjectFinalGrades } from '~/composables/api/useSubjectsApi'
 
 const route = useRoute()
 const subjectId = computed(() => String(route.params.subjectId ?? ''))
 
-const { findFinalGrades } = useSubjectsApi()
-const { data: gradesData, pending, error, refresh } = findFinalGrades(subjectId)
+const { data: gradesData, pending, error, refresh } = useSubjectFinalGrades(subjectId)
 
 const UBadge = resolveComponent('UBadge')
 

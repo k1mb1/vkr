@@ -1,165 +1,76 @@
-import type { PageRequest } from '#shared/types/backend'
-import type { BaseIssue, BaseSchema } from 'valibot'
-import type { MaybeRefOrGetter } from 'vue'
-import { toPageQuery } from '#shared/types/backend'
-import { useFetch } from 'nuxt/app'
-import * as v from 'valibot'
-import { toValue } from 'vue'
+import type { useFetch } from 'nuxt/app'
+import type { FetchError } from 'ofetch'
+import type { MaybeRefOrGetter, Ref } from 'vue'
+import { ref, toValue } from 'vue'
 
-type QueryPrimitive = string | number | boolean | null | undefined
-type QueryValue = QueryPrimitive | QueryPrimitive[]
-type BackendBody = BodyInit | object | null | undefined
-
-type UseFetchOptionsFor<Response> = NonNullable<Parameters<typeof useFetch<Response>>[1]>
-type BackendFetchResult<Response> = ReturnType<typeof useFetch<Response>>
-
-type BackendQuery = object
-type BackendQueryRecord = Record<string, QueryValue>
-
-type ValibotSchema<T> = BaseSchema<unknown, T, BaseIssue<unknown>>
-
-type BackendFetchQueryInput<Query extends BackendQuery> = MaybeRefOrGetter<Query | undefined>
-type BackendFetchBodyInput<Body extends BackendBody> = MaybeRefOrGetter<Body | undefined>
-type BackendFetchBodySchemaInput<Body extends BackendBody> = MaybeRefOrGetter<ValibotSchema<Body> | undefined>
-type BackendFetchHeadersInput = MaybeRefOrGetter<HeadersInit | undefined>
-type BackendFetchRequiresAuthInput = MaybeRefOrGetter<boolean | undefined>
-
-type BackendFetchOptions<
-  Response,
-  Body extends BackendBody,
-  Query extends BackendQuery,
-> = Omit<UseFetchOptionsFor<Response>, 'query' | 'body' | 'headers' | 'method'> & {
-  method?: MaybeRefOrGetter<string>
-  query?: BackendFetchQueryInput<Query>
-  body?: BackendFetchBodyInput<Body>
-  bodySchema?: BackendFetchBodySchemaInput<Body>
-  headers?: BackendFetchHeadersInput
-  requiresAuth?: BackendFetchRequiresAuthInput
+type UseFetchOptionsFor<T> = NonNullable<Parameters<typeof useFetch<T>>[1]>
+type BackendFetchResult<T> = ReturnType<typeof useFetch<T>>
+type BackendFetchOptions<T> = UseFetchOptionsFor<T> & {
+  requiresAuth?: MaybeRefOrGetter<boolean>
 }
 
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return Object.prototype.toString.call(value) === '[object Object]'
-}
+const _useProxyFetch = createUseFetch({ baseURL: '/api/proxy' })
 
-function validateObjectBody<Body extends BackendBody>(
-  body: Body | undefined,
-  bodySchema: ValibotSchema<Body> | undefined,
-): Body | undefined {
-  if (!bodySchema || !isPlainObject(body)) {
-    return body
-  }
-
-  const result = v.safeParse(bodySchema, body)
-
-  if (!result.success) {
-    const issues = result.issues
-      .map(issue => `${issue.path?.map(p => String(p.key)).join('.') || '(root)'}: ${issue.message}`)
-      .join('; ')
-
-    throw new TypeError(`Invalid request body: ${issues}`)
-  }
-
-  return result.output as Body
-}
-
-function buildHeaders(headers?: HeadersInit): Headers {
-  return new Headers(headers)
-}
-
-function isQueryPrimitive(value: unknown): value is QueryPrimitive {
-  return value === null || value === undefined || ['string', 'number', 'boolean'].includes(typeof value)
-}
-
-function toQueryValue(value: unknown): QueryValue {
-  if (isQueryPrimitive(value)) {
-    return value
-  }
-
-  if (Array.isArray(value) && value.every(isQueryPrimitive)) {
-    return value
-  }
-
-  return JSON.stringify(value)
-}
-
-function isPageRequestQuery(query: BackendQuery | undefined): query is PageRequest<unknown> {
-  if (!query || typeof query !== 'object' || Array.isArray(query)) {
-    return false
-  }
-
-  return 'page' in query || 'size' in query || 'filter' in query || 'sort' in query
-}
-
-function toRequestQueryRecord(query: BackendQuery | undefined): BackendQueryRecord {
-  if (!query || typeof query !== 'object' || Array.isArray(query)) {
-    return {}
-  }
-
-  if (isPageRequestQuery(query)) {
-    return toPageQuery(query)
-  }
-
-  return Object.fromEntries(
-    Object.entries(query).map(([key, value]) => [key, toQueryValue(value)]),
-  )
-}
-
-function resolvePath(url: string | (() => string)): string {
-  const value = typeof url === 'function' ? url() : url
-  return value.startsWith('/') ? value : `/${value}`
-}
-
-function useBackendFetch<
-  Response,
-  Body extends BackendBody = undefined,
-  Query extends BackendQuery = BackendQuery,
->(
+function useBackendFetch<T>(
   url: string | (() => string),
-  options: BackendFetchOptions<Response, Body, Query> = {},
-): BackendFetchResult<Response> {
-  const {
-    headers,
-    requiresAuth,
-    query,
-    body,
-    bodySchema,
-    ...useFetchOptions
-  } = options
+  { requiresAuth, headers, ...opts }: BackendFetchOptions<T> = {},
+): BackendFetchResult<T> {
+  let requestHeaders: HeadersInit | Headers | undefined = headers as HeadersInit | undefined
 
-  const resolvedHeaders = toValue(headers)
-  const resolvedRequiresAuth = toValue(requiresAuth) ?? true
-  const resolvedQuery = toValue(query)
-  const resolvedBody = toValue(body)
-  const resolvedBodySchema = toValue(bodySchema)
-  const validatedBody = validateObjectBody(resolvedBody, resolvedBodySchema)
-
-  const requestHeaders = buildHeaders(resolvedHeaders)
-  const targetPath = resolvePath(url)
-  const requestQuery: { path: string } & Record<string, QueryValue> = {
-    path: targetPath,
-    ...toRequestQueryRecord(resolvedQuery),
+  if (!(toValue(requiresAuth) ?? true)) {
+    const h = new Headers(headers as HeadersInit | undefined)
+    h.set('x-proxy-auth-optional', 'true')
+    requestHeaders = h
   }
 
-  if (!resolvedRequiresAuth) {
-    requestHeaders.set('x-proxy-auth-optional', 'true')
-  }
-
-  const fetchOptions: UseFetchOptionsFor<Response> = {
-    ...(useFetchOptions as Omit<UseFetchOptionsFor<Response>, 'query' | 'body' | 'headers'>),
+  return _useProxyFetch<T>(url as string, {
+    ...opts,
     headers: requestHeaders,
-    query: requestQuery,
-    body: validatedBody,
+  }) as BackendFetchResult<T>
+}
+
+type BackendResultStatus = 'idle' | 'pending' | 'success' | 'error'
+
+interface BackendResult<T> {
+  data: Ref<T | null>
+  error: Ref<FetchError | null>
+  status: Ref<BackendResultStatus>
+  refresh: () => Promise<void>
+  clear: () => void
+}
+
+async function $backendFetch<T>(
+  url: string,
+  opts?: Parameters<typeof $fetch>[1],
+): Promise<BackendResult<T>> {
+  const data = ref<T | null>(null) as Ref<T | null>
+  const error = ref<FetchError | null>(null) as Ref<FetchError | null>
+  const status = ref<BackendResultStatus>('idle')
+
+  const refresh = async () => {
+    status.value = 'pending'
+    error.value = null
+    data.value = null
+    try {
+      data.value = await $fetch<T>(url, { ...opts, baseURL: '/api/proxy' })
+      status.value = 'success'
+    }
+    catch (e) {
+      error.value = e as FetchError
+      status.value = 'error'
+    }
   }
 
-  return useFetch<Response>('/api/proxy', fetchOptions)
+  const clear = () => {
+    data.value = null
+    error.value = null
+    status.value = 'idle'
+  }
+
+  await refresh()
+
+  return { data, error, status, refresh, clear }
 }
 
-export {
-  useBackendFetch,
-}
-
-export type {
-  BackendFetchOptions,
-  BackendFetchResult,
-  BackendQuery,
-}
+export { $backendFetch, useBackendFetch }
+export type { BackendFetchOptions, BackendFetchResult, BackendResult, BackendResultStatus }
