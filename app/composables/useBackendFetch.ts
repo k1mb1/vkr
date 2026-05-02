@@ -11,7 +11,7 @@ type BackendFetchOptions<T> = UseFetchOptionsFor<T> & {
 
 function useBackendFetch<T>(
   url: string | (() => string),
-  { requiresAuth, headers, ...opts }: BackendFetchOptions<T> = {},
+  { requiresAuth, headers, query, ...opts }: BackendFetchOptions<T> = {},
 ): BackendFetchResult<T> {
   let requestHeaders: HeadersInit | Headers | undefined = headers as HeadersInit | undefined
 
@@ -21,9 +21,12 @@ function useBackendFetch<T>(
     requestHeaders = h
   }
 
+  const resolvedQuery = query !== undefined ? toValue(query) : undefined
+
   return useFetch<T>(url as string, {
     baseURL: '/api/proxy',
     ...opts,
+    query: resolvedQuery,
     headers: requestHeaders,
   }) as BackendFetchResult<T>
 }
