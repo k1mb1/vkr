@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import type { AttachGroupToSubjectResponse, UpdateSubjectRequestPayload } from '#shared/types/backend'
+import type { UpdateSubjectRequestPayload } from '#shared/types/backend'
 import { updateSubjectRequestSchema } from '#shared/types/backend'
 import { ref } from 'vue'
-import { useStudentGroups } from '~/composables/api/useStudentsGroups'
-import { attachGroupToSubject, deleteSubject, updateSubject } from '~/composables/api/useSubjectsApi'
+import { deleteSubject, updateSubject, useSubjectAttendance } from '~/composables/api/useSubjectsApi'
 import { useSubjectsStore } from '~/stores/subjects'
 
 const subjectsStore = useSubjectsStore()
@@ -47,38 +46,8 @@ async function onSaveInfo(event: { data: UpdateSubjectRequestPayload }) {
   toast.add({ title: 'Изменения сохранены', color: 'success', icon: 'i-lucide-check' })
 }
 
-// ── Attach group ──────────────────────────────────────────────────────────────
-
-const { data: groupsData, pending: groupsPending } = useStudentGroups({ size: 100 })
-
-const groupOptions = computed(() =>
-  (groupsData.value?.content ?? [])
-    .map(g => ({ label: g.name, value: g.id })),
-)
-
-const selectedGroupId = ref<string | undefined>(undefined)
-const attachPending = ref(false)
-const lastAttachResult = ref<AttachGroupToSubjectResponse | null>(null)
-
-async function onAttachGroup() {
-  if (!selectedGroupId.value || attachPending.value)
-    return
-  attachPending.value = true
-  const { data: result, error } = await attachGroupToSubject(subjectId.value, selectedGroupId.value)
-  attachPending.value = false
-  if (error.value) {
-    toastError(error.value, 'Ошибка')
-    return
-  }
-  lastAttachResult.value = result.value
-  toast.add({
-    title: 'Группа прикреплена',
-    description: `${result.value!.groupName}: добавлено ${result.value!.addedStudentsCount} студентов. Всего: ${result.value!.totalStudentsInSubject}.`,
-    color: 'success',
-    icon: 'i-lucide-check',
-  })
-  selectedGroupId.value = undefined
-}
+const { data: attendanceData, pending: studentsPending } = useSubjectAttendance(subjectId)
+const attachedStudents = computed(() => attendanceData.value?.students ?? [])
 
 // ── Archive / Unarchive ───────────────────────────────────────────────────────
 
@@ -197,49 +166,30 @@ async function onDeleteConfirm(close: () => void) {
       </UForm>
     </UCard>
 
-    <!-- 2. Прикрепить группу -->
+    <!-- 2. Студенты -->
     <UCard>
       <template #header>
         <div>
           <h2 class="font-semibold">
-            Прикрепить группу
+            Студенты
           </h2>
           <p class="mt-0.5 text-sm text-muted">
-            Студенты выбранной группы будут добавлены к предмету.
+            Прикрепляйте группы и просматривайте студентов предмета.
           </p>
         </div>
       </template>
 
-      <div class="flex flex-wrap items-end gap-3">
-        <USelectMenu
-          v-model="selectedGroupId"
-          :items="groupOptions"
-          value-key="value"
-          searchable
-          :loading="groupsPending"
-          :disabled="groupsPending || attachPending"
-          placeholder="Выберите группу"
-          class="w-64"
-        />
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2 text-sm">
+          <UIcon name="i-lucide-users" class="size-4 text-muted" />
+          <span v-if="studentsPending" class="text-muted">Загрузка...</span>
+          <span v-else>
+            Прикреплено студентов:
+            <strong>{{ attachedStudents.length }}</strong>
+          </span>
+        </div>
 
-        <UButton
-          icon="i-lucide-link"
-          :loading="attachPending"
-          :disabled="!selectedGroupId || attachPending"
-          @click="onAttachGroup"
-        >
-          Прикрепить
-        </UButton>
-      </div>
-
-      <div v-if="lastAttachResult" class="mt-4">
-        <UAlert
-          color="success"
-          variant="soft"
-          icon="i-lucide-users"
-          :title="`Группа «${lastAttachResult.groupName}» прикреплена`"
-          :description="`Добавлено студентов: ${lastAttachResult.addedStudentsCount}. Всего в предмете: ${lastAttachResult.totalStudentsInSubject}.`"
-        />
+        <SubjectStudentsModal :subject-id="subjectId" />
       </div>
     </UCard>
 

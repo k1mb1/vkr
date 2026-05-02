@@ -18,18 +18,12 @@ const allLessons = computed<LessonResponse[]>(() => {
   return []
 })
 
-const activeType = ref<string>('')
-const hasLoaded = ref(false)
+const activeType = ref<string>('ALL')
 
-const { data, pending, error, execute, refresh } = useBackendFetch<SubjectAttendanceResponse>(
+const { data, pending, error, refresh } = useBackendFetch<SubjectAttendanceResponse>(
   () => `/subjects/${subjectId.value}/attendance`,
-  {
-    method: 'GET',
-    immediate: false,
-  },
+  { method: 'GET' },
 )
-
-const tableData = computed(() => data.value)
 
 const LESSON_TYPE_LABELS: Record<LessonType, string> = {
   NONE: 'Без типа',
@@ -48,9 +42,8 @@ const typeTabs = computed(() => {
   if (lessons.length === 0)
     return []
 
-  const allCount = lessons.length
   const tabs = [
-    { label: 'Все', value: 'ALL', icon: 'i-lucide-layout-grid', badge: allCount || undefined },
+    { label: 'Все', value: 'ALL', icon: 'i-lucide-layout-grid', badge: lessons.length || undefined },
   ]
 
   for (const type of LESSON_TYPES) {
@@ -67,15 +60,6 @@ const typeTabs = computed(() => {
 
   return tabs
 })
-
-watch(activeType, async (val) => {
-  if (!val)
-    return
-  if (!hasLoaded.value && !pending.value) {
-    await execute()
-    hasLoaded.value = true
-  }
-})
 </script>
 
 <template>
@@ -85,7 +69,6 @@ watch(activeType, async (val) => {
         Посещаемость
       </h1>
       <UButton
-        v-if="hasLoaded"
         color="neutral"
         variant="ghost"
         icon="i-lucide-refresh-cw"
@@ -103,15 +86,6 @@ watch(activeType, async (val) => {
       :content="false"
     />
 
-    <div v-else-if="!lessonsPending && allLessons.length === 0" class="py-12">
-      <UEmpty
-        icon="i-lucide-book-open"
-        title="Нет занятий"
-        description="Создайте занятия, чтобы увидеть посещаемость."
-        variant="naked"
-      />
-    </div>
-
     <UAlert
       v-if="error"
       color="error"
@@ -121,18 +95,18 @@ watch(activeType, async (val) => {
       :description="error.message"
     />
 
-    <div v-if="activeType && !hasLoaded && !pending" class="py-12">
+    <div v-if="!lessonsPending && !pending && allLessons.length === 0" class="py-12">
       <UEmpty
-        icon="i-lucide-mouse-pointer-click"
-        title="Данные не загружены"
-        description="Кликните на вкладку выше, чтобы загрузить и отобразить данные посещаемости."
+        icon="i-lucide-book-open"
+        title="Нет занятий"
+        description="Создайте занятия, чтобы увидеть посещаемость."
         variant="naked"
       />
     </div>
 
     <AttendanceTable
-      v-if="hasLoaded"
-      :data="tableData"
+      v-if="!error && allLessons.length > 0"
+      :data="data"
       :loading="pending"
       :active-type="activeType"
       @refresh="refresh"

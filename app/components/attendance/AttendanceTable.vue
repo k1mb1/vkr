@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { PresenceType, SubjectAttendanceResponse } from '#shared/types/backend'
-import type { TableColumn } from '@nuxt/ui'
+import type { LessonType, PresenceType, SubjectAttendanceResponse } from '#shared/types/backend'
+import type { DropdownMenuItem, TableColumn } from '@nuxt/ui'
 import { PRESENCE_TYPES } from '#shared/types/backend'
 import { h, resolveComponent } from 'vue'
 import { upsertLessonAttendance } from '~/composables/api/useAttendanceApi'
@@ -24,6 +24,8 @@ const { toastError } = useApiError()
 
 const UButton = resolveComponent('UButton')
 const UBadge = resolveComponent('UBadge')
+const UDropdownMenu = resolveComponent('UDropdownMenu')
+const UIcon = resolveComponent('UIcon')
 
 const PRESENCE_META: Record<
   PresenceType,
@@ -49,6 +51,12 @@ const PRESENCE_META: Record<
     label: 'Отсутствовал',
     color: 'error',
   },
+}
+
+const LESSON_TYPE_ICONS: Record<LessonType, string> = {
+  NONE: 'i-lucide-minus',
+  LECTURE: 'i-lucide-presentation',
+  PRACTICE: 'i-lucide-code-xml',
 }
 
 const searchQuery = ref('')
@@ -94,6 +102,33 @@ const rows = computed<AttendanceRow[]>(() => {
   })
 })
 
+const stats = computed(() => {
+  const lessons = filteredLessons.value
+  const students = rows.value
+  if (lessons.length === 0 || students.length === 0)
+    return null
+
+  let present = 0
+  let late = 0
+  const total = lessons.length * students.length
+
+  for (const student of students) {
+    for (const lesson of lessons) {
+      const p = (student[lesson.lessonId] as PresenceType) ?? 'NONE'
+      if (p === 'PRESENT')
+        present++
+      else if (p === 'LATE')
+        late++
+    }
+  }
+
+  const attended = present + late
+  const pct = total > 0 ? Math.round((attended / total) * 100) : null
+  const color = pct === null ? 'neutral' : pct >= 80 ? 'success' : pct >= 60 ? 'warning' : 'error'
+
+  return { studentCount: students.length, lessonCount: lessons.length, attended, total, pct, color }
+})
+
 interface LessonSummary {
   present: number
   late: number
@@ -129,6 +164,7 @@ const lessonSummaries = computed<Record<string, LessonSummary>>(() => {
         }
         default: {
           summary.none++
+          break
         }
       }
     }
@@ -143,22 +179,14 @@ function getLessonSummary(lessonId: string): LessonSummary {
 
 const upsertPending = ref<Set<string>>(new Set())
 
-function nextPresence(current: PresenceType): PresenceType {
-  const idx = PRESENCE_TYPES.indexOf(current)
-  if (idx === -1)
-    return 'NONE'
-  return PRESENCE_TYPES[(idx + 1) % PRESENCE_TYPES.length]!
-}
-
-async function onToggleAttendance(lessonId: string, studentId: string, current: PresenceType) {
+async function onSetAttendance(lessonId: string, studentId: string, presence: PresenceType) {
   const key = `${lessonId}:${studentId}`
   if (upsertPending.value.has(key))
     return
-  const next = nextPresence(current)
   upsertPending.value.add(key)
   const { error } = await upsertLessonAttendance(lessonId, {
     studentId,
-    presence: next,
+    presence,
     note: null,
   })
   upsertPending.value.delete(key)
@@ -176,6 +204,47 @@ function lessonDateLabel(dateTime: string | null): string {
   return new Date(dateTime).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
 }
 
+const summaryColumn = computed<TableColumn<AttendanceRow>>(() => ({
+  accessorKey: '__summary',
+  header: () => h('div', { class: 'text-center text-xs font-medium' }, 'Итого'),
+  footer: () => {
+    const s = stats.value
+    if (!s)
+      return h('span', { class: 'text-xs text-muted' }, '—')
+    return h('div', { class: 'flex flex-col items-center gap-0.5' }, [
+      h(UBadge, { color: s.color, variant: 'subtle', size: 'sm', label: s.pct !== null ? `${s.pct}%` : '—' }),
+      h('span', { class: 'text-[10px] text-muted' }, `${s.attended}/${s.total}`),
+    ])
+  },
+  meta: {
+    class: {
+      th: 'w-20 min-w-20 sticky right-0 bg-default z-20 text-center',
+      td: 'w-20 min-w-20 sticky right-0 bg-default z-10',
+    },
+  },
+  cell: ({ row }) => {
+    const lessons = filteredLessons.value
+    let present = 0
+    let late = 0
+    for (const lesson of lessons) {
+      const p = (row.original[lesson.lessonId] as PresenceType) ?? 'NONE'
+      if (p === 'PRESENT')
+        present++
+      else if (p === 'LATE')
+        late++
+    }
+    const total = lessons.length
+    const attended = present + late
+    const pct = total > 0 ? Math.round((attended / total) * 100) : null
+    const color = pct === null ? 'neutral' : pct >= 80 ? 'success' : pct >= 60 ? 'warning' : 'error'
+
+    return h('div', { class: 'flex flex-col items-center gap-0.5 py-1' }, [
+      h(UBadge, { color, variant: 'subtle', size: 'sm', label: pct !== null ? `${pct}%` : '—' }),
+      h('span', { class: 'text-[10px] text-muted' }, `${attended}/${total}`),
+    ])
+  },
+}))
+
 const lessonColumns = computed<TableColumn<AttendanceRow>[]>(() => {
   const d = props.data
   if (!d)
@@ -183,7 +252,10 @@ const lessonColumns = computed<TableColumn<AttendanceRow>[]>(() => {
   return filteredLessons.value.map(lesson => ({
     accessorKey: lesson.lessonId,
     header: () => h('div', { class: 'flex flex-col items-center gap-0.5' }, [
-      h('span', { class: 'text-xs font-medium' }, lesson.lessonName),
+      h('div', { class: 'flex items-center gap-1' }, [
+        h(UIcon, { name: LESSON_TYPE_ICONS[lesson.type as LessonType] ?? 'i-lucide-minus', class: 'size-3 text-muted shrink-0' }),
+        h('span', { class: 'text-xs font-medium truncate max-w-16' }, lesson.lessonName),
+      ]),
       h('span', { class: 'text-[10px] text-muted' }, lessonDateLabel(lesson.dateTime)),
     ]),
     footer: () => {
@@ -214,17 +286,37 @@ const lessonColumns = computed<TableColumn<AttendanceRow>[]>(() => {
       const presence = (row.original[lesson.lessonId] as PresenceType) ?? 'NONE'
       const meta = PRESENCE_META[presence]
       const isPending = upsertPending.value.has(`${lesson.lessonId}:${row.original.studentId}`)
-      return h('div', { class: 'flex h-full w-full items-center justify-center' }, [
-        h(UButton, {
-          icon: meta.icon,
-          color: meta.color,
-          variant: presence === 'NONE' ? 'ghost' : 'soft',
-          size: 'sm',
-          square: true,
-          title: meta.label,
-          loading: isPending,
+
+      const dropdownItems: DropdownMenuItem[][] = [[
+        ...PRESENCE_TYPES.map(type => ({
+          label: PRESENCE_META[type].label,
+          icon: PRESENCE_META[type].icon,
+          type: 'checkbox' as const,
+          checked: presence === type,
           disabled: isPending,
-          onClick: () => onToggleAttendance(lesson.lessonId, row.original.studentId, presence),
+          onSelect: (e: Event) => {
+            e.preventDefault()
+            if (presence !== type) {
+              onSetAttendance(lesson.lessonId, row.original.studentId as string, type)
+            }
+          },
+        })),
+      ]]
+
+      return h('div', { class: 'flex h-full w-full items-center justify-center' }, [
+        h(UDropdownMenu, {
+          items: dropdownItems,
+          content: { align: 'center', side: 'bottom', sideOffset: 4 },
+        }, {
+          default: () => h(UButton, {
+            icon: meta.icon,
+            color: meta.color,
+            variant: presence === 'NONE' ? 'ghost' : 'soft',
+            size: 'sm',
+            square: true,
+            loading: isPending,
+            disabled: isPending,
+          }),
         }),
       ])
     },
@@ -244,26 +336,40 @@ const columns = computed<TableColumn<AttendanceRow>[]>(() => [
     },
   },
   ...lessonColumns.value,
+  summaryColumn.value,
 ])
 </script>
 
 <template>
   <div class="flex flex-col gap-4">
-    <UInput
-      v-model="searchQuery"
-      placeholder="Поиск студентов..."
-      icon="i-lucide-search"
-      color="neutral"
-      variant="outline"
-      class="w-full sm:w-80"
-    />
+    <div class="flex flex-wrap items-center gap-3">
+      <UInput
+        v-model="searchQuery"
+        placeholder="Поиск студентов..."
+        icon="i-lucide-search"
+        color="neutral"
+        variant="outline"
+        class="w-full sm:w-80"
+      />
+      <div v-if="stats" class="flex items-center gap-3 text-sm text-muted sm:ml-auto">
+        <span>{{ stats.studentCount }} студ.</span>
+        <span>{{ stats.lessonCount }} зан.</span>
+        <UBadge
+          v-if="stats.pct !== null"
+          :color="stats.color"
+          variant="subtle"
+          size="sm"
+          :label="`${stats.pct}% посещаемость`"
+        />
+      </div>
+    </div>
 
-    <div class="flex flex-wrap items-center gap-4 text-sm text-muted">
+    <div class="flex flex-wrap items-center gap-3 text-sm text-muted">
       <UBadge color="success" variant="subtle" size="sm" icon="i-lucide-check" label="Присутствовал" />
       <UBadge color="warning" variant="subtle" size="sm" icon="i-lucide-clock" label="Опоздание" />
       <UBadge color="error" variant="subtle" size="sm" icon="i-lucide-x" label="Отсутствовал" />
       <UBadge color="neutral" variant="subtle" size="sm" icon="i-lucide-minus" label="Не отмечено" />
-      <span class="ml-auto text-xs">Кликните по ячейке, чтобы изменить статус</span>
+      <span class="ml-auto text-xs">Нажмите на ячейку для выбора статуса</span>
     </div>
 
     <div class="overflow-x-auto rounded-md border border-default">
