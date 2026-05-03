@@ -11,7 +11,6 @@ defineProps<{
     <UBadge
       :color="stats.color"
       variant="subtle"
-      size="sm"
       :label="stats.pct !== null ? `${stats.pct}%` : '—'"
     />
     <span class="text-[10px] text-muted">{{ stats.attended }}/{{ stats.total }}</span>

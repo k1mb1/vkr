@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { BadgeProps } from '@nuxt/ui'
 import type { LessonSummary } from '~/composables/attendance/useAttendanceTable'
 
 const props = defineProps<{
@@ -7,7 +8,7 @@ const props = defineProps<{
 }>()
 
 const items = computed(() => {
-  const badges: { color: string, icon: string, label: number }[] = []
+  const badges: { color: BadgeProps['color'], icon: string, label: number }[] = []
   if (props.summary.present > 0)
     badges.push({ color: 'success', icon: 'i-lucide-check', label: props.summary.present })
   if (props.summary.late > 0)
@@ -26,7 +27,7 @@ const items = computed(() => {
       <UBadge
         v-for="(badge, i) in items"
         :key="i"
-        :color="badge.color as any"
+        :color="badge.color"
         variant="subtle"
         :icon="badge.icon"
         :label="String(badge.label)"

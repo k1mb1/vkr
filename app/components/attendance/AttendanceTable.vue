@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { SubjectAttendanceResponse } from '#shared/types/backend'
+import type { PresenceType, SubjectAttendanceResponse } from '#shared/types/backend'
 import type { TableColumn } from '@nuxt/ui'
 import type { AttendanceRow } from '~/composables/attendance/useAttendanceTable'
 import { h } from 'vue'
@@ -70,7 +70,7 @@ const lessonColumns = computed<TableColumn<AttendanceRow>[]>(() => {
     cell: ({ row }) => h(AttendanceTableLessonCell, {
       lessonId: lesson.lessonId,
       studentId: row.original.studentId,
-      presence: (row.original[lesson.lessonId] as any) ?? 'NONE',
+      presence: (row.original[lesson.lessonId] as PresenceType) ?? 'NONE',
       isPending: upsertPending.value.has(`${lesson.lessonId}:${row.original.studentId}`),
       onSet: (presence: any) => onSetAttendance(lesson.lessonId, row.original.studentId, presence),
     }),

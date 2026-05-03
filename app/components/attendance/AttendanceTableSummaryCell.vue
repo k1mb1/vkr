@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { PresenceType } from '#shared/types/backend'
 import type { AttendanceRow } from '~/composables/attendance/useAttendanceTable'
 
 const props = defineProps<{
@@ -10,7 +11,7 @@ const stat = computed(() => {
   let present = 0
   let late = 0
   for (const id of props.lessonIds) {
-    const p = (props.row[id] as 'NONE' | 'PRESENT' | 'LATE' | 'NOT_PRESENT') ?? 'NONE'
+    const p = (props.row[id] as PresenceType) ?? 'NONE'
     if (p === 'PRESENT')
       present++
     else if (p === 'LATE')
@@ -29,7 +30,6 @@ const stat = computed(() => {
     <UBadge
       :color="stat.color"
       variant="subtle"
-      size="sm"
       :label="stat.pct !== null ? `${stat.pct}%` : '—'"
     />
     <span class="text-[10px] text-muted">{{ stat.attended }}/{{ stat.total }}</span>

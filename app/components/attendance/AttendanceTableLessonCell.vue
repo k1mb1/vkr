@@ -45,7 +45,6 @@ const dropdownItems = computed<DropdownMenuItem[][]>(() => [
         :icon="PRESENCE_META[presence].icon"
         :color="PRESENCE_META[presence].color"
         :variant="presence === 'NONE' ? 'ghost' : 'soft'"
-        size="sm"
         square
         :loading="isPending"
         :disabled="isPending"
