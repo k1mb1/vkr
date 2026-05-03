@@ -1,4 +1,4 @@
-import type { LessonType, PresenceType, SubjectAttendanceResponse } from '#shared/types/backend'
+import type { PresenceType, SubjectAttendanceResponse } from '#shared/types/backend'
 import type { BadgeProps } from '@nuxt/ui'
 import { PRESENCE_TYPES } from '#shared/types/backend'
 import { computed, ref } from 'vue'
@@ -35,12 +35,6 @@ export const PRESENCE_META: Record<
   PRESENT: { icon: 'i-lucide-check', label: 'Присутствовал', color: 'success' },
   LATE: { icon: 'i-lucide-clock', label: 'Опоздание', color: 'warning' },
   NOT_PRESENT: { icon: 'i-lucide-x', label: 'Отсутствовал', color: 'error' },
-}
-
-export const LESSON_TYPE_ICONS: Record<LessonType, string> = {
-  NONE: 'i-lucide-minus',
-  LECTURE: 'i-lucide-presentation',
-  PRACTICE: 'i-lucide-code-xml',
 }
 
 export function useAttendanceTable(
@@ -185,6 +179,5 @@ export function useAttendanceTable(
     onSetAttendance,
     PRESENCE_TYPES,
     PRESENCE_META,
-    LESSON_TYPE_ICONS,
   }
 }

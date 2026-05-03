@@ -24,11 +24,13 @@ const dropdownItems = computed<DropdownMenuItem[][]>(() => [
       type: 'checkbox' as const,
       checked: props.presence === type,
       disabled: props.isPending,
-      onSelect: (e: Event) => {
-        e.preventDefault()
-        if (props.presence !== type) {
+      onUpdateChecked: (checked: boolean) => {
+        if (checked && props.presence !== type) {
           emit('set', type)
         }
+      },
+      onSelect: (e: Event) => {
+        e.preventDefault()
       },
     }
   }),
@@ -36,19 +38,16 @@ const dropdownItems = computed<DropdownMenuItem[][]>(() => [
 </script>
 
 <template>
-  <div class="flex h-full w-full items-center justify-center">
-    <UDropdownMenu
-      :items="dropdownItems"
-      :content="{ align: 'center', side: 'bottom', sideOffset: 4 }"
-    >
-      <UButton
-        :icon="PRESENCE_META[presence].icon"
-        :color="PRESENCE_META[presence].color"
-        :variant="presence === 'NONE' ? 'ghost' : 'soft'"
-        square
-        :loading="isPending"
-        :disabled="isPending"
-      />
-    </UDropdownMenu>
-  </div>
+  <UDropdownMenu
+    :items="dropdownItems"
+  >
+    <UButton
+      :icon="PRESENCE_META[presence].icon"
+      :color="PRESENCE_META[presence].color"
+      variant="soft"
+      square
+      :loading="isPending"
+      :disabled="isPending"
+    />
+  </UDropdownMenu>
 </template>

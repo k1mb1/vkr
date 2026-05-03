@@ -26,12 +26,12 @@ const stat = computed(() => {
 </script>
 
 <template>
-  <div class="flex flex-col items-center gap-0.5 py-1">
+  <div class="flex flex-col w-min">
     <UBadge
       :color="stat.color"
       variant="subtle"
       :label="stat.pct !== null ? `${stat.pct}%` : '—'"
     />
-    <span class="text-[10px] text-muted">{{ stat.attended }}/{{ stat.total }}</span>
+    <span>{{ stat.attended }}/{{ stat.total }}</span>
   </div>
 </template>
