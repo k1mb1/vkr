@@ -9,7 +9,7 @@ import type { MaybeRefOrGetter } from 'vue'
 import type { BackendFetchResult } from '~/composables/useBackendFetch'
 import { toPageQuery } from '#shared/types/backend'
 import { toValue } from 'vue'
-import { $backendFetch, useBackendFetch } from '~/composables/useBackendFetch'
+import { useBackendFetch } from '~/composables/useBackendFetch'
 
 export function useStudentGroups(
   request?: MaybeRefOrGetter<PageRequest<StudentGroupFilterRequest>>,

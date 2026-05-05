@@ -3,7 +3,7 @@ import type { MaybeRefOrGetter } from 'vue'
 import { PAGE_DEFAULTS } from '#shared/types/backend'
 import { computed, ref, toValue } from 'vue'
 
-type UsePagableOptions<TFilter> = {
+interface UsePagableOptions<TFilter> {
   initialPage?: number
   pageSize?: number
   filter?: MaybeRefOrGetter<TFilter | undefined>
