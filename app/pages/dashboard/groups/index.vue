@@ -1,18 +1,12 @@
 <script setup lang="ts">
-import { PAGE_DEFAULTS } from '#shared/types/backend'
 import { useStudentGroups } from '~/composables/api/useStudentsGroups'
+import { usePagable } from '~/composables/usePagable'
 
-const page = ref(PAGE_DEFAULTS.page + 1)
-const pageSize = PAGE_DEFAULTS.size
+const { page, pageSize, request, toPageState } = usePagable()
 
-const { data, pending, error, refresh } = useStudentGroups(computed(() => ({
-  page: page.value - 1,
-  size: pageSize,
-})))
+const { data, pending, error, refresh } = useStudentGroups(request)
 
-const rows = computed(() => data.value?.content ?? [])
-const total = computed(() => data.value?.totalElements ?? 0)
-const totalPages = computed(() => data.value?.totalPages ?? 0)
+const { rows, total, totalPages } = toPageState(data)
 
 function onRefresh() {
   return refresh()
@@ -59,33 +53,11 @@ function onRefresh() {
     />
 
     <UPageGrid v-else>
-      <UPageCard
+      <GroupsGroupCard
         v-for="group in rows"
         :key="group.id"
-        :to="`/dashboard/groups/${group.id}`"
-        :title="group.name"
-        :ui="{ title: 'truncate' }"
-      >
-        <template #leading>
-          <UAvatar
-            icon="i-lucide-users"
-            class="rounded-lg bg-secondary/10 text-secondary"
-          />
-        </template>
-        <template #description>
-          {{ group.subgroupCount }} подгрупп{{ group.subgroupCount === 1 ? 'а' : group.subgroupCount > 1 && group.subgroupCount < 5 ? 'ы' : '' }}
-        </template>
-        <template #footer>
-          <div class="flex justify-end">
-            <UButton
-              color="neutral"
-              variant="link"
-              label="Открыть"
-              trailing-icon="i-lucide-chevron-right"
-            />
-          </div>
-        </template>
-      </UPageCard>
+        :group="group"
+      />
     </UPageGrid>
 
     <div v-if="totalPages > 1" class="flex justify-center">

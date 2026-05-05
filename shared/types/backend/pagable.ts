@@ -1,10 +1,12 @@
 type QueryPrimitive = string | number | boolean | null | undefined
 type QueryValue = QueryPrimitive | QueryPrimitive[]
 
-type SortingState = Array<{
-  id: string
-  desc: boolean
-}>
+type Sort = {
+  id: string;
+  desc: boolean;
+};
+
+type SortingState = Sort[];
 
 interface PageInfo {
   totalElements: number
@@ -17,11 +19,11 @@ interface PageResponse<T> extends PageInfo {
   content: T[]
 }
 
-interface PageRequest<TFilter = undefined> {
-  page?: number
-  size?: number
-  filter?: TFilter
-  sort?: SortingState
+interface PageRequest<TFilter = Record<string, never>> {
+  page?: number;
+  size?: number;
+  filter?: TFilter;
+  sort?: SortingState;
 }
 
 const PAGE_DEFAULTS = {
@@ -29,10 +31,10 @@ const PAGE_DEFAULTS = {
   size: 20,
 } as const
 
-const DEFAULT_PAGE_REQUEST: Required<Omit<PageRequest<never>, 'filter' | 'sort'>> = {
+const createDefaultPageRequest = (): Required<Omit<PageRequest<never>, 'filter' | 'sort'>> => ({
   page: PAGE_DEFAULTS.page,
   size: PAGE_DEFAULTS.size,
-}
+})
 
 type PageQuery = Record<string, QueryValue>
 
@@ -80,7 +82,7 @@ function addFilterToQuery(query: PageQuery, filter: unknown, prefix = '') {
 
 function toPageQuery<TFilter>(request: PageRequest<TFilter> = {}): PageQuery {
   const withDefaults: PageRequest<TFilter> = {
-    ...DEFAULT_PAGE_REQUEST,
+    ...createDefaultPageRequest(),
     ...request,
   }
 
@@ -103,7 +105,7 @@ function toPageQuery<TFilter>(request: PageRequest<TFilter> = {}): PageQuery {
 }
 
 export {
-  DEFAULT_PAGE_REQUEST,
+  createDefaultPageRequest,
   PAGE_DEFAULTS,
   toPageQuery,
 }

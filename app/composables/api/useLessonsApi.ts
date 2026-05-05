@@ -11,16 +11,16 @@ import type {
 } from '#shared/types/backend'
 import type { MaybeRefOrGetter } from 'vue'
 import type { BackendFetchResult, BackendResult } from '~/composables/useBackendFetch'
-import { DEFAULT_PAGE_REQUEST, toPageQuery } from '#shared/types/backend'
+import { toPageQuery } from '#shared/types/backend'
 import { toValue } from 'vue'
 import { $backendFetch, useBackendFetch } from '~/composables/useBackendFetch'
 
 export function useLessons(
-  request: MaybeRefOrGetter<PageRequest<FindLessonsFilter>> = DEFAULT_PAGE_REQUEST,
+  request?: MaybeRefOrGetter<PageRequest<FindLessonsFilter>>,
 ): BackendFetchResult<PageResponse<LessonResponse>> {
   return useBackendFetch<PageResponse<LessonResponse>>(`/lessons`, {
     method: 'GET',
-    query: () => toPageQuery(toValue(request)) as PageQuery,
+    query: () => toPageQuery(request ? toValue(request) : undefined) as PageQuery,
   })
 }
 
