@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import * as v from 'valibot'
-import type { FormSubmitEvent } from '@nuxt/ui'
 import type { CreateGroupRequestPayload } from '#shared/types/backend'
+import type { FormSubmitEvent } from '@nuxt/ui'
 import { CreateGroupRequestSchema } from '#shared/types/backend/student-groups/schemas'
 import { create } from '~/composables/api/useStudentsGroups'
 import { useApiError } from '~/composables/useApiError'
@@ -51,18 +50,21 @@ const subgroupLabel = (index: number) => `${groupName.value}${index + 1}`
 
 function addStudentsToSubgroup(sgIndex: number, raw: string) {
   const sg = subgroups.value[sgIndex]
-  if (!sg) return
+  if (!sg)
+    return
   const existing = new Set(subgroups.value.flatMap(s => s.students))
   const names = raw.split(/[\n\r\t,]+/).map(s => s.trim()).filter(Boolean)
   for (const name of names) {
-    if (!existing.has(name)) sg.students.push(name)
+    if (!existing.has(name))
+      sg.students.push(name)
   }
   sg.input = ''
 }
 
 function onSubgroupInputEnter(sgIndex: number) {
   const sg = subgroups.value[sgIndex]
-  if (!sg?.input.trim()) return
+  if (!sg?.input.trim())
+    return
   addStudentsToSubgroup(sgIndex, sg.input)
 }
 
@@ -73,7 +75,8 @@ function onSubgroupInputPaste(sgIndex: number, e: ClipboardEvent) {
 
 function removeFromSubgroup(sgIndex: number, student: string) {
   const sg = subgroups.value[sgIndex]
-  if (sg) sg.students = sg.students.filter(s => s !== student)
+  if (sg)
+    sg.students = sg.students.filter(s => s !== student)
 }
 
 function addSubgroup() {
@@ -83,14 +86,16 @@ function addSubgroup() {
 function removeSubgroup(index: number) {
   const [removed] = subgroups.value.splice(index, 1)
   const first = subgroups.value[0]
-  if (!removed || !first) return
+  if (!removed || !first)
+    return
   for (const student of removed.students) {
-    if (!first.students.includes(student)) first.students.push(student)
+    if (!first.students.includes(student))
+      first.students.push(student)
   }
 }
 
 // Drag & Drop
-const dragging = ref<{ student: string; fromIndex: number } | null>(null)
+const dragging = ref<{ student: string, fromIndex: number } | null>(null)
 const dragOverIndex = ref<number | null>(null)
 
 function onDragStart(student: string, fromIndex: number) {
@@ -103,13 +108,16 @@ function onDragOver(e: DragEvent, toIndex: number) {
 }
 
 function onDrop(toIndex: number) {
-  if (!dragging.value) return
+  if (!dragging.value)
+    return
   const { student, fromIndex } = dragging.value
   const from = subgroups.value[fromIndex]
   const to = subgroups.value[toIndex]
-  if (!from || !to || fromIndex === toIndex) return
+  if (!from || !to || fromIndex === toIndex)
+    return
   from.students = from.students.filter(s => s !== student)
-  if (!to.students.includes(student)) to.students.push(student)
+  if (!to.students.includes(student))
+    to.students.push(student)
   dragging.value = null
   dragOverIndex.value = null
 }
@@ -173,7 +181,6 @@ const totalSubgroupStudents = computed(() =>
           />
         </UFormField>
 
-        <!-- error-pattern чтобы ошибки students.0, students.1 матчились -->
         <UFormField name="students" :error-pattern="/^students(\..+)?$/">
           <div class="flex flex-col gap-5">
             <UTabs
@@ -184,6 +191,7 @@ const totalSubgroupStudents = computed(() =>
               variant="pill"
             />
 
+            <!-- РЕЖИМ: без подгрупп -->
             <template v-if="mode === 'simple'">
               <UFormField
                 label="Студенты"
@@ -201,19 +209,29 @@ const totalSubgroupStudents = computed(() =>
                 />
               </UFormField>
 
-              <div v-if="simpleStudents.length" class="text-xs text-muted">
-                Всего студентов: <strong>{{ simpleStudents.length }}</strong>
-              </div>
+              <UBadge
+                v-if="simpleStudents.length"
+                :label="`Всего студентов: ${simpleStudents.length}`"
+                color="neutral"
+                variant="soft"
+                class="self-start"
+              />
             </template>
 
+            <!-- РЕЖИМ: с подгруппами -->
             <template v-else>
               <div class="flex items-center justify-between">
-                <span class="text-sm font-medium">
+                <p class="text-sm font-medium">
                   Подгруппы
-                  <span v-if="totalSubgroupStudents" class="text-muted font-normal">
-                    · {{ totalSubgroupStudents }} студентов
-                  </span>
-                </span>
+                  <UBadge
+                    v-if="totalSubgroupStudents"
+                    :label="`${totalSubgroupStudents} студентов`"
+                    color="neutral"
+                    variant="soft"
+                    size="sm"
+                    class="ml-1"
+                  />
+                </p>
                 <UButton
                   size="xs"
                   icon="i-lucide-plus"
@@ -223,6 +241,7 @@ const totalSubgroupStudents = computed(() =>
                 />
               </div>
 
+              <!-- Канбан-скролл -->
               <div class="flex gap-3 overflow-x-auto pb-2">
                 <UCard
                   v-for="(sg, sgIndex) in subgroups"
@@ -237,7 +256,12 @@ const totalSubgroupStudents = computed(() =>
                     <div class="flex items-center justify-between gap-1">
                       <span class="font-semibold text-sm truncate">{{ subgroupLabel(sgIndex) }}</span>
                       <div class="flex items-center gap-1 shrink-0">
-                        <UBadge :label="String(sg.students.length)" color="neutral" variant="soft" size="sm" />
+                        <UBadge
+                          :label="String(sg.students.length)"
+                          color="neutral"
+                          variant="soft"
+                          size="sm"
+                        />
                         <UButton
                           v-if="subgroups.length > 1"
                           size="xs"
@@ -250,37 +274,43 @@ const totalSubgroupStudents = computed(() =>
                     </div>
                   </template>
 
-                  <div class="flex flex-col gap-1 min-h-12">
-                    <div
+                  <!-- Список студентов -->
+                  <ul class="flex flex-col gap-1 min-h-12">
+                    <UButton
                       v-for="student in sg.students"
                       :key="student"
+                      as="li"
                       draggable="true"
-                      class="flex items-center justify-between gap-1 px-2 py-1.5 rounded-md bg-elevated cursor-grab active:cursor-grabbing text-sm select-none group"
+                      color="neutral"
+                      variant="ghost"
+                      size="xs"
+                      :ui="{ base: 'w-full cursor-grab active:cursor-grabbing select-none group' }"
                       :class="dragging?.student === student ? 'opacity-40' : ''"
                       @dragstart="onDragStart(student, sgIndex)"
                       @dragend="onDragEnd"
                     >
-                      <div class="flex items-center gap-1.5 min-w-0">
-                        <UIcon name="i-lucide-grip-vertical" class="text-muted shrink-0 size-3.5" />
-                        <span class="truncate text-xs">{{ student }}</span>
-                      </div>
-                      <UButton
-                        size="xs"
-                        icon="i-lucide-x"
-                        variant="ghost"
-                        color="neutral"
-                        class="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                        @click="removeFromSubgroup(sgIndex, student)"
-                      />
-                    </div>
+                      <template #leading>
+                        <UIcon name="i-lucide-grip-vertical" class="text-muted size-3.5" />
+                      </template>
+                      <span class="truncate flex-1 text-left">{{ student }}</span>
+                      <template #trailing>
+                        <UIcon
+                          name="i-lucide-x"
+                          class="size-3.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                          @click.stop="removeFromSubgroup(sgIndex, student)"
+                        />
+                      </template>
+                    </UButton>
 
-                    <div
+                    <!-- Drop hint -->
+                    <UAlert
                       v-if="dragging && dragging.fromIndex !== sgIndex && sg.students.length === 0"
-                      class="text-xs text-center text-muted py-3 border border-dashed border-muted rounded-md"
-                    >
-                      Перетащите сюда
-                    </div>
-                  </div>
+                      color="neutral"
+                      variant="subtle"
+                      title="Перетащите сюда"
+                      :ui="{ root: 'border border-dashed', title: 'text-center text-xs' }"
+                    />
+                  </ul>
 
                   <template #footer>
                     <UInput

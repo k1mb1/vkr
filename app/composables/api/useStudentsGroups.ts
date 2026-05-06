@@ -6,6 +6,7 @@ import type {
   PageResponse,
   StudentGroupFilterRequest,
   StudentGroupListDto,
+  UpdateGroupRequestPayload,
 } from '#shared/types/backend'
 import type { MaybeRefOrGetter } from 'vue'
 import type { BackendFetchResult } from '~/composables/useBackendFetch'
@@ -36,4 +37,11 @@ export function useStudentGroup(
   return useBackendFetch<GroupResponse>(() => `${DEFAULT_PATH}/${toValue(groupId)}`, {
     method: 'GET',
   })
+}
+
+export function patch(
+  groupId: MaybeRefOrGetter<string>,
+  payload: UpdateGroupRequestPayload,
+): Promise<BackendResult<GroupResponse>> {
+  return $backendFetch<GroupResponse>(`${DEFAULT_PATH}/${toValue(groupId)}`, { method: 'PATCH', body: payload })
 }

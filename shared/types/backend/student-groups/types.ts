@@ -1,15 +1,15 @@
-interface StudentGroupListDto {
+export interface StudentGroupListDto {
   id: string
   name: string
   subgroupCount: number
   totalStudentCount: number
 }
 
-interface StudentGroupFilterRequest {
+export interface StudentGroupFilterRequest {
   name?: string
 }
 
-interface CreateGroupRequest {
+export interface CreateGroupRequest {
   groupName: string
   students: Array<{
     username: string
@@ -17,7 +17,7 @@ interface CreateGroupRequest {
   }>
 }
 
-interface GroupResponse {
+export interface GroupResponse {
   id: string
   name: string
   subgroups: Array<{
@@ -31,9 +31,11 @@ interface GroupResponse {
   }>
 }
 
-export type {
-  CreateGroupRequest,
-  GroupResponse,
-  StudentGroupFilterRequest,
-  StudentGroupListDto,
+export interface UpdateGroupRequest {
+  groupName: string
+  students: Array<{
+    id: string | null
+    username: string
+    subgroupId: string | null
+  }>
 }

@@ -21,8 +21,8 @@ const { rows, total, totalPages } = toPageState(data)
         onClick: () => refresh(),
       }]"
     >
-      <GroupsCreateToolbarForm/>
-  </UPageHeader>
+      <GroupsCreateToolbarForm />
+    </UPageHeader>
 
     <UAlert
       v-if="error"
