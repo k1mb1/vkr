@@ -20,7 +20,9 @@ const { rows, total, totalPages } = toPageState(data)
         loading: pending,
         onClick: () => refresh(),
       }]"
-    />
+    >
+      <GroupsCreateToolbarForm/>
+  </UPageHeader>
 
     <UAlert
       v-if="error"

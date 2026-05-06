@@ -1,306 +1,322 @@
 <script setup lang="ts">
+import * as v from 'valibot'
+import type { FormSubmitEvent } from '@nuxt/ui'
 import type { CreateGroupRequestPayload } from '#shared/types/backend'
-import { createGroupRequestSchema } from '#shared/types/backend'
-import { createStudentGroup } from '~/composables/api/useStudentsGroups'
+import { CreateGroupRequestSchema } from '#shared/types/backend/student-groups/schemas'
+import { create } from '~/composables/api/useStudentsGroups'
 import { useApiError } from '~/composables/useApiError'
 
-const props = defineProps<{
-  afterCreate?: () => void | Promise<void>
-}>()
+const schema = CreateGroupRequestSchema
+type Schema = CreateGroupRequestPayload
 
-type Mode = 'direct' | 'subgroups'
-
-const mode = ref<Mode>('subgroups')
-const subgroupCount = ref(2)
-
-const state = reactive<CreateGroupRequestPayload>({
-  groupName: '',
-  students: [],
-})
-
-const drafts = ref<string[]>(['', ''])
-const draftRefs = ref<Array<{ inputRef?: HTMLInputElement | null }>>([])
-
-const pending = ref(false)
-const toast = useToast()
+const open = ref(false)
+const submitting = ref(false)
 const { toastError } = useApiError()
 
-const displaySubgroups = computed(() => {
-  if (mode.value === 'direct') {
-    return [{ index: 0, names: state.students.map(s => s.username), label: 'Студенты' }]
-  }
-  return Array.from({ length: subgroupCount.value }, (_, i) => ({
-    index: i,
-    names: state.students.filter(s => s.subgroupIndex === i).map(s => s.username),
-    label: `${state.groupName || 'ГРУППА'}/${i + 1}`,
-  }))
-})
+interface SubgroupState {
+  students: string[]
+  input: string
+}
 
-const totalStudents = computed(() => state.students.length)
+// Разделяем UI-состояние от данных формы
+const groupName = ref('')
+const mode = ref<'simple' | 'subgroups'>('simple')
+const simpleStudents = ref<string[]>([])
+const subgroups = ref<SubgroupState[]>([
+  { students: [], input: '' },
+  { students: [], input: '' },
+])
+
+// Вычисляемые студенты — единственный источник правды
+const students = computed<CreateGroupRequestPayload['students']>(() =>
+  mode.value === 'simple'
+    ? simpleStudents.value.map(u => ({ username: u, subgroupIndex: null }))
+    : subgroups.value.flatMap((sg, i) =>
+        sg.students.map(u => ({ username: u, subgroupIndex: i })),
+      ),
+)
+
+// Объект состояния для UForm — только поля схемы
+const state = computed(() => ({
+  groupName: groupName.value,
+  students: students.value,
+}))
 
 const modeTabs = [
-  { value: 'direct', label: 'Один список' },
-  { value: 'subgroups', label: 'Подгруппы' },
+  { value: 'simple', label: 'Без подгрупп', icon: 'i-lucide-users' },
+  { value: 'subgroups', label: 'С подгруппами', icon: 'i-lucide-layout-grid' },
 ]
 
-function setMode(next: Mode) {
-  if (next === mode.value)
-    return
-  if (next === 'direct') {
-    state.students.forEach(s => s.subgroupIndex = null)
-    subgroupCount.value = 1
-    drafts.value = ['']
-  }
-  else {
-    state.students.forEach(s => s.subgroupIndex = s.subgroupIndex ?? 0)
-    if (subgroupCount.value < 2) {
-      subgroupCount.value = 2
-    }
-    if (drafts.value.length < subgroupCount.value) {
-      drafts.value.push(...Array.from<string>({ length: subgroupCount.value - drafts.value.length }).fill(''))
-    }
-  }
-  mode.value = next
-}
+const subgroupLabel = (index: number) => `${groupName.value}${index + 1}`
 
-function addNames(sgIndex: number, raw: string) {
-  const names = raw.split(/[,\n\t]+/).map(s => s.trim()).filter(Boolean)
-  if (!names.length)
-    return
+function addStudentsToSubgroup(sgIndex: number, raw: string) {
+  const sg = subgroups.value[sgIndex]
+  if (!sg) return
+  const existing = new Set(subgroups.value.flatMap(s => s.students))
+  const names = raw.split(/[\n\r\t,]+/).map(s => s.trim()).filter(Boolean)
   for (const name of names) {
-    state.students.push({
-      username: name,
-      subgroupIndex: mode.value === 'direct' ? null : sgIndex,
-    })
+    if (!existing.has(name)) sg.students.push(name)
   }
-  drafts.value[sgIndex] = ''
+  sg.input = ''
 }
 
-function removeName(sgIndex: number, nameIndex: number) {
-  if (mode.value === 'direct') {
-    state.students.splice(nameIndex, 1)
-    return
-  }
-  const subgroupStudents = state.students.filter(s => s.subgroupIndex === sgIndex)
-  const toRemove = subgroupStudents[nameIndex]
-  if (toRemove) {
-    const realIndex = state.students.indexOf(toRemove)
-    if (realIndex !== -1)
-      state.students.splice(realIndex, 1)
-  }
+function onSubgroupInputEnter(sgIndex: number) {
+  const sg = subgroups.value[sgIndex]
+  if (!sg?.input.trim()) return
+  addStudentsToSubgroup(sgIndex, sg.input)
 }
 
-function onDraftKeydown(e: KeyboardEvent, sgIndex: number) {
-  const draft = drafts.value[sgIndex] ?? ''
-  if (e.key === 'Enter' || e.key === ',') {
-    e.preventDefault()
-    addNames(sgIndex, draft)
-  }
-  else if (e.key === 'Backspace' && draft === '') {
-    const subgroupStudents = mode.value === 'direct'
-      ? state.students
-      : state.students.filter(s => s.subgroupIndex === sgIndex)
-    if (subgroupStudents.length > 0) {
-      const last = subgroupStudents[subgroupStudents.length - 1]!
-      const realIndex = state.students.indexOf(last)
-      if (realIndex !== -1)
-        state.students.splice(realIndex, 1)
-    }
-  }
-}
-
-function onDraftBlur(sgIndex: number) {
-  const draft = drafts.value[sgIndex] ?? ''
-  if (draft)
-    addNames(sgIndex, draft)
-}
-
-function onDraftPaste(e: ClipboardEvent, sgIndex: number) {
+function onSubgroupInputPaste(sgIndex: number, e: ClipboardEvent) {
   e.preventDefault()
-  addNames(sgIndex, e.clipboardData?.getData('text') ?? '')
+  addStudentsToSubgroup(sgIndex, e.clipboardData?.getData('text') ?? '')
+}
+
+function removeFromSubgroup(sgIndex: number, student: string) {
+  const sg = subgroups.value[sgIndex]
+  if (sg) sg.students = sg.students.filter(s => s !== student)
 }
 
 function addSubgroup() {
-  subgroupCount.value++
-  drafts.value.push('')
+  subgroups.value.push({ students: [], input: '' })
 }
 
 function removeSubgroup(index: number) {
-  if (subgroupCount.value <= 1)
-    return
-  state.students = state.students.filter(s => s.subgroupIndex !== index)
-  state.students.forEach((s) => {
-    if (s.subgroupIndex !== null && s.subgroupIndex > index) {
-      s.subgroupIndex--
-    }
-  })
-  subgroupCount.value--
-  drafts.value.splice(index, 1)
+  const [removed] = subgroups.value.splice(index, 1)
+  const first = subgroups.value[0]
+  if (!removed || !first) return
+  for (const student of removed.students) {
+    if (!first.students.includes(student)) first.students.push(student)
+  }
+}
+
+// Drag & Drop
+const dragging = ref<{ student: string; fromIndex: number } | null>(null)
+const dragOverIndex = ref<number | null>(null)
+
+function onDragStart(student: string, fromIndex: number) {
+  dragging.value = { student, fromIndex }
+}
+
+function onDragOver(e: DragEvent, toIndex: number) {
+  e.preventDefault()
+  dragOverIndex.value = toIndex
+}
+
+function onDrop(toIndex: number) {
+  if (!dragging.value) return
+  const { student, fromIndex } = dragging.value
+  const from = subgroups.value[fromIndex]
+  const to = subgroups.value[toIndex]
+  if (!from || !to || fromIndex === toIndex) return
+  from.students = from.students.filter(s => s !== student)
+  if (!to.students.includes(student)) to.students.push(student)
+  dragging.value = null
+  dragOverIndex.value = null
+}
+
+function onDragEnd() {
+  dragging.value = null
+  dragOverIndex.value = null
 }
 
 function resetForm() {
-  state.groupName = ''
-  state.students = []
-  mode.value = 'subgroups'
-  subgroupCount.value = 2
-  drafts.value = ['', '']
+  groupName.value = ''
+  mode.value = 'simple'
+  simpleStudents.value = []
+  subgroups.value = [
+    { students: [], input: '' },
+    { students: [], input: '' },
+  ]
 }
 
-function onAfterLeave() {
-  if (!pending.value)
-    resetForm()
-}
+// Нет ручной валидации — схема сама блокирует сабмит
+async function onSubmit(_: FormSubmitEvent<Schema>) {
+  submitting.value = true
+  const { error } = await create({
+    groupName: groupName.value,
+    students: students.value,
+  })
+  submitting.value = false
 
-async function onSubmit(event: { data: CreateGroupRequestPayload }, close: () => void) {
-  if (pending.value)
-    return
-  pending.value = true
-  const { data: created, error } = await createStudentGroup(event.data)
-  pending.value = false
   if (error.value) {
-    toastError(error.value, 'Ошибка создания')
+    toastError(error.value, 'Ошибка создания группы')
     return
   }
-  toast.add({ title: 'Группа создана', description: `«${created.value!.name}» готова.`, color: 'success', icon: 'i-lucide-check' })
-  close()
+
+  open.value = false
   resetForm()
-  if (props.afterCreate)
-    await props.afterCreate()
 }
+
+const totalSubgroupStudents = computed(() =>
+  subgroups.value.reduce((acc, sg) => acc + sg.students.length, 0),
+)
 </script>
 
 <template>
-  <UModal
-    title="Создать группу"
-    description="Введите название и добавьте студентов."
-    @after:leave="onAfterLeave"
-  >
-    <UButton icon="i-lucide-plus" color="primary">
-      Создать группу
-    </UButton>
+  <UModal v-model:open="open" title="Создать группу" :ui="{ content: 'max-w-4xl' }">
+    <UButton label="Создать группу" icon="i-lucide-users" />
 
-    <template #body="{ close }">
+    <template #body>
       <UForm
-        :schema="createGroupRequestSchema"
+        id="create-group-form"
+        :schema="schema"
         :state="state"
-        class="space-y-4"
-        @submit="onSubmit($event, close)"
+        class="flex flex-col gap-5"
+        @submit="onSubmit"
       >
-        <UFormField name="groupName" label="Название группы" required>
+        <UFormField name="groupName" label="Название группы">
           <UInput
-            v-model="state.groupName"
-            placeholder="например, ИСТ-21"
-            :disabled="pending"
+            v-model="groupName"
+            placeholder="Например: ИС-21"
+            icon="i-lucide-graduation-cap"
             class="w-full"
           />
         </UFormField>
 
-        <UFormField label="Режим добавления">
-          <UTabs
-            :model-value="mode"
-            :items="modeTabs"
-            :disabled="pending"
-            @update:model-value="setMode($event as Mode)"
-          />
-        </UFormField>
+        <!-- error-pattern чтобы ошибки students.0, students.1 матчились -->
+        <UFormField name="students" :error-pattern="/^students(\..+)?$/">
+          <div class="flex flex-col gap-5">
+            <UTabs
+              v-model="mode"
+              :items="modeTabs"
+              :content="false"
+              color="neutral"
+              variant="pill"
+            />
 
-        <UFormField name="students" hint="Enter или запятая — добавить имя; вставка списка столбиком работает автоматически">
-          <div class="space-y-3">
-            <div v-for="sg in displaySubgroups" :key="sg.index">
-              <div class="mb-1.5 flex items-center justify-between">
+            <template v-if="mode === 'simple'">
+              <UFormField
+                label="Студенты"
+                description="Вставьте список из Excel или вводите по одному через Enter"
+              >
+                <UInputTags
+                  v-model="simpleStudents"
+                  placeholder="username студента..."
+                  :add-on-paste="true"
+                  :add-on-blur="true"
+                  :duplicate="false"
+                  :delimiter="/[\n\r\t,]+/"
+                  icon="i-lucide-user"
+                  class="w-full"
+                />
+              </UFormField>
+
+              <div v-if="simpleStudents.length" class="text-xs text-muted">
+                Всего студентов: <strong>{{ simpleStudents.length }}</strong>
+              </div>
+            </template>
+
+            <template v-else>
+              <div class="flex items-center justify-between">
                 <span class="text-sm font-medium">
-                  {{ sg.label }}
-                  <UBadge color="neutral" variant="soft" size="sm" class="ml-1">
-                    {{ sg.names.length }}
-                  </UBadge>
+                  Подгруппы
+                  <span v-if="totalSubgroupStudents" class="text-muted font-normal">
+                    · {{ totalSubgroupStudents }} студентов
+                  </span>
                 </span>
                 <UButton
-                  v-if="mode === 'subgroups' && subgroupCount > 1"
-                  icon="i-lucide-trash-2"
-                  color="neutral"
-                  variant="ghost"
-                  :disabled="pending"
-                  @click="removeSubgroup(sg.index)"
-                />
-              </div>
-
-              <div
-                class="flex min-h-12 cursor-text flex-wrap gap-1.5 rounded-md border border-default bg-default p-2"
-                @click="draftRefs[sg.index]?.inputRef?.focus()"
-              >
-                <UBadge
-                  v-for="(name, j) in sg.names"
-                  :key="j"
-                  color="neutral"
+                  size="xs"
+                  icon="i-lucide-plus"
                   variant="soft"
-                >
-                  {{ name }}
-                  <button
-                    type="button"
-                    class="ml-1 opacity-50 hover:opacity-100"
-                    :disabled="pending"
-                    @click.stop="removeName(sg.index, j)"
-                  >
-                    <UIcon name="i-lucide-x" class="size-3" />
-                  </button>
-                </UBadge>
-
-                <UInput
-                  :ref="(el: unknown) => { if (el) draftRefs[sg.index] = el as { inputRef?: HTMLInputElement | null } }"
-                  v-model="drafts[sg.index]"
-                  variant="none"
-                  :ui="{ root: 'flex-1 min-w-32', base: 'p-0 text-sm placeholder:text-dimmed' }"
-                  :placeholder="sg.names.length === 0 ? 'Имя + Enter, или вставьте список…' : '+ добавить…'"
-                  :disabled="pending"
-                  @keydown="onDraftKeydown($event, sg.index)"
-                  @blur="onDraftBlur(sg.index)"
-                  @paste="onDraftPaste($event, sg.index)"
+                  label="Добавить подгруппу"
+                  @click="addSubgroup"
                 />
               </div>
-            </div>
 
-            <UButton
-              v-if="mode === 'subgroups'"
-              icon="i-lucide-plus"
-              color="neutral"
-              variant="soft"
-              :disabled="pending"
-              @click="addSubgroup"
-            >
-              Добавить подгруппу
-            </UButton>
+              <div class="flex gap-3 overflow-x-auto pb-2">
+                <UCard
+                  v-for="(sg, sgIndex) in subgroups"
+                  :key="sgIndex"
+                  class="shrink-0 w-56 transition-colors"
+                  :ui="{ root: 'flex flex-col', body: 'p-2 flex-1', header: 'px-3 py-2', footer: 'p-2' }"
+                  :class="dragOverIndex === sgIndex ? 'ring-2 ring-primary bg-primary/5' : ''"
+                  @dragover="onDragOver($event, sgIndex)"
+                  @drop="onDrop(sgIndex)"
+                >
+                  <template #header>
+                    <div class="flex items-center justify-between gap-1">
+                      <span class="font-semibold text-sm truncate">{{ subgroupLabel(sgIndex) }}</span>
+                      <div class="flex items-center gap-1 shrink-0">
+                        <UBadge :label="String(sg.students.length)" color="neutral" variant="soft" size="sm" />
+                        <UButton
+                          v-if="subgroups.length > 1"
+                          size="xs"
+                          icon="i-lucide-x"
+                          variant="ghost"
+                          color="error"
+                          @click="removeSubgroup(sgIndex)"
+                        />
+                      </div>
+                    </div>
+                  </template>
+
+                  <div class="flex flex-col gap-1 min-h-12">
+                    <div
+                      v-for="student in sg.students"
+                      :key="student"
+                      draggable="true"
+                      class="flex items-center justify-between gap-1 px-2 py-1.5 rounded-md bg-elevated cursor-grab active:cursor-grabbing text-sm select-none group"
+                      :class="dragging?.student === student ? 'opacity-40' : ''"
+                      @dragstart="onDragStart(student, sgIndex)"
+                      @dragend="onDragEnd"
+                    >
+                      <div class="flex items-center gap-1.5 min-w-0">
+                        <UIcon name="i-lucide-grip-vertical" class="text-muted shrink-0 size-3.5" />
+                        <span class="truncate text-xs">{{ student }}</span>
+                      </div>
+                      <UButton
+                        size="xs"
+                        icon="i-lucide-x"
+                        variant="ghost"
+                        color="neutral"
+                        class="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                        @click="removeFromSubgroup(sgIndex, student)"
+                      />
+                    </div>
+
+                    <div
+                      v-if="dragging && dragging.fromIndex !== sgIndex && sg.students.length === 0"
+                      class="text-xs text-center text-muted py-3 border border-dashed border-muted rounded-md"
+                    >
+                      Перетащите сюда
+                    </div>
+                  </div>
+
+                  <template #footer>
+                    <UInput
+                      v-model="sg.input"
+                      size="sm"
+                      variant="soft"
+                      placeholder="Добавить студентов..."
+                      icon="i-lucide-user-plus"
+                      @keydown.enter.prevent="onSubgroupInputEnter(sgIndex)"
+                      @paste="onSubgroupInputPaste(sgIndex, $event)"
+                    />
+                  </template>
+                </UCard>
+              </div>
+            </template>
           </div>
         </UFormField>
-
-        <div class="flex items-center justify-between">
-          <p class="text-sm text-muted">
-            {{ totalStudents }} студент{{ totalStudents === 1 ? '' : totalStudents > 1 && totalStudents < 5 ? 'а' : 'ов' }}
-            <template v-if="mode === 'subgroups'">
-              в {{ subgroupCount }} подгрупп{{ subgroupCount === 1 ? 'е' : 'ах' }}
-            </template>
-          </p>
-
-          <div class="flex gap-2">
-            <UButton
-              color="neutral"
-              variant="soft"
-              :disabled="pending"
-              @click="close()"
-            >
-              Отмена
-            </UButton>
-
-            <UButton
-              type="submit"
-              icon="i-lucide-check"
-              :loading="pending"
-              :disabled="pending || !state.groupName || totalStudents === 0"
-            >
-              Создать
-            </UButton>
-          </div>
-        </div>
       </UForm>
+    </template>
+
+    <template #footer="{ close }">
+      <div class="flex justify-end items-center gap-2 w-full">
+        <UButton
+          label="Отмена"
+          color="neutral"
+          variant="ghost"
+          @click="close(); resetForm()"
+        />
+        <UButton
+          type="submit"
+          form="create-group-form"
+          label="Создать группу"
+          icon="i-lucide-check"
+          :loading="submitting"
+        />
+      </div>
     </template>
   </UModal>
 </template>

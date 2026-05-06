@@ -1,6 +1,6 @@
-import { upsertTeacher } from '~/composables/api/useTeachersApi'
 import type { BackendErrorResponse, UpdateTeacherRequestPayload } from '#shared/types/backend'
 import type { FetchError } from 'ofetch'
+import { upsertTeacher } from '~/composables/api/useTeachersApi'
 
 function isDashboardPath(path: string): boolean {
   return path === '/dashboard' || path.startsWith('/dashboard/')
