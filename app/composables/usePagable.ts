@@ -23,12 +23,12 @@ export function usePagable<TFilter = Record<string, never>>(options?: UsePagable
 
   function toPageState<T>(data: MaybeRefOrGetter<MaybePageResponse<T>>) {
     const rows = computed(() => toValue(data)?.content ?? [])
-    const total = computed(() => toValue(data)?.totalElements ?? 0)
-    const totalPages = computed(() => toValue(data)?.totalPages ?? 0)
+    const totalElements = computed(() => toValue(data)?.page?.totalElements ?? 0)
+    const totalPages = computed(() => toValue(data)?.page?.totalPages ?? 0)
 
     return {
       rows,
-      total,
+      totalElements,
       totalPages,
     }
   }

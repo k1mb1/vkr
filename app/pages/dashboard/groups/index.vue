@@ -6,7 +6,7 @@ const { page, pageSize, request, toPageState } = usePagable()
 
 const { data, pending, error, refresh } = useStudentGroups(request)
 
-const { rows, total, totalPages } = toPageState(data)
+const { rows, totalElements } = toPageState(data)
 </script>
 
 <template>
@@ -89,9 +89,9 @@ const { rows, total, totalPages } = toPageState(data)
     <UPagination
       v-model:page="page"
       :items-per-page="pageSize"
-      :total="total"
+      :total="totalElements"
       :disabled="pending"
-      class="justify-center"
+      class="self-end"
     />
   </div>
 </template>

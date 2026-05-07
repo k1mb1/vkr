@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { StudentGroupResponse } from '#shared/types/backend'
+import type { GroupResponse } from '#shared/types/backend'
 import type { TableColumn, TabsItem } from '@nuxt/ui'
 import { deleteStudent, updateStudent } from '~/composables/api/useStudentsApi'
 import { useStudentGroup } from '~/composables/api/useStudentsGroups'
@@ -17,7 +17,7 @@ const {
   refresh,
 } = useStudentGroup(groupId)
 
-const group = computed<StudentGroupResponse | null>(() => data.value ?? null)
+const group = computed<GroupResponse | null>(() => data.value ?? null)
 const _studentsCount = computed(() => group.value?.students?.length ?? 0)
 const subgroupTabPrefix = 'subgroup:'
 
@@ -302,7 +302,7 @@ function getStudentActions(row: StudentTableRow) {
           size="xl"
           class="rounded-xl bg-secondary/10 text-secondary"
         />
-        <div>
+        <div class="flex-1">
           <h1 class="text-xl font-semibold">
             {{ group.name }}
           </h1>
@@ -312,6 +312,7 @@ function getStudentActions(row: StudentTableRow) {
             <span>{{ group.subgroups.length }} подгрупп</span>
           </div>
         </div>
+        <GroupsEditToolbarForm :group-id="groupId" :group="group" @success="refresh" />
       </div>
 
       <UTabs

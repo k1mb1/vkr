@@ -15,8 +15,9 @@ interface PageInfo {
   number: number
 }
 
-interface PageResponse<T> extends PageInfo {
+interface PageResponse<T> {
   content: T[]
+  page: PageInfo
 }
 
 interface PageRequest<TFilter = Record<string, never>> {

@@ -11,7 +11,7 @@ import type {
 import type { MaybeRefOrGetter } from 'vue'
 import type { BackendFetchResult } from '~/composables/useBackendFetch'
 import { toPageQuery } from '#shared/types/backend'
-import { toValue } from 'vue'
+import { computed, toValue } from 'vue'
 import { useBackendFetch } from '~/composables/useBackendFetch'
 
 const DEFAULT_PATH = '/student-groups'
@@ -21,7 +21,7 @@ export function useStudentGroups(
 ): BackendFetchResult<PageResponse<StudentGroupListDto>> {
   return useBackendFetch<PageResponse<StudentGroupListDto>>(`${DEFAULT_PATH}`, {
     method: 'GET',
-    query: () => toPageQuery(request ? toValue(request) : undefined) as PageQuery,
+    query: computed(() => toPageQuery(request ? toValue(request) : undefined) as PageQuery),
   })
 }
 

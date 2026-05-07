@@ -21,12 +21,10 @@ function useBackendFetch<T>(
     requestHeaders = h
   }
 
-  const resolvedQuery = query !== undefined ? toValue(query) : undefined
-
   return useFetch<T>(url as string, {
     baseURL: '/api/proxy',
     ...opts,
-    query: resolvedQuery,
+    query,
     headers: requestHeaders,
   }) as BackendFetchResult<T>
 }
