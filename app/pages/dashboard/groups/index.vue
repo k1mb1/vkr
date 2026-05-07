@@ -5,21 +5,22 @@ import { usePagable } from '~/composables/usePagable'
 const search = ref('')
 const debouncedSearch = ref('')
 
-let debounceTimer: ReturnType<typeof setTimeout> | null = null
-watch(search, (value) => {
-  if (debounceTimer)
-    clearTimeout(debounceTimer)
-  debounceTimer = setTimeout(() => {
-    debouncedSearch.value = value
-    page.value = 1
-  }, 300)
-})
-
 const { page, pageSize, request, toPageState } = usePagable({
   filter: computed(() => ({
     name: debouncedSearch.value || undefined,
   })),
 })
+
+function applySearch() {
+  debouncedSearch.value = search.value
+  page.value = 1
+}
+
+function clearSearch() {
+  search.value = ''
+  debouncedSearch.value = ''
+  page.value = 1
+}
 
 const { data, pending, error, refresh } = useStudentGroups(request)
 
@@ -41,23 +42,31 @@ const { rows, totalElements } = toPageState(data)
       </template>
     </UPageHeader>
 
-    <UInput
-      v-model="search"
-      icon="i-lucide-search"
-      placeholder="Поиск групп"
-      class="w-full"
-      :ui="{ root: 'sm:w-96' }"
-    >
-      <template v-if="search" #trailing>
-        <UButton
-          color="neutral"
-          variant="link"
-          size="xs"
-          icon="i-lucide-x"
-          @click="search = ''"
-        />
-      </template>
-    </UInput>
+    <div class="flex gap-2">
+      <UInput
+        v-model="search"
+        icon="i-lucide-search"
+        placeholder="Поиск групп"
+        class="w-full"
+        :ui="{ root: 'sm:w-96' }"
+        @keydown.enter="applySearch"
+      >
+        <template v-if="search" #trailing>
+          <UButton
+            color="neutral"
+            variant="link"
+            icon="i-lucide-x"
+            @click="clearSearch"
+          />
+        </template>
+      </UInput>
+      <UButton
+        icon="i-lucide-search"
+        color="neutral"
+        variant="outline"
+        @click="applySearch"
+      />
+    </div>
 
     <UAlert
       v-if="error"

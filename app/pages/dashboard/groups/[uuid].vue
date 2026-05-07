@@ -309,12 +309,12 @@ async function onDeleteGroup() {
 
     <template v-else-if="group">
       <GroupsDetailHeader
+        v-model="draft.groupName"
         :name="group.name"
         :students-count="group.students.length"
         :subgroups-count="group.subgroups.length"
         :is-editing="isEditing"
         :edit-loading="editLoading"
-        v-model="draft.groupName"
         @edit="enterEditMode"
         @cancel="exitEditMode"
         @save="handlePatch"
@@ -380,9 +380,9 @@ async function onDeleteGroup() {
             </template>
 
             <GroupsStudentsEditor
+              v-model:new-students-input="newStudentsInput"
               :rows="activeTabRows"
               :empty-description="activeTabData.emptyDescription"
-              v-model:new-students-input="newStudentsInput"
               @update-username="updateDraftStudentUsername"
               @remove="removeDraftStudent"
               @add="handleAddDraftStudents"

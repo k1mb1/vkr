@@ -19,11 +19,6 @@ const sortDirectionLabel = computed(() => {
   return props.sortDirection === 'asc' ? 'по возрастанию' : 'по убыванию'
 })
 
-const usernameCollator = new Intl.Collator('ru-RU', {
-  sensitivity: 'base',
-  numeric: true,
-})
-
 const tableColumns: TableColumn<StudentTableRow>[] = [
   {
     accessorKey: 'index',

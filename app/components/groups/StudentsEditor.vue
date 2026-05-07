@@ -10,10 +10,10 @@ interface Props {
 defineProps<Props>()
 const emit = defineEmits<{
   'update:newStudentsInput': [value: string]
-  updateUsername: [studentId: string | null, username: string]
-  remove: [studentId: string | null]
-  add: []
-  paste: [e: ClipboardEvent]
+  'updateUsername': [studentId: string | null, username: string]
+  'remove': [studentId: string | null]
+  'add': []
+  'paste': [e: ClipboardEvent]
 }>()
 </script>
 

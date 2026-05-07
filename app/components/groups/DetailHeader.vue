@@ -11,10 +11,10 @@ interface Props {
 defineProps<Props>()
 const emit = defineEmits<{
   'update:modelValue': [value: string]
-  edit: []
-  cancel: []
-  save: []
-  delete: []
+  'edit': []
+  'cancel': []
+  'save': []
+  'delete': []
 }>()
 </script>
 
