@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import type { GroupResponse } from '#shared/types/backend'
 import type { Form } from '#ui/types'
-import type { TableColumn, TabsItem } from '@nuxt/ui'
+import type { TabsItem } from '@nuxt/ui'
 import type * as v from 'valibot'
+import type { StudentTableRow } from '~/components/groups/types'
 import { UpdateGroupRequestSchema } from '#shared/types/backend/student-groups'
-import { deleteStudent, updateStudent } from '~/composables/api/useStudentsApi'
 import { patch, remove, useStudentGroup } from '~/composables/api/useStudentsGroups'
 
 const route = useRoute()
@@ -21,24 +21,10 @@ const {
 } = useStudentGroup(groupId)
 
 const group = computed<GroupResponse | null>(() => data.value ?? null)
-const _studentsCount = computed(() => group.value?.students?.length ?? 0)
 const subgroupTabPrefix = 'subgroup:'
 
-type SortDirection = 'asc' | 'desc'
-
-interface StudentTableRow {
-  key: string
-  id: string | null
-  index: number
-  username: string
-}
-
 const activeTab = ref('students')
-const sortDirection = ref<SortDirection>('asc')
-
-const sortDirectionLabel = computed(() => {
-  return sortDirection.value === 'asc' ? 'по возрастанию' : 'по убыванию'
-})
+const sortDirection = ref<'asc' | 'desc'>('asc')
 
 function toggleNameSort(): void {
   sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
@@ -48,33 +34,6 @@ const usernameCollator = new Intl.Collator('ru-RU', {
   sensitivity: 'base',
   numeric: true,
 })
-
-const tableColumns: TableColumn<StudentTableRow>[] = [
-  {
-    accessorKey: 'index',
-    header: '№',
-    meta: {
-      class: {
-        th: 'w-16',
-        td: 'w-16',
-      },
-    },
-  },
-  {
-    accessorKey: 'username',
-    header: 'Имя',
-  },
-  {
-    id: 'actions',
-    header: '',
-    meta: {
-      class: {
-        th: 'w-12',
-        td: 'w-12',
-      },
-    },
-  },
-]
 
 // ── Editing state ──────────────────────────────────────────
 const isEditing = ref(false)
@@ -313,70 +272,9 @@ watch(availableTabValues, (values) => {
   }
 }, { immediate: true })
 
-// Student actions
-const editingStudent = ref<{ id: string, username: string } | null>(null)
-const editUsername = ref('')
-const editPending = ref(false)
-
-const removingStudentId = ref<string | null>(null)
-const removePending = ref(false)
-
-const deletingStudentId = ref<string | null>(null)
-const deletePending = ref(false)
-
 // Group deletion
 const deletingGroup = ref(false)
 const deleteGroupPending = ref(false)
-
-function closeEditStudent() {
-  editingStudent.value = null
-  editUsername.value = ''
-}
-
-async function onRenameStudent() {
-  if (!editingStudent.value || editPending.value)
-    return
-  editPending.value = true
-  const { error } = await updateStudent(editingStudent.value.id, { username: editUsername.value.trim() })
-  editPending.value = false
-  if (error.value) {
-    toastError(error.value, 'Ошибка')
-    return
-  }
-  toast.add({ title: 'Студент переименован', color: 'success', icon: 'i-lucide-check' })
-  closeEditStudent()
-  await refresh()
-}
-
-async function onRemoveFromGroup() {
-  if (!removingStudentId.value || removePending.value)
-    return
-  removePending.value = true
-  const { error } = await updateStudent(removingStudentId.value, { groupId: null })
-  removePending.value = false
-  if (error.value) {
-    toastError(error.value, 'Ошибка')
-    return
-  }
-  toast.add({ title: 'Студент убран из группы', color: 'success', icon: 'i-lucide-check' })
-  removingStudentId.value = null
-  await refresh()
-}
-
-async function onDeleteStudent() {
-  if (!deletingStudentId.value || deletePending.value)
-    return
-  deletePending.value = true
-  const { error } = await deleteStudent(deletingStudentId.value)
-  deletePending.value = false
-  if (error.value) {
-    toastError(error.value, 'Ошибка')
-    return
-  }
-  toast.add({ title: 'Студент удалён', color: 'success', icon: 'i-lucide-check' })
-  deletingStudentId.value = null
-  await refresh()
-}
 
 async function onDeleteGroup() {
   if (deleteGroupPending.value)
@@ -410,59 +308,18 @@ async function onDeleteGroup() {
     />
 
     <template v-else-if="group">
-      <!-- Group header -->
-      <div class="flex items-center gap-4">
-        <UAvatar
-          icon="i-lucide-users"
-          size="xl"
-          class="rounded-xl bg-secondary/10 text-secondary"
-        />
-        <div class="flex-1">
-          <template v-if="!isEditing">
-            <h1 class="text-xl font-semibold">
-              {{ group.name }}
-            </h1>
-            <div class="flex items-center gap-2 text-sm text-muted">
-              <span>{{ group.students.length }} студентов</span>
-              <span>·</span>
-              <span>{{ group.subgroups.length }} подгрупп</span>
-            </div>
-          </template>
-          <template v-else>
-            <UInput v-model="draft.groupName" placeholder="Название группы" class="w-full" />
-          </template>
-        </div>
-        <template v-if="!isEditing">
-          <UButton
-            label="Редактировать"
-            icon="i-lucide-pencil"
-            variant="outline"
-            @click="enterEditMode"
-          />
-          <UButton
-            icon="i-lucide-trash-2"
-            color="error"
-            variant="ghost"
-            @click="deletingGroup = true"
-          />
-        </template>
-        <template v-else>
-          <UButton
-            color="neutral"
-            variant="ghost"
-            @click="exitEditMode"
-          >
-            Отмена
-          </UButton>
-          <UButton
-            icon="i-lucide-check"
-            :loading="editLoading"
-            @click="handlePatch"
-          >
-            Сохранить
-          </UButton>
-        </template>
-      </div>
+      <GroupsDetailHeader
+        :name="group.name"
+        :students-count="group.students.length"
+        :subgroups-count="group.subgroups.length"
+        :is-editing="isEditing"
+        :edit-loading="editLoading"
+        v-model="draft.groupName"
+        @edit="enterEditMode"
+        @cancel="exitEditMode"
+        @save="handlePatch"
+        @delete="deletingGroup = true"
+      />
 
       <UTabs
         v-if="groupTabs.length"
@@ -484,35 +341,14 @@ async function onDeleteGroup() {
             </div>
           </template>
 
-          <UTable
-            :data="activeTabRows"
-            :columns="tableColumns"
+          <GroupsStudentsTable
+            :rows="activeTabRows"
             :loading="pending"
-            sticky="header"
-          >
-            <template #username-header>
-              <UButton
-                color="neutral"
-                variant="ghost"
-                class="justify-start px-0"
-                :icon="sortDirection === 'asc' ? 'i-lucide-arrow-up-narrow-wide' : 'i-lucide-arrow-down-wide-narrow'"
-                :aria-label="`Сортировать по имени (${sortDirectionLabel})`"
-                @click="toggleNameSort"
-              >
-                Имя
-              </UButton>
-            </template>
-
-            <template #empty>
-              <UEmpty
-                icon="i-lucide-users-round"
-                :title="activeTabData.emptyTitle"
-                :description="activeTabData.emptyDescription"
-                variant="naked"
-                class="py-6"
-              />
-            </template>
-          </UTable>
+            :sort-direction="sortDirection"
+            :empty-title="activeTabData.emptyTitle"
+            :empty-description="activeTabData.emptyDescription"
+            @toggle-sort="toggleNameSort"
+          />
         </UCard>
 
         <UCard v-else>
@@ -543,42 +379,15 @@ async function onDeleteGroup() {
               </div>
             </template>
 
-            <div class="flex flex-col gap-2">
-              <div
-                v-for="row in activeTabRows"
-                :key="row.key"
-                class="flex items-center gap-2"
-              >
-                <span class="w-8 text-center text-sm text-muted">{{ row.index }}</span>
-                <UInput
-                  :model-value="row.username"
-                  class="flex-1"
-                  @update:model-value="(v) => updateDraftStudentUsername(row.id, v)"
-                />
-                <UButton
-                  icon="i-lucide-trash-2"
-                  color="error"
-                  variant="ghost"
-                  @click="removeDraftStudent(row.id)"
-                />
-              </div>
-
-              <div
-                v-if="activeTabRows.length === 0"
-                class="py-4 text-sm text-muted"
-              >
-                {{ activeTabData.emptyDescription }}
-              </div>
-
-              <UInput
-                v-model="newStudentsInput"
-                placeholder="Добавьте студентов (Enter или вставьте список)"
-                icon="i-lucide-user-plus"
-                class="mt-2"
-                @keydown.enter.prevent="handleAddDraftStudents"
-                @paste="handleAddDraftPaste"
-              />
-            </div>
+            <GroupsStudentsEditor
+              :rows="activeTabRows"
+              :empty-description="activeTabData.emptyDescription"
+              v-model:new-students-input="newStudentsInput"
+              @update-username="updateDraftStudentUsername"
+              @remove="removeDraftStudent"
+              @add="handleAddDraftStudents"
+              @paste="handleAddDraftPaste"
+            />
           </UCard>
 
           <UCard v-else>
@@ -602,152 +411,11 @@ async function onDeleteGroup() {
       class="h-full"
     />
 
-    <!-- Rename student modal -->
-    <UModal
-      :open="!!editingStudent"
-      title="Переименовать студента"
-      @update:open="(v) => { if (!v) closeEditStudent() }"
-    >
-      <template #body="{ close }">
-        <div class="flex flex-col gap-4">
-          <UFormField label="Имя" required>
-            <UInput
-              v-model="editUsername"
-              placeholder="Введите имя"
-              :disabled="editPending"
-              @keydown.enter="onRenameStudent"
-            />
-          </UFormField>
-
-          <div class="flex justify-end gap-2">
-            <UButton
-              color="neutral"
-              variant="soft"
-              :disabled="editPending"
-              @click="close()"
-            >
-              Отмена
-            </UButton>
-
-            <UButton
-              icon="i-lucide-check"
-              :loading="editPending"
-              :disabled="editPending || !editUsername.trim()"
-              @click="onRenameStudent"
-            >
-              Сохранить
-            </UButton>
-          </div>
-        </div>
-      </template>
-    </UModal>
-
-    <!-- Remove from group confirm modal -->
-    <UModal
-      :open="!!removingStudentId"
-      title="Убрать из группы"
-      @update:open="(v) => { if (!v && !removePending) removingStudentId = null }"
-    >
-      <template #body="{ close }">
-        <div class="flex flex-col gap-4">
-          <p class="text-sm text-muted">
-            Студент будет откреплён от группы, но не удалён из системы.
-          </p>
-
-          <div class="flex justify-end gap-2">
-            <UButton
-              color="neutral"
-              variant="soft"
-              :disabled="removePending"
-              @click="close()"
-            >
-              Отмена
-            </UButton>
-
-            <UButton
-              color="warning"
-              icon="i-lucide-user-minus"
-              :loading="removePending"
-              :disabled="removePending"
-              @click="onRemoveFromGroup"
-            >
-              Убрать
-            </UButton>
-          </div>
-        </div>
-      </template>
-    </UModal>
-
-    <!-- Delete student confirm modal -->
-    <UModal
-      :open="!!deletingStudentId"
-      title="Удалить студента"
-      @update:open="(v) => { if (!v && !deletePending) deletingStudentId = null }"
-    >
-      <template #body="{ close }">
-        <div class="flex flex-col gap-4">
-          <p class="text-sm text-muted">
-            Студент будет удалён из системы безвозвратно.
-          </p>
-
-          <div class="flex justify-end gap-2">
-            <UButton
-              color="neutral"
-              variant="soft"
-              :disabled="deletePending"
-              @click="close()"
-            >
-              Отмена
-            </UButton>
-
-            <UButton
-              color="error"
-              icon="i-lucide-trash-2"
-              :loading="deletePending"
-              :disabled="deletePending"
-              @click="onDeleteStudent"
-            >
-              Удалить
-            </UButton>
-          </div>
-        </div>
-      </template>
-    </UModal>
-
-    <!-- Delete group confirm modal -->
-    <UModal
+    <GroupsDeleteModal
       :open="deletingGroup"
-      title="Удалить группу"
-      @update:open="(v) => { if (!v && !deleteGroupPending) deletingGroup = v }"
-    >
-      <template #body="{ close }">
-        <div class="flex flex-col gap-4">
-          <p>
-            Группа будет удалена безвозвратно и все её данные будут потеряны. Убедитесь, что это действие действительно необходимо.
-          </p>
-
-          <div class="flex justify-end gap-2">
-            <UButton
-              color="neutral"
-              variant="soft"
-              :disabled="deleteGroupPending"
-              @click="close()"
-            >
-              Отмена
-            </UButton>
-
-            <UButton
-              color="error"
-              icon="i-lucide-trash-2"
-              :loading="deleteGroupPending"
-              :disabled="deleteGroupPending"
-              @click="onDeleteGroup"
-            >
-              Удалить
-            </UButton>
-          </div>
-        </div>
-      </template>
-    </UModal>
+      :pending="deleteGroupPending"
+      @close="deletingGroup = false"
+      @confirm="onDeleteGroup"
+    />
   </div>
 </template>

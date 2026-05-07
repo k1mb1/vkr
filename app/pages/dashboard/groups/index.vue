@@ -2,7 +2,24 @@
 import { useStudentGroups } from '~/composables/api/useStudentsGroups'
 import { usePagable } from '~/composables/usePagable'
 
-const { page, pageSize, request, toPageState } = usePagable()
+const search = ref('')
+const debouncedSearch = ref('')
+
+let debounceTimer: ReturnType<typeof setTimeout> | null = null
+watch(search, (value) => {
+  if (debounceTimer)
+    clearTimeout(debounceTimer)
+  debounceTimer = setTimeout(() => {
+    debouncedSearch.value = value
+    page.value = 1
+  }, 300)
+})
+
+const { page, pageSize, request, toPageState } = usePagable({
+  filter: computed(() => ({
+    name: debouncedSearch.value || undefined,
+  })),
+})
 
 const { data, pending, error, refresh } = useStudentGroups(request)
 
@@ -24,6 +41,24 @@ const { rows, totalElements } = toPageState(data)
       </template>
     </UPageHeader>
 
+    <UInput
+      v-model="search"
+      icon="i-lucide-search"
+      placeholder="Поиск групп"
+      class="w-full"
+      :ui="{ root: 'sm:w-96' }"
+    >
+      <template v-if="search" #trailing>
+        <UButton
+          color="neutral"
+          variant="link"
+          size="xs"
+          icon="i-lucide-x"
+          @click="search = ''"
+        />
+      </template>
+    </UInput>
+
     <UAlert
       v-if="error"
       color="error"
@@ -39,8 +74,8 @@ const { rows, totalElements } = toPageState(data)
     <UEmpty
       v-else-if="rows.length === 0"
       icon="i-lucide-users"
-      title="Группы не найдены"
-      description="Создайте первую группу с помощью кнопки выше."
+      :title="debouncedSearch ? 'Группы не найдены' : 'Группы не найдены'"
+      :description="debouncedSearch ? 'Попробуйте изменить запрос поиска.' : 'Создайте первую группу с помощью кнопки выше.'"
       variant="naked"
     />
 
