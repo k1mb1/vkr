@@ -5,7 +5,7 @@ import type { TableColumn, TabsItem } from '@nuxt/ui'
 import type * as v from 'valibot'
 import { UpdateGroupRequestSchema } from '#shared/types/backend/student-groups'
 import { deleteStudent, updateStudent } from '~/composables/api/useStudentsApi'
-import { patch, useStudentGroup } from '~/composables/api/useStudentsGroups'
+import { patch, remove, useStudentGroup } from '~/composables/api/useStudentsGroups'
 
 const route = useRoute()
 const groupId = computed(() => String(route.params.uuid ?? ''))
@@ -324,6 +324,10 @@ const removePending = ref(false)
 const deletingStudentId = ref<string | null>(null)
 const deletePending = ref(false)
 
+// Group deletion
+const deletingGroup = ref(false)
+const deleteGroupPending = ref(false)
+
 function closeEditStudent() {
   editingStudent.value = null
   editUsername.value = ''
@@ -373,6 +377,20 @@ async function onDeleteStudent() {
   deletingStudentId.value = null
   await refresh()
 }
+
+async function onDeleteGroup() {
+  if (deleteGroupPending.value)
+    return
+  deleteGroupPending.value = true
+  const { error } = await remove(groupId.value)
+  deleteGroupPending.value = false
+  if (error.value) {
+    toastError(error.value, 'Ошибка')
+    return
+  }
+  toast.add({ title: 'Группа удалена', color: 'success', icon: 'i-lucide-check' })
+  await navigateTo('/dashboard/groups')
+}
 </script>
 
 <template>
@@ -420,6 +438,12 @@ async function onDeleteStudent() {
             icon="i-lucide-pencil"
             variant="outline"
             @click="enterEditMode"
+          />
+          <UButton
+            icon="i-lucide-trash-2"
+            color="error"
+            variant="ghost"
+            @click="deletingGroup = true"
           />
         </template>
         <template v-else>
@@ -682,6 +706,42 @@ async function onDeleteStudent() {
               :loading="deletePending"
               :disabled="deletePending"
               @click="onDeleteStudent"
+            >
+              Удалить
+            </UButton>
+          </div>
+        </div>
+      </template>
+    </UModal>
+
+    <!-- Delete group confirm modal -->
+    <UModal
+      :open="deletingGroup"
+      title="Удалить группу"
+      @update:open="(v) => { if (!v && !deleteGroupPending) deletingGroup = v }"
+    >
+      <template #body="{ close }">
+        <div class="flex flex-col gap-4">
+          <p>
+            Группа будет удалена безвозвратно и все её данные будут потеряны. Убедитесь, что это действие действительно необходимо.
+          </p>
+
+          <div class="flex justify-end gap-2">
+            <UButton
+              color="neutral"
+              variant="soft"
+              :disabled="deleteGroupPending"
+              @click="close()"
+            >
+              Отмена
+            </UButton>
+
+            <UButton
+              color="error"
+              icon="i-lucide-trash-2"
+              :loading="deleteGroupPending"
+              :disabled="deleteGroupPending"
+              @click="onDeleteGroup"
             >
               Удалить
             </UButton>

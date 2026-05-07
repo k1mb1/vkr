@@ -45,3 +45,7 @@ export function patch(
 ): Promise<BackendResult<GroupResponse>> {
   return $backendFetch<GroupResponse>(`${DEFAULT_PATH}/${toValue(groupId)}`, { method: 'PATCH', body: payload })
 }
+
+export function remove(groupId: MaybeRefOrGetter<string>): Promise<BackendResult<void>> {
+  return $backendFetch<void>(`${DEFAULT_PATH}/${toValue(groupId)}`, { method: 'DELETE' })
+}
