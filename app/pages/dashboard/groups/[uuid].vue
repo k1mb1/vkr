@@ -324,11 +324,6 @@ const removePending = ref(false)
 const deletingStudentId = ref<string | null>(null)
 const deletePending = ref(false)
 
-function openEditStudent(student: { id: string, username: string }) {
-  editingStudent.value = { ...student }
-  editUsername.value = student.username
-}
-
 function closeEditStudent() {
   editingStudent.value = null
   editUsername.value = ''
@@ -377,31 +372,6 @@ async function onDeleteStudent() {
   toast.add({ title: 'Студент удалён', color: 'success', icon: 'i-lucide-check' })
   deletingStudentId.value = null
   await refresh()
-}
-
-function getStudentActions(row: StudentTableRow) {
-  return [
-    [
-      {
-        label: 'Переименовать',
-        icon: 'i-lucide-pencil',
-        onSelect: () => openEditStudent({ id: row.id!, username: row.username }),
-      },
-      {
-        label: 'Убрать из группы',
-        icon: 'i-lucide-user-minus',
-        onSelect: () => { removingStudentId.value = row.id },
-      },
-    ],
-    [
-      {
-        label: 'Удалить',
-        icon: 'i-lucide-trash-2',
-        color: 'error' as const,
-        onSelect: () => { deletingStudentId.value = row.id },
-      },
-    ],
-  ]
 }
 </script>
 
@@ -507,17 +477,6 @@ function getStudentActions(row: StudentTableRow) {
               >
                 Имя
               </UButton>
-            </template>
-
-            <template #actions-cell="{ row }">
-              <UDropdownMenu :items="getStudentActions(row.original)">
-                <UButton
-                  icon="i-lucide-ellipsis-vertical"
-                  color="neutral"
-                  variant="ghost"
-                  :aria-label="`Действия со студентом ${row.original.username}`"
-                />
-              </UDropdownMenu>
             </template>
 
             <template #empty>

@@ -8,6 +8,8 @@ import { useApiError } from '~/composables/useApiError'
 type Schema = v.InferOutput<typeof CreateGroupRequestSchema>
 
 const { toastError } = useApiError()
+const toast = useToast()
+const open = ref(false)
 
 // ── State ──────────────────────────────────────────────────
 const state = reactive<Schema>({
@@ -237,6 +239,11 @@ async function handleCreate() {
       toastError(result.error.value)
       return
     }
+    if (result.data.value) {
+      toast.add({ title: 'Группа создана', color: 'success', icon: 'i-lucide-check' })
+      open.value = false
+      await navigateTo(`/dashboard/groups/${result.data.value.id}`)
+    }
     resetForm()
   }
   finally {
@@ -246,7 +253,7 @@ async function handleCreate() {
 </script>
 
 <template>
-  <UModal fullscreen title="Создать группу" :ui="{ body: 'flex-1 p-4 overflow-hidden' }">
+  <UModal v-model:open="open" fullscreen title="Создать группу" :ui="{ body: 'flex-1 p-4 overflow-hidden' }">
     <UButton label="Создать группу" icon="i-lucide-users" />
 
     <template #body>
