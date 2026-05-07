@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import type { GroupResponse } from '#shared/types/backend'
+import type { Form } from '#ui/types'
 import type { TableColumn, TabsItem } from '@nuxt/ui'
+import type * as v from 'valibot'
+import { UpdateGroupRequestSchema } from '#shared/types/backend/student-groups'
 import { deleteStudent, updateStudent } from '~/composables/api/useStudentsApi'
-import { useStudentGroup } from '~/composables/api/useStudentsGroups'
+import { patch, useStudentGroup } from '~/composables/api/useStudentsGroups'
 
 const route = useRoute()
 const groupId = computed(() => String(route.params.uuid ?? ''))
@@ -25,7 +28,7 @@ type SortDirection = 'asc' | 'desc'
 
 interface StudentTableRow {
   key: string
-  id: string
+  id: string | null
   index: number
   username: string
 }
@@ -73,6 +76,121 @@ const tableColumns: TableColumn<StudentTableRow>[] = [
   },
 ]
 
+// ── Editing state ──────────────────────────────────────────
+const isEditing = ref(false)
+const editLoading = ref(false)
+
+type EditSchema = v.InferOutput<typeof UpdateGroupRequestSchema>
+
+const draft = reactive<EditSchema>({
+  groupName: '',
+  students: [],
+})
+
+const editFormRef = useTemplateRef<Form<typeof UpdateGroupRequestSchema>>('editForm')
+
+const newStudentsInput = ref('')
+
+const activeSubgroupId = computed<string | null>(() => {
+  if (activeTab.value === 'students')
+    return null
+  return activeTab.value.replace(subgroupTabPrefix, '')
+})
+
+function enterEditMode() {
+  if (!group.value)
+    return
+  draft.groupName = group.value.name
+  draft.students = group.value.students.map(s => ({
+    id: s.id,
+    username: s.username,
+    subgroupId: s.subgroupId,
+  }))
+  isEditing.value = true
+}
+
+function exitEditMode() {
+  isEditing.value = false
+  newStudentsInput.value = ''
+}
+
+const displayStudents = computed(() => {
+  return isEditing.value ? draft.students : (group.value?.students ?? [])
+})
+
+function updateDraftStudentUsername(studentId: string | null, username: string) {
+  const student = draft.students.find(s => s.id === studentId)
+  if (student)
+    student.username = username.trim()
+}
+
+function removeDraftStudent(studentId: string | null) {
+  const idx = draft.students.findIndex(s => s.id === studentId)
+  if (idx !== -1)
+    draft.students.splice(idx, 1)
+}
+
+function parseUsernames(raw: string): string[] {
+  return raw
+    .split(/\n+/)
+    .map(s => s.trim())
+    .filter(Boolean)
+}
+
+function addDraftStudents(raw: string, subgroupId: string | null) {
+  const usernames = parseUsernames(raw)
+  const existing = new Set(draft.students.map(s => s.username))
+
+  for (const username of usernames) {
+    if (!existing.has(username)) {
+      draft.students.push({ id: null, username, subgroupId })
+      existing.add(username)
+    }
+  }
+}
+
+function handleAddDraftStudents() {
+  const text = newStudentsInput.value.trim()
+  if (!text)
+    return
+  addDraftStudents(text, activeSubgroupId.value)
+  newStudentsInput.value = ''
+}
+
+function handleAddDraftPaste(e: ClipboardEvent) {
+  const text = e.clipboardData?.getData('text') ?? ''
+  if (!text.includes('\n'))
+    return
+  e.preventDefault()
+  addDraftStudents(text, activeSubgroupId.value)
+  newStudentsInput.value = ''
+}
+
+async function handlePatch() {
+  const form = editFormRef.value
+  if (!form)
+    return
+
+  const data = await form.validate({ transform: true })
+  if (!data)
+    return
+
+  editLoading.value = true
+  try {
+    const result = await patch(groupId.value, data)
+    if (result.error.value) {
+      toastError(result.error.value)
+      return
+    }
+    exitEditMode()
+    await refresh()
+  }
+  finally {
+    editLoading.value = false
+  }
+}
+
+// ── Tabs & Table ───────────────────────────────────────────
 const tabsData = computed(() => {
   const tabs: Array<{
     value: string
@@ -82,13 +200,14 @@ const tabsData = computed(() => {
     title: string
     emptyTitle: string
     emptyDescription: string
-    rows: Array<{ key: string, id: string, username: string }>
+    rows: Array<{ key: string, id: string | null, username: string }>
   }> = []
 
-  const groupStudents = group.value?.students ?? []
+  const groupStudents = displayStudents.value
+  const hasSubgroups = (group.value?.subgroups ?? []).length > 0
 
   const studentsWithoutSubgroup = groupStudents.filter(s => s.subgroupId === null)
-  if (studentsWithoutSubgroup.length > 0) {
+  if (!hasSubgroups && (studentsWithoutSubgroup.length > 0 || isEditing.value)) {
     const studentsRows = studentsWithoutSubgroup.map((student, localIndex) => ({
       key: `students:${String(student.id ?? `${student.username}:${localIndex}`)}`,
       id: student.id,
@@ -152,6 +271,14 @@ const activeTabData = computed(() => {
 
 const activeTabRows = computed<StudentTableRow[]>(() => {
   const sourceRows = activeTabData.value?.rows ?? []
+
+  if (isEditing.value) {
+    return sourceRows.map((row, index) => ({
+      ...row,
+      index: index + 1,
+    }))
+  }
+
   const sortedRows = [...sourceRows].sort((left, right) => {
     return sortDirection.value === 'asc'
       ? usernameCollator.compare(left.username, right.username)
@@ -258,7 +385,7 @@ function getStudentActions(row: StudentTableRow) {
       {
         label: 'Переименовать',
         icon: 'i-lucide-pencil',
-        onSelect: () => openEditStudent({ id: row.id, username: row.username }),
+        onSelect: () => openEditStudent({ id: row.id!, username: row.username }),
       },
       {
         label: 'Убрать из группы',
@@ -303,16 +430,44 @@ function getStudentActions(row: StudentTableRow) {
           class="rounded-xl bg-secondary/10 text-secondary"
         />
         <div class="flex-1">
-          <h1 class="text-xl font-semibold">
-            {{ group.name }}
-          </h1>
-          <div class="flex items-center gap-2 text-sm text-muted">
-            <span>{{ group.students.length }} студентов</span>
-            <span>·</span>
-            <span>{{ group.subgroups.length }} подгрупп</span>
-          </div>
+          <template v-if="!isEditing">
+            <h1 class="text-xl font-semibold">
+              {{ group.name }}
+            </h1>
+            <div class="flex items-center gap-2 text-sm text-muted">
+              <span>{{ group.students.length }} студентов</span>
+              <span>·</span>
+              <span>{{ group.subgroups.length }} подгрупп</span>
+            </div>
+          </template>
+          <template v-else>
+            <UInput v-model="draft.groupName" placeholder="Название группы" class="w-full" />
+          </template>
         </div>
-        <GroupsEditToolbarForm :group-id="groupId" :group="group" @success="refresh" />
+        <template v-if="!isEditing">
+          <UButton
+            label="Редактировать"
+            icon="i-lucide-pencil"
+            variant="outline"
+            @click="enterEditMode"
+          />
+        </template>
+        <template v-else>
+          <UButton
+            color="neutral"
+            variant="ghost"
+            @click="exitEditMode"
+          >
+            Отмена
+          </UButton>
+          <UButton
+            icon="i-lucide-check"
+            :loading="editLoading"
+            @click="handlePatch"
+          >
+            Сохранить
+          </UButton>
+        </template>
       </div>
 
       <UTabs
@@ -321,68 +476,138 @@ function getStudentActions(row: StudentTableRow) {
         :items="groupTabs"
       />
 
-      <UCard v-if="groupTabs.length && activeTabData">
-        <template #header>
-          <div class="flex items-center gap-2">
-            <h3 class="text-lg font-semibold">
-              {{ activeTabData.title }}
-            </h3>
-            <UBadge color="neutral" variant="soft">
-              {{ activeTabRows.length }}
-            </UBadge>
-          </div>
-        </template>
-
-        <UTable
-          :data="activeTabRows"
-          :columns="tableColumns"
-          :loading="pending"
-          sticky="header"
-        >
-          <template #username-header>
-            <UButton
-              color="neutral"
-              variant="ghost"
-              class="justify-start px-0"
-              :icon="sortDirection === 'asc' ? 'i-lucide-arrow-up-narrow-wide' : 'i-lucide-arrow-down-wide-narrow'"
-              :aria-label="`Сортировать по имени (${sortDirectionLabel})`"
-              @click="toggleNameSort"
-            >
-              Имя
-            </UButton>
+      <!-- View mode: Table -->
+      <template v-if="!isEditing">
+        <UCard v-if="groupTabs.length && activeTabData">
+          <template #header>
+            <div class="flex items-center gap-2">
+              <h3 class="text-lg font-semibold">
+                {{ activeTabData.title }}
+              </h3>
+              <UBadge color="neutral" variant="soft">
+                {{ activeTabRows.length }}
+              </UBadge>
+            </div>
           </template>
 
-          <template #actions-cell="{ row }">
-            <UDropdownMenu :items="getStudentActions(row.original)">
+          <UTable
+            :data="activeTabRows"
+            :columns="tableColumns"
+            :loading="pending"
+            sticky="header"
+          >
+            <template #username-header>
               <UButton
-                icon="i-lucide-ellipsis-vertical"
                 color="neutral"
                 variant="ghost"
-                :aria-label="`Действия со студентом ${row.original.username}`"
+                class="justify-start px-0"
+                :icon="sortDirection === 'asc' ? 'i-lucide-arrow-up-narrow-wide' : 'i-lucide-arrow-down-wide-narrow'"
+                :aria-label="`Сортировать по имени (${sortDirectionLabel})`"
+                @click="toggleNameSort"
+              >
+                Имя
+              </UButton>
+            </template>
+
+            <template #actions-cell="{ row }">
+              <UDropdownMenu :items="getStudentActions(row.original)">
+                <UButton
+                  icon="i-lucide-ellipsis-vertical"
+                  color="neutral"
+                  variant="ghost"
+                  :aria-label="`Действия со студентом ${row.original.username}`"
+                />
+              </UDropdownMenu>
+            </template>
+
+            <template #empty>
+              <UEmpty
+                icon="i-lucide-users-round"
+                :title="activeTabData.emptyTitle"
+                :description="activeTabData.emptyDescription"
+                variant="naked"
+                class="py-6"
               />
-            </UDropdownMenu>
-          </template>
+            </template>
+          </UTable>
+        </UCard>
 
-          <template #empty>
+        <UCard v-else>
+          <UEmpty
+            icon="i-lucide-users"
+            title="В группе пока нет студентов и подгрупп"
+            description="Добавьте студентов в группу или создайте подгруппы."
+            variant="naked"
+          />
+        </UCard>
+      </template>
+
+      <!-- Edit mode: Inline list -->
+      <template v-else>
+        <UForm ref="editForm" :schema="UpdateGroupRequestSchema" :state="draft" class="flex flex-col gap-4">
+          <UFormField name="students" />
+          <UCard v-if="groupTabs.length && activeTabData">
+            <template #header>
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <h3 class="text-lg font-semibold">
+                    {{ activeTabData.title }}
+                  </h3>
+                  <UBadge color="neutral" variant="soft">
+                    {{ activeTabRows.length }}
+                  </UBadge>
+                </div>
+              </div>
+            </template>
+
+            <div class="flex flex-col gap-2">
+              <div
+                v-for="row in activeTabRows"
+                :key="row.key"
+                class="flex items-center gap-2"
+              >
+                <span class="w-8 text-center text-sm text-muted">{{ row.index }}</span>
+                <UInput
+                  :model-value="row.username"
+                  class="flex-1"
+                  @update:model-value="(v) => updateDraftStudentUsername(row.id, v)"
+                />
+                <UButton
+                  icon="i-lucide-trash-2"
+                  color="error"
+                  variant="ghost"
+                  @click="removeDraftStudent(row.id)"
+                />
+              </div>
+
+              <div
+                v-if="activeTabRows.length === 0"
+                class="py-4 text-sm text-muted"
+              >
+                {{ activeTabData.emptyDescription }}
+              </div>
+
+              <UInput
+                v-model="newStudentsInput"
+                placeholder="Добавьте студентов (Enter или вставьте список)"
+                icon="i-lucide-user-plus"
+                class="mt-2"
+                @keydown.enter.prevent="handleAddDraftStudents"
+                @paste="handleAddDraftPaste"
+              />
+            </div>
+          </UCard>
+
+          <UCard v-else>
             <UEmpty
-              icon="i-lucide-users-round"
-              :title="activeTabData.emptyTitle"
-              :description="activeTabData.emptyDescription"
+              icon="i-lucide-users"
+              title="В группе пока нет студентов и подгрупп"
+              description="Добавьте студентов в группу или создайте подгруппы."
               variant="naked"
-              class="py-6"
             />
-          </template>
-        </UTable>
-      </UCard>
-
-      <UCard v-else>
-        <UEmpty
-          icon="i-lucide-users"
-          title="В группе пока нет студентов и подгрупп"
-          description="Добавьте студентов в группу или создайте подгруппы."
-          variant="naked"
-        />
-      </UCard>
+          </UCard>
+        </UForm>
+      </template>
     </template>
 
     <UEmpty
