@@ -11,17 +11,17 @@ const { rows, total, totalPages } = toPageState(data)
 
 <template>
   <div class="flex h-full flex-col gap-6">
-    <UPageHeader
-      title="Группы"
-      :links="[{
-        icon: 'i-lucide-refresh-cw',
-        color: 'neutral',
-        variant: 'ghost',
-        loading: pending,
-        onClick: () => refresh(),
-      }]"
-    >
-      <GroupsCreateToolbarForm />
+    <UPageHeader title="Группы">
+      <template #links>
+        <UButton
+          icon="i-lucide-refresh-cw"
+          color="neutral"
+          variant="ghost"
+          :loading="pending"
+          @click="refresh()"
+        />
+        <GroupsCreateToolbarForm />
+      </template>
     </UPageHeader>
 
     <UAlert
