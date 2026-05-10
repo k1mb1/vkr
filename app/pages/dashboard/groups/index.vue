@@ -84,7 +84,11 @@ const { rows, totalElements } = toPageState(data)
       v-else-if="rows.length === 0"
       icon="i-lucide-users"
       :title="debouncedSearch ? 'Группы не найдены' : 'Группы не найдены'"
-      :description="debouncedSearch ? 'Попробуйте изменить запрос поиска.' : 'Создайте первую группу с помощью кнопки выше.'"
+      :description="
+        debouncedSearch
+          ? 'Попробуйте изменить запрос поиска.'
+          : 'Создайте первую группу с помощью кнопки выше.'
+      "
       variant="naked"
     />
 
@@ -94,23 +98,17 @@ const { rows, totalElements } = toPageState(data)
         :key="group.id"
         :to="`/dashboard/groups/${group.id}`"
         :title="group.name"
-        :ui="{ title: 'truncate' }"
+        icon="i-lucide-users"
+        :ui="{
+          wrapper: 'flex-row items-center gap-3',
+          leading: 'mb-0',
+          body: 'flex-1',
+          footer: 'pt-0 mt-0',
+          title: 'truncate',
+        }"
       >
-        <template #leading>
-          <UAvatar
-            icon="i-lucide-users"
-            class="rounded-lg bg-secondary/10 text-secondary"
-          />
-        </template>
-
         <template #footer>
-          <UButton
-            color="neutral"
-            variant="soft"
-            label="Open"
-            trailing-icon="i-lucide-chevron-right"
-            :to="`/dashboard/groups/${group.id}`"
-          />
+          <UIcon name="i-lucide-chevron-right" />
         </template>
       </UPageCard>
     </UPageGrid>

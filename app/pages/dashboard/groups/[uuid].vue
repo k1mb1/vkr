@@ -5,20 +5,22 @@ import type { TabsItem } from '@nuxt/ui'
 import type * as v from 'valibot'
 import type { StudentTableRow } from '~/components/groups/types'
 import { UpdateGroupRequestSchema } from '#shared/types/backend/student-groups'
-import { patch, remove, useStudentGroup } from '~/composables/api/useStudentsGroups'
+import {
+  patch,
+  remove,
+  useStudentGroup,
+} from '~/composables/api/useStudentsGroups'
 
 const route = useRoute()
 const groupId = computed(() => String(route.params.uuid ?? ''))
-const activeGroupName = useState<string | null>('groups-active-name', () => null)
+const activeGroupName = useState<string | null>(
+  'groups-active-name',
+  () => null,
+)
 const toast = useToast()
 const { toastError } = useApiError()
 
-const {
-  data,
-  pending,
-  error,
-  refresh,
-} = useStudentGroup(groupId)
+const { data, pending, error, refresh } = useStudentGroup(groupId)
 
 const group = computed<GroupResponse | null>(() => data.value ?? null)
 const subgroupTabPrefix = 'subgroup:'
@@ -46,7 +48,8 @@ const draft = reactive<EditSchema>({
   students: [],
 })
 
-const editFormRef = useTemplateRef<Form<typeof UpdateGroupRequestSchema>>('editForm')
+const editFormRef
+  = useTemplateRef<Form<typeof UpdateGroupRequestSchema>>('editForm')
 
 const newStudentsInput = ref('')
 
@@ -77,7 +80,10 @@ const displayStudents = computed(() => {
   return isEditing.value ? draft.students : (group.value?.students ?? [])
 })
 
-function updateDraftStudentUsername(studentId: string | null, username: string) {
+function updateDraftStudentUsername(
+  studentId: string | null,
+  username: string,
+) {
   const student = draft.students.find(s => s.id === studentId)
   if (student)
     student.username = username.trim()
@@ -165,8 +171,13 @@ const tabsData = computed(() => {
   const groupStudents = displayStudents.value
   const hasSubgroups = (group.value?.subgroups ?? []).length > 0
 
-  const studentsWithoutSubgroup = groupStudents.filter(s => s.subgroupId === null)
-  if (!hasSubgroups && (studentsWithoutSubgroup.length > 0 || isEditing.value)) {
+  const studentsWithoutSubgroup = groupStudents.filter(
+    s => s.subgroupId === null,
+  )
+  if (
+    !hasSubgroups
+    && (studentsWithoutSubgroup.length > 0 || isEditing.value)
+  ) {
     const studentsRows = studentsWithoutSubgroup.map((student, localIndex) => ({
       key: `students:${String(student.id ?? `${student.username}:${localIndex}`)}`,
       id: student.id,
@@ -185,21 +196,25 @@ const tabsData = computed(() => {
     })
   }
 
-  for (const subgroup of group.value?.subgroups ?? []) {
+  for (const [index, subgroup] of (group.value?.subgroups ?? []).entries()) {
     const tabValue = `${subgroupTabPrefix}${String(subgroup.id)}`
-    const subgroupStudents = groupStudents.filter(s => s.subgroupId === subgroup.id)
+    const subgroupStudents = groupStudents.filter(
+      s => s.subgroupId === subgroup.id,
+    )
     const subgroupRows = subgroupStudents.map((student, localIndex) => ({
       key: `${tabValue}:${String(student.id ?? `${student.username}:${localIndex}`)}`,
       id: student.id,
       username: student.username,
     }))
 
+    const subgroupLabel = `Подгруппа ${index + 1}`
+
     tabs.push({
       value: tabValue,
-      label: subgroup.name,
+      label: subgroupLabel,
       count: subgroupStudents.length,
       icon: 'i-lucide-git-fork',
-      title: subgroup.name,
+      title: subgroupLabel,
       emptyTitle: 'Подгруппа пуста',
       emptyDescription: 'Студенты для этой подгруппы пока не назначены.',
       rows: subgroupRows,
@@ -217,7 +232,9 @@ const groupTabs = computed<TabsItem[]>(() => {
     badge: tab.count || undefined,
   }))
 })
-const availableTabValues = computed<string[]>(() => tabsData.value.map(tab => tab.value))
+const availableTabValues = computed<string[]>(() =>
+  tabsData.value.map(tab => tab.value),
+)
 
 const activeTabData = computed(() => {
   const tab = tabsData.value.find(item => item.value === activeTab.value)
@@ -250,27 +267,39 @@ const activeTabRows = computed<StudentTableRow[]>(() => {
   }))
 })
 
-watch(groupId, () => {
-  activeGroupName.value = null
-}, { immediate: true })
+watch(
+  groupId,
+  () => {
+    activeGroupName.value = null
+  },
+  { immediate: true },
+)
 
-watch(group, (value) => {
-  activeGroupName.value = value?.name ?? null
-}, { immediate: true })
+watch(
+  group,
+  (value) => {
+    activeGroupName.value = value?.name ?? null
+  },
+  { immediate: true },
+)
 
-watch(availableTabValues, (values) => {
-  if (!values.length) {
-    activeTab.value = 'students'
-    return
-  }
-
-  if (!activeTab.value || !values.includes(activeTab.value)) {
-    const firstValue = values[0]
-    if (firstValue) {
-      activeTab.value = firstValue
+watch(
+  availableTabValues,
+  (values) => {
+    if (!values.length) {
+      activeTab.value = 'students'
+      return
     }
-  }
-}, { immediate: true })
+
+    if (!activeTab.value || !values.includes(activeTab.value)) {
+      const firstValue = values[0]
+      if (firstValue) {
+        activeTab.value = firstValue
+      }
+    }
+  },
+  { immediate: true },
+)
 
 // Group deletion
 const deletingGroup = ref(false)
@@ -286,7 +315,11 @@ async function onDeleteGroup() {
     toastError(error.value, 'Ошибка')
     return
   }
-  toast.add({ title: 'Группа удалена', color: 'success', icon: 'i-lucide-check' })
+  toast.add({
+    title: 'Группа удалена',
+    color: 'success',
+    icon: 'i-lucide-check',
+  })
   await navigateTo('/dashboard/groups')
 }
 </script>
@@ -321,11 +354,7 @@ async function onDeleteGroup() {
         @delete="deletingGroup = true"
       />
 
-      <UTabs
-        v-if="groupTabs.length"
-        v-model="activeTab"
-        :items="groupTabs"
-      />
+      <UTabs v-if="groupTabs.length" v-model="activeTab" :items="groupTabs" />
 
       <!-- View mode: Table -->
       <template v-if="!isEditing">
@@ -363,7 +392,12 @@ async function onDeleteGroup() {
 
       <!-- Edit mode: Inline list -->
       <template v-else>
-        <UForm ref="editForm" :schema="UpdateGroupRequestSchema" :state="draft" class="flex flex-col gap-4">
+        <UForm
+          ref="editForm"
+          :schema="UpdateGroupRequestSchema"
+          :state="draft"
+          class="flex flex-col gap-4"
+        >
           <UFormField name="students" />
           <UCard v-if="groupTabs.length && activeTabData">
             <template #header>
