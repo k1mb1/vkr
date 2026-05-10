@@ -20,6 +20,8 @@ import { DEFAULT_FIND_SUBJECTS_FILTER } from '#shared/types/backend'
 import { toValue } from 'vue'
 import { $backendFetch, useBackendFetch } from '~/composables/useBackendFetch'
 
+const DEFAULT_PATH = '/subjects'
+
 type FindSubjectsByTeacherOptions = Omit<BackendFetchOptions<SubjectResponse[]>, 'method' | 'query'>
 
 export function useSubjectsByTeacher(
@@ -28,7 +30,7 @@ export function useSubjectsByTeacher(
   options?: FindSubjectsByTeacherOptions,
 ): BackendFetchResult<SubjectResponse[]> {
   return useBackendFetch<SubjectResponse[]>(
-    () => `/subjects/teachers/${toValue(teacherId)}`,
+    () => `${DEFAULT_PATH}/teachers/${toValue(teacherId)}`,
     {
       ...(options ?? {}),
       method: 'GET',
@@ -75,14 +77,14 @@ export function useSubjectAttendance(
 export function createSubject(
   payload: CreateSubjectRequestPayload,
 ): Promise<BackendResult<SubjectResponse>> {
-  return $backendFetch<SubjectResponse>(`/subjects`, { method: 'POST', body: payload })
+  return $backendFetch<SubjectResponse>(`${DEFAULT_PATH}`, { method: 'POST', body: payload })
 }
 
 export function updateSubject(
   subjectId: MaybeRefOrGetter<string>,
   payload: UpdateSubjectRequestPayload,
 ): Promise<BackendResult<SubjectResponse>> {
-  return $backendFetch<SubjectResponse>(`/subjects/${toValue(subjectId)}`, {
+  return $backendFetch<SubjectResponse>(`${DEFAULT_PATH}/${toValue(subjectId)}`, {
     method: 'PATCH',
     body: payload,
   })
@@ -91,7 +93,7 @@ export function updateSubject(
 export function deleteSubject(
   subjectId: MaybeRefOrGetter<string>,
 ): Promise<BackendResult<void>> {
-  return $backendFetch<void>(`/subjects/${toValue(subjectId)}`, { method: 'DELETE' })
+  return $backendFetch<void>(`${DEFAULT_PATH}/${toValue(subjectId)}`, { method: 'DELETE' })
 }
 
 export function attachGroupToSubject(

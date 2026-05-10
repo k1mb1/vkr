@@ -7,11 +7,13 @@ import type { BackendResult } from '~/composables/useBackendFetch'
 import { toValue } from 'vue'
 import { $backendFetch } from '~/composables/useBackendFetch'
 
+const DEFAULT_PATH = '/teachers'
+
 export function upsertTeacher(
   id: MaybeRefOrGetter<string>,
   payload: UpdateTeacherRequestPayload,
 ): Promise<BackendResult<TeacherResponse>> {
-  return $backendFetch<TeacherResponse>(`/teachers/${toValue(id)}`, {
+  return $backendFetch<TeacherResponse>(`${DEFAULT_PATH}/${toValue(id)}`, {
     method: 'PUT',
     body: payload,
   })

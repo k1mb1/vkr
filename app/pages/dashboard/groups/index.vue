@@ -103,21 +103,6 @@ const { rows, totalElements } = toPageState(data)
           />
         </template>
 
-        <template #default>
-          <div class="flex flex-wrap items-center gap-2">
-            <UBadge
-              color="neutral"
-              variant="soft"
-              :label="`${group.totalStudentCount} students`"
-            />
-            <UBadge
-              color="primary"
-              variant="soft"
-              :label="`${group.subgroupCount} subgroups`"
-            />
-          </div>
-        </template>
-
         <template #footer>
           <UButton
             color="neutral"

@@ -14,7 +14,7 @@ import { toPageQuery } from '#shared/types/backend'
 import { computed, toValue } from 'vue'
 import { useBackendFetch } from '~/composables/useBackendFetch'
 
-const DEFAULT_PATH = '/student-groups'
+const DEFAULT_PATH = '/groups'
 
 export function useStudentGroups(
   request?: MaybeRefOrGetter<PageRequest<StudentGroupFilterRequest>>,

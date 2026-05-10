@@ -11,10 +11,12 @@ import type { BackendFetchResult, BackendResult } from '~/composables/useBackend
 import { toValue } from 'vue'
 import { $backendFetch, useBackendFetch } from '~/composables/useBackendFetch'
 
+const DEFAULT_PATH = '/lessons'
+
 export function useLessonTasks(
   lessonId: MaybeRefOrGetter<string>,
 ): BackendFetchResult<TaskResponse[]> {
-  return useBackendFetch<TaskResponse[]>(() => `/lessons/${toValue(lessonId)}/tasks`, {
+  return useBackendFetch<TaskResponse[]>(() => `${DEFAULT_PATH}/${toValue(lessonId)}/tasks`, {
     method: 'GET',
   })
 }
@@ -32,7 +34,7 @@ export function createLessonTask(
   lessonId: MaybeRefOrGetter<string>,
   payload: CreateTaskRequestPayload,
 ): Promise<BackendResult<TaskResponse>> {
-  return $backendFetch<TaskResponse>(`/lessons/${toValue(lessonId)}/tasks`, {
+  return $backendFetch<TaskResponse>(`${DEFAULT_PATH}/${toValue(lessonId)}/tasks`, {
     method: 'POST',
     body: payload,
   })
@@ -44,7 +46,7 @@ export function updateLessonTask(
   payload: UpdateTaskRequestPayload,
 ): Promise<BackendResult<TaskResponse>> {
   return $backendFetch<TaskResponse>(
-    `/lessons/${toValue(lessonId)}/tasks/${toValue(taskId)}`,
+    `${DEFAULT_PATH}/${toValue(lessonId)}/tasks/${toValue(taskId)}`,
     { method: 'PATCH', body: payload },
   )
 }
@@ -54,7 +56,7 @@ export function deleteLessonTask(
   taskId: MaybeRefOrGetter<string>,
 ): Promise<BackendResult<void>> {
   return $backendFetch<void>(
-    `/lessons/${toValue(lessonId)}/tasks/${toValue(taskId)}`,
+    `${DEFAULT_PATH}/${toValue(lessonId)}/tasks/${toValue(taskId)}`,
     { method: 'DELETE' },
   )
 }

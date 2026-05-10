@@ -8,11 +8,13 @@ import type { BackendFetchResult, BackendResult } from '~/composables/useBackend
 import { toValue } from 'vue'
 import { $backendFetch, useBackendFetch } from '~/composables/useBackendFetch'
 
+const DEFAULT_PATH = '/attendance'
+
 export function useAttendanceBySubject(
   subjectId: MaybeRefOrGetter<string>,
 ): BackendFetchResult<SubjectAttendanceResponse> {
   return useBackendFetch<SubjectAttendanceResponse>(
-    () => `/subjects/${toValue(subjectId)}/attendance`,
+    () => `/subjects/${toValue(subjectId)}${DEFAULT_PATH}`,
     { method: 'GET' },
   )
 }
@@ -22,7 +24,7 @@ export function upsertLessonAttendance(
   payload: UpsertAttendanceRequestPayload,
 ): Promise<BackendResult<AttendanceEntryResponse>> {
   return $backendFetch<AttendanceEntryResponse>(
-    `/lessons/${toValue(lessonId)}/attendance`,
+    `/lessons/${toValue(lessonId)}${DEFAULT_PATH}`,
     { method: 'PUT', body: payload },
   )
 }
