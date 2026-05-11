@@ -1,10 +1,10 @@
 <script setup lang="ts">
-const open = defineModel<boolean>('open', { required: true })
-
 const emit = defineEmits<{
   confirm: []
   cancel: []
 }>()
+
+const open = defineModel<boolean>('open', { required: true })
 </script>
 
 <template>

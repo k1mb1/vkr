@@ -1,21 +1,21 @@
 <script setup lang="ts">
 interface Props {
-  name: string;
-  studentsCount: number;
-  subgroupsCount: number;
-  isEditing: boolean;
-  editLoading: boolean;
-  modelValue: string;
+  name: string
+  studentsCount: number
+  subgroupsCount: number
+  isEditing: boolean
+  editLoading: boolean
+  modelValue: string
 }
 
-defineProps<Props>();
+defineProps<Props>()
 const emit = defineEmits<{
-  "update:modelValue": [value: string];
-  edit: [];
-  cancel: [];
-  save: [];
-  delete: [];
-}>();
+  'update:modelValue': [value: string]
+  'edit': []
+  'cancel': []
+  'save': []
+  'delete': []
+}>()
 </script>
 
 <template>
