@@ -1,29 +1,29 @@
 <script setup lang="ts">
-import type { StudentTableRow } from './types'
+import type { StudentTableRow } from "./types";
 
 interface SubgroupOption {
-  value: string
-  label: string
+  value: string;
+  label: string;
 }
 
 interface Props {
-  rows: StudentTableRow[]
-  emptyDescription: string
-  newStudentsInput: string
-  subgroups?: SubgroupOption[]
+  rows: StudentTableRow[];
+  emptyDescription: string;
+  newStudentsInput: string;
+  subgroups?: SubgroupOption[];
 }
 
-const props = defineProps<Props>()
+const props = defineProps<Props>();
 const emit = defineEmits<{
-  'update:newStudentsInput': [value: string]
-  'updateUsername': [studentId: string | null, username: string]
-  'updateSubgroup': [draftIndex: number, subgroupId: string | null]
-  'remove': [studentId: string | null]
-  'add': []
-  'paste': [e: ClipboardEvent]
-}>()
+  "update:newStudentsInput": [value: string];
+  updateUsername: [studentId: string | null, username: string];
+  updateSubgroup: [draftIndex: number, subgroupId: string | null];
+  remove: [studentId: string | null];
+  add: [];
+  paste: [e: ClipboardEvent];
+}>();
 
-const hasSubgroups = computed(() => (props.subgroups ?? []).length > 0)
+const hasSubgroups = computed(() => (props.subgroups ?? []).length > 0);
 </script>
 
 <template>
@@ -42,15 +42,11 @@ const hasSubgroups = computed(() => (props.subgroups ?? []).length > 0)
       />
       <USelect
         v-if="hasSubgroups"
-        :model-value="row.subgroupId ?? 'none'"
-        :items="[
-          { value: 'none', label: 'Без подгруппы' },
-          ...(subgroups ?? []),
-        ]"
+        :model-value="row.subgroupId ?? ''"
+        :items="subgroups ?? []"
         class="w-44"
         @update:model-value="
-          (v: string) =>
-            emit('updateSubgroup', row.draftIndex, v === 'none' ? null : v)
+          (v: string) => emit('updateSubgroup', row.draftIndex, v)
         "
       />
       <UButton
