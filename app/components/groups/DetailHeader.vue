@@ -1,21 +1,21 @@
 <script setup lang="ts">
 interface Props {
-  name: string
-  studentsCount: number
-  subgroupsCount: number
-  isEditing: boolean
-  editLoading: boolean
-  modelValue: string
+  name: string;
+  studentsCount: number;
+  subgroupsCount: number;
+  isEditing: boolean;
+  editLoading: boolean;
+  modelValue: string;
 }
 
-defineProps<Props>()
+defineProps<Props>();
 const emit = defineEmits<{
-  'update:modelValue': [value: string]
-  'edit': []
-  'cancel': []
-  'save': []
-  'delete': []
-}>()
+  "update:modelValue": [value: string];
+  edit: [];
+  cancel: [];
+  save: [];
+  delete: [];
+}>();
 </script>
 
 <template>
@@ -41,7 +41,7 @@ const emit = defineEmits<{
           :model-value="modelValue"
           placeholder="Название группы"
           class="w-full"
-          @update:model-value="v => emit('update:modelValue', v)"
+          @update:model-value="(v) => emit('update:modelValue', v)"
         />
       </template>
     </div>
@@ -60,16 +60,13 @@ const emit = defineEmits<{
       />
     </template>
     <template v-else>
-      <UButton
-        color="neutral"
-        variant="ghost"
-        @click="emit('cancel')"
-      >
+      <UButton color="neutral" variant="ghost" @click="emit('cancel')">
         Отмена
       </UButton>
       <UButton
         icon="i-lucide-check"
         :loading="editLoading"
+        :disabled="!modelValue.trim()"
         @click="emit('save')"
       >
         Сохранить
