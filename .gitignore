@@ -26,3 +26,5 @@ logs
 .claude
 skills-lock.json
 .eslintcache
+
+app/api
