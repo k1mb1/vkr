@@ -38,7 +38,7 @@ const { rows, totalElements } = toPageState(data)
           :loading="pending"
           @click="refresh()"
         />
-        <GroupsCreateToolbarForm />
+        <GroupsCreateModal />
       </template>
     </UPageHeader>
 

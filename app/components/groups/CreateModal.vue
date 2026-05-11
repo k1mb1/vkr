@@ -7,9 +7,10 @@ import { useApiError } from '~/composables/useApiError'
 
 type Schema = v.InferOutput<typeof CreateGroupRequestSchema>
 
+const open = ref(false)
+
 const { toastError } = useApiError()
 const toast = useToast()
-const open = ref(false)
 
 // ── State ──────────────────────────────────────────────────
 const state = reactive<Schema>({
@@ -28,9 +29,13 @@ interface SubgroupCard {
 }
 
 let nextId = 1
-const cards = ref<SubgroupCard[]>([{ id: nextId++, subgroupIndex: null, input: '' }])
+const cards = ref<SubgroupCard[]>([
+  { id: nextId++, subgroupIndex: null, input: '' },
+])
 
-const hasSubgroups = computed(() => cards.value.some(c => c.subgroupIndex !== null))
+const hasSubgroups = computed(() =>
+  cards.value.some(c => c.subgroupIndex !== null),
+)
 
 function cardLabel(card: SubgroupCard): string {
   if (!hasSubgroups.value)
@@ -112,7 +117,10 @@ const dragging = ref<DragPayload | null>(null)
 const dragOverId = ref<number | null>(null)
 
 function onDragStart(student: Schema['students'][number]) {
-  dragging.value = { username: student.username, subgroupIndex: student.subgroupIndex }
+  dragging.value = {
+    username: student.username,
+    subgroupIndex: student.subgroupIndex,
+  }
 }
 
 function onDragEnd() {
@@ -140,7 +148,9 @@ function onDrop(card: SubgroupCard) {
     return
 
   const student = state.students.find(
-    s => s.username === dragging.value!.username && s.subgroupIndex === dragging.value!.subgroupIndex,
+    s =>
+      s.username === dragging.value!.username
+      && s.subgroupIndex === dragging.value!.subgroupIndex,
   )
 
   if (student && student.subgroupIndex !== card.subgroupIndex) {
@@ -152,7 +162,9 @@ function onDrop(card: SubgroupCard) {
 
 // ── Card Management ─────────────────────────────────────────
 function addCard() {
-  const nonNullCount = cards.value.filter(c => c.subgroupIndex !== null).length
+  const nonNullCount = cards.value.filter(
+    c => c.subgroupIndex !== null,
+  ).length
 
   if (nonNullCount === 0) {
     // Первое добавление подгруппы — конвертируем null-карточку в индекс 0
@@ -240,7 +252,11 @@ async function handleCreate() {
       return
     }
     if (result.data.value) {
-      toast.add({ title: 'Группа создана', color: 'success', icon: 'i-lucide-check' })
+      toast.add({
+        title: 'Группа создана',
+        color: 'success',
+        icon: 'i-lucide-check',
+      })
       open.value = false
       await navigateTo(`/dashboard/groups/${result.data.value.id}`)
     }
@@ -253,13 +269,27 @@ async function handleCreate() {
 </script>
 
 <template>
-  <UModal v-model:open="open" fullscreen title="Создать группу" :ui="{ body: 'flex-1 p-4 overflow-hidden' }">
+  <UModal
+    v-model:open="open"
+    fullscreen
+    title="Создать группу"
+    :ui="{ body: 'flex-1 p-4 overflow-hidden' }"
+  >
     <UButton label="Создать группу" icon="i-lucide-users" />
 
     <template #body>
-      <UForm ref="form" :schema="CreateGroupRequestSchema" :state="state" class="flex h-full flex-col gap-4">
+      <UForm
+        ref="form"
+        :schema="CreateGroupRequestSchema"
+        :state="state"
+        class="flex h-full flex-col gap-4"
+      >
         <UFormField label="Название группы" name="groupName" required>
-          <UInput v-model="state.groupName" placeholder="Например: ИВТ-21" class="w-full" />
+          <UInput
+            v-model="state.groupName"
+            placeholder="Например: ИВТ-21"
+            class="w-full"
+          />
         </UFormField>
 
         <UFormField name="students" />
@@ -286,7 +316,10 @@ async function handleCreate() {
               <template #header>
                 <span class="font-medium truncate">{{ cardLabel(card) }}</span>
                 <div class="flex items-center gap-1 shrink-0">
-                  <UBadge :label="String(getStudents(card.subgroupIndex).length)" variant="subtle" />
+                  <UBadge
+                    :label="String(getStudents(card.subgroupIndex).length)"
+                    variant="subtle"
+                  />
                   <UButton
                     v-if="cards.length > 1 && card.subgroupIndex !== null"
                     icon="i-lucide-x"
@@ -311,20 +344,30 @@ async function handleCreate() {
                   draggable="true"
                   class="group flex cursor-grab items-center gap-1 rounded-md bg-(--ui-bg-elevated) px-2 py-1 select-none active:cursor-grabbing"
                   :class="[
-                    dragging?.username === student.username && dragging?.subgroupIndex === student.subgroupIndex ? 'opacity-40' : '',
+                    dragging?.username === student.username
+                      && dragging?.subgroupIndex === student.subgroupIndex
+                      ? 'opacity-40'
+                      : '',
                   ]"
                   @dragstart="onDragStart(student)"
                   @dragend="onDragEnd"
                 >
-                  <UIcon name="i-lucide-grip-vertical" class="shrink-0 text-(--ui-text-muted)" />
-                  <span class="flex-1 truncate text-sm">{{ student.username }}</span>
+                  <UIcon
+                    name="i-lucide-grip-vertical"
+                    class="shrink-0 text-(--ui-text-muted)"
+                  />
+                  <span class="flex-1 truncate text-sm">{{
+                    student.username
+                  }}</span>
                   <UButton
                     icon="i-lucide-x"
                     color="neutral"
                     variant="ghost"
                     class="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
                     :aria-label="`Удалить ${student.username}`"
-                    @click="removeStudent(student.username, student.subgroupIndex)"
+                    @click="
+                      removeStudent(student.username, student.subgroupIndex)
+                    "
                   />
                 </div>
               </TransitionGroup>
@@ -361,10 +404,20 @@ async function handleCreate() {
         </div>
 
         <div class="flex justify-end gap-2">
-          <UButton color="neutral" variant="ghost" type="button" @click="resetForm">
+          <UButton
+            color="neutral"
+            variant="ghost"
+            type="button"
+            @click="resetForm"
+          >
             Очистить
           </UButton>
-          <UButton type="button" icon="i-lucide-check" :loading="loading" @click="handleCreate">
+          <UButton
+            type="button"
+            icon="i-lucide-check"
+            :loading="loading"
+            @click="handleCreate"
+          >
             Создать группу
           </UButton>
         </div>
