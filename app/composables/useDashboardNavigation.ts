@@ -1,126 +1,79 @@
 import type { NavigationMenuItem } from '@nuxt/ui'
 import type { Ref } from 'vue'
-// import { useSubjectsStore } from '~/stores/subjects'
+import { computed } from 'vue'
 
-type DashboardPrimaryLink = NavigationMenuItem & { description: string }
+type DashboardPrimaryLink = NavigationMenuItem & {
+  description: string
+  external?: boolean
+}
 
-const DASHBOARD_PRIMARY_LINKS = {
-  home: {
+const DASHBOARD_PRIMARY_LINKS = [
+  {
+    key: 'home',
     label: 'Главная',
     icon: 'i-lucide-house',
     to: '/dashboard',
     exact: true,
     description: 'Быстрый обзор рабочих разделов.',
   },
-  subjects: {
+  {
+    key: 'subjects',
     label: 'Предметы',
     icon: 'i-lucide-book-open',
     to: '/dashboard/subjects',
     exact: true,
     description: 'Создание и управление учебными предметами.',
+    defaultOpen: true,
+    // children: () => subjectChildren.value
   },
-  groups: {
-    label: 'Groups',
+  {
+    key: 'groups',
+    label: 'Группы студентов',
     icon: 'i-lucide-users',
     to: '/dashboard/groups',
     description: 'Управление группами и участниками.',
   },
-  debug: import.meta.dev
-    ? {
-        label: 'Debug',
-        icon: 'i-lucide-flask-conical',
-        to: '/dashboard/debug',
-        description: 'Проверка запросов к backend в dev-режиме.',
-      }
-    : null,
-  feedback: {
+  {
+    key: 'feedback',
     label: 'Feedback',
     icon: 'i-lucide-message-circle',
     to: 'https://k1mbb.t.me',
     target: '_blank',
     description: 'Связаться и оставить обратную связь.',
+    external: true,
   },
-} as const satisfies {
-  home: DashboardPrimaryLink
-  subjects: DashboardPrimaryLink
-  groups: DashboardPrimaryLink
-  debug: DashboardPrimaryLink | null
-  feedback: DashboardPrimaryLink
-}
-
-// const SUBJECT_STATUS = {
-//   noSession: [{ label: 'Сессия не инициализирована', icon: 'i-lucide-circle-alert', disabled: true }],
-//   loading: [{ label: 'Загрузка предметов...', icon: 'i-lucide-loader-circle', disabled: true }],
-//   error: [{ label: 'Ошибка загрузки предметов', icon: 'i-lucide-circle-x', disabled: true }],
-//   empty: [{ label: 'Предметов пока нет', icon: 'i-lucide-book-open', disabled: true }],
-// } as const satisfies Record<string, NavigationMenuItem[]>
+] as const satisfies readonly DashboardPrimaryLink[]
 
 export function getDashboardPrimaryLinks(): DashboardPrimaryLink[] {
-  return [
-    DASHBOARD_PRIMARY_LINKS.home,
-    DASHBOARD_PRIMARY_LINKS.subjects,
-    DASHBOARD_PRIMARY_LINKS.groups,
-    ...(DASHBOARD_PRIMARY_LINKS.debug ? [DASHBOARD_PRIMARY_LINKS.debug] : []),
-    DASHBOARD_PRIMARY_LINKS.feedback,
-  ]
+  return [...DASHBOARD_PRIMARY_LINKS]
 }
 
-export function useDashboardNavigation(open: Ref<boolean>) {
-  // const subjectsStore = useSubjectsStore()
+const isExternal = (item: NavigationMenuItem) => item.target === '_blank'
 
+export function useDashboardNavigation(open: Ref<boolean>) {
   const closeSidebar = () => {
     open.value = false
   }
 
-  // const subjectChildren = computed<NavigationMenuItem[]>(() => {
-  //   if (!subjectsStore.teacherId)
-  //     return SUBJECT_STATUS.noSession
-  //   if (subjectsStore.activeSubjectsPending)
-  //     return SUBJECT_STATUS.loading
-  //   if (subjectsStore.activeSubjectsError || (subjectsStore.archivedLoaded && subjectsStore.archivedSubjectsError))
-  //     return SUBJECT_STATUS.error
-
-  //   const items = [
-  //     ...subjectsStore.activeSubjects.map(s => ({ label: s.name, to: `/dashboard/subjects/${s.id}`, onSelect: closeSidebar })),
-  //     ...(subjectsStore.archivedLoaded
-  //       ? subjectsStore.archivedSubjects.map(s => ({ label: `[Архив] ${s.name}`, to: `/dashboard/subjects/${s.id}`, icon: 'i-lucide-archive', onSelect: closeSidebar }))
-  //       : []),
-  //   ]
-
-  //   return items.length ? items : SUBJECT_STATUS.empty
-  // })
-
-  const withSidebarAction = (item: NavigationMenuItem): NavigationMenuItem => {
+  const enhanceItem = (item: DashboardPrimaryLink): NavigationMenuItem => {
     return {
-      label: item.label,
-      icon: item.icon,
-      to: item.to,
-      exact: item.exact,
-      target: item.target,
+      ...item,
       onSelect: closeSidebar,
+      // если появятся children-функции — можно раскрывать здесь
+      // children: typeof item.children === 'function' ? item.children() : item.children,
     }
   }
 
-  const homeLink = withSidebarAction(DASHBOARD_PRIMARY_LINKS.home)
-  const subjectsLink = withSidebarAction(DASHBOARD_PRIMARY_LINKS.subjects)
-  const groupsLink = withSidebarAction(DASHBOARD_PRIMARY_LINKS.groups)
-  const debugLink = DASHBOARD_PRIMARY_LINKS.debug ? withSidebarAction(DASHBOARD_PRIMARY_LINKS.debug) : null
-  const feedbackLink = withSidebarAction(DASHBOARD_PRIMARY_LINKS.feedback)
+  const links = computed<NavigationMenuItem[][]>(() => {
+    const primary = DASHBOARD_PRIMARY_LINKS
+      .filter(i => !isExternal(i))
+      .map(enhanceItem)
 
-  const links = computed(() => {
-    return [
-      [
-        homeLink,
-        {
-          ...subjectsLink,
-          defaultOpen: true,
-          // children: subjectChildren.value,
-        },
-        groupsLink,
-      ],
-      ...(debugLink ? [[debugLink]] : []),
-      [[feedbackLink]],
-    ] satisfies NavigationMenuItem[][]
+    const secondary = DASHBOARD_PRIMARY_LINKS
+      .filter(isExternal)
+      .map(enhanceItem)
+
+    return [primary, secondary.length ? [secondary] : []]
   })
 
   return { links }

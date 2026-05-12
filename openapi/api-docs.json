@@ -32,15 +32,16 @@
             "in": "path",
             "description": "ID преподавателя",
             "required": true,
-            "schema": { "type": "string", "format": "uuid" },
-            "example": "550e8400-e29b-41d4-a716-446655440005"
+            "schema": { "type": "string", "format": "uuid" }
           }
         ],
         "requestBody": {
           "description": "Данные преподавателя",
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/CreateOrUpdateTeacher" }
+              "schema": {
+                "$ref": "#/components/schemas/CreateOrUpdateTeacherRequest"
+              }
             }
           },
           "required": true
@@ -50,7 +51,7 @@
             "description": "Преподаватель создан или обновлен",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/Teacher" }
+                "schema": { "$ref": "#/components/schemas/TeacherResponse" }
               }
             }
           },
@@ -58,15 +59,7 @@
             "description": "Ошибка валидации",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/Error" }
-              }
-            }
-          },
-          "500": {
-            "description": "Внутренняя ошибка сервера",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/Error" }
+                "schema": { "$ref": "#/components/schemas/ErrorDto" }
               }
             }
           }
@@ -74,66 +67,6 @@
       }
     },
     "/api/subjects": {
-      "get": {
-        "tags": ["Subjects"],
-        "summary": "Получить страницу предметов с фильтрацией по названию",
-        "operationId": "getSubjectPage",
-        "parameters": [
-          {
-            "name": "name",
-            "in": "query",
-            "description": "Название предмета (частичное совпадение)",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "description": "Название предмета (частичное совпадение)",
-              "example": "Математика"
-            },
-            "example": "Математика"
-          },
-          {
-            "name": "page",
-            "in": "query",
-            "description": "Zero-based page index (0..N)",
-            "required": false,
-            "schema": { "type": "integer", "default": 0, "minimum": 0 }
-          },
-          {
-            "name": "size",
-            "in": "query",
-            "description": "The size of the page to be returned",
-            "required": false,
-            "schema": { "type": "integer", "default": 20, "minimum": 1 }
-          },
-          {
-            "name": "sort",
-            "in": "query",
-            "description": "Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported.",
-            "required": false,
-            "schema": { "type": "array", "items": { "type": "string" } }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Успешно",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PagedModelSubjectPage"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Внутренняя ошибка сервера",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/Error" }
-              }
-            }
-          }
-        }
-      },
       "post": {
         "tags": ["Subjects"],
         "summary": "Создать предмет",
@@ -142,33 +75,17 @@
           "description": "Данные для создания предмета",
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/CreateSubject" }
+              "schema": { "$ref": "#/components/schemas/CreateSubjectRequest" }
             }
           },
           "required": true
         },
         "responses": {
-          "201": {
-            "description": "Предмет создан",
+          "200": {
+            "description": "OK",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/Subject" }
-              }
-            }
-          },
-          "400": {
-            "description": "Ошибка валидации",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/Error" }
-              }
-            }
-          },
-          "500": {
-            "description": "Внутренняя ошибка сервера",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/Error" }
+                "schema": { "$ref": "#/components/schemas/SubjectResponse" }
               }
             }
           }
@@ -184,36 +101,22 @@
           "description": "Количество занятий по типам",
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/CreateLessonsByType" }
+              "schema": {
+                "$ref": "#/components/schemas/CreateLessonsByTypeRequest"
+              }
             }
           },
           "required": true
         },
         "responses": {
-          "201": {
-            "description": "Занятия созданы",
+          "200": {
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "array",
-                  "items": { "$ref": "#/components/schemas/Lesson" }
+                  "items": { "$ref": "#/components/schemas/LessonResponse" }
                 }
-              }
-            }
-          },
-          "400": {
-            "description": "Ошибка валидации",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/Error" }
-              }
-            }
-          },
-          "500": {
-            "description": "Внутренняя ошибка сервера",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/Error" }
               }
             }
           }
@@ -229,36 +132,20 @@
           "description": "Шаблон расписания",
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/BulkSchedule" }
+              "schema": { "$ref": "#/components/schemas/BulkScheduleRequest" }
             }
           },
           "required": true
         },
         "responses": {
-          "201": {
-            "description": "Занятия созданы",
+          "200": {
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "array",
-                  "items": { "$ref": "#/components/schemas/Lesson" }
+                  "items": { "$ref": "#/components/schemas/LessonResponse" }
                 }
-              }
-            }
-          },
-          "400": {
-            "description": "Ошибка валидации",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/Error" }
-              }
-            }
-          },
-          "500": {
-            "description": "Внутренняя ошибка сервера",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/Error" }
               }
             }
           }
@@ -278,10 +165,8 @@
             "required": false,
             "schema": {
               "type": "string",
-              "description": "Название группы (частичное совпадение)",
-              "example": "ИС"
-            },
-            "example": "ИС"
+              "description": "Название группы (частичное совпадение)"
+            }
           },
           {
             "name": "page",
@@ -307,18 +192,12 @@
         ],
         "responses": {
           "200": {
-            "description": "Успешно",
+            "description": "OK",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/PagedModelGroupPage" }
-              }
-            }
-          },
-          "500": {
-            "description": "Внутренняя ошибка сервера",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/Error" }
+                "schema": {
+                  "$ref": "#/components/schemas/PagedModelGroupPageResponse"
+                }
               }
             }
           }
@@ -332,33 +211,17 @@
           "description": "Данные для создания группы",
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/CreateGroup" }
+              "schema": { "$ref": "#/components/schemas/CreateGroupRequest" }
             }
           },
           "required": true
         },
         "responses": {
-          "201": {
-            "description": "Группа создана",
+          "200": {
+            "description": "OK",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/Group" }
-              }
-            }
-          },
-          "400": {
-            "description": "Ошибка валидации",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/Error" }
-              }
-            }
-          },
-          "500": {
-            "description": "Внутренняя ошибка сервера",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/Error" }
+                "schema": { "$ref": "#/components/schemas/GroupResponse" }
               }
             }
           }
@@ -376,49 +239,24 @@
             "in": "path",
             "description": "ID предмета",
             "required": true,
-            "schema": { "type": "string", "format": "uuid" },
-            "example": "550e8400-e29b-41d4-a716-446655440002"
+            "schema": { "type": "string", "format": "uuid" }
           }
         ],
         "requestBody": {
           "description": "Данные для обновления предмета",
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/UpdateSubject" }
+              "schema": { "$ref": "#/components/schemas/UpdateSubjectRequest" }
             }
           },
           "required": true
         },
         "responses": {
           "200": {
-            "description": "Предмет обновлен",
+            "description": "OK",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/Subject" }
-              }
-            }
-          },
-          "400": {
-            "description": "Ошибка валидации",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/Error" }
-              }
-            }
-          },
-          "404": {
-            "description": "Предмет не найден",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/Error" }
-              }
-            }
-          },
-          "500": {
-            "description": "Внутренняя ошибка сервера",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/Error" }
+                "schema": { "$ref": "#/components/schemas/SubjectResponse" }
               }
             }
           }
@@ -436,29 +274,10 @@
             "in": "path",
             "description": "ID занятия",
             "required": true,
-            "schema": { "type": "string", "format": "uuid" },
-            "example": "550e8400-e29b-41d4-a716-446655440000"
+            "schema": { "type": "string", "format": "uuid" }
           }
         ],
-        "responses": {
-          "204": { "description": "Занятие удалено" },
-          "404": {
-            "description": "Занятие не найдено",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/Error" }
-              }
-            }
-          },
-          "500": {
-            "description": "Внутренняя ошибка сервера",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/Error" }
-              }
-            }
-          }
-        }
+        "responses": { "200": { "description": "OK" } }
       },
       "patch": {
         "tags": ["Lessons"],
@@ -470,49 +289,24 @@
             "in": "path",
             "description": "ID занятия",
             "required": true,
-            "schema": { "type": "string", "format": "uuid" },
-            "example": "550e8400-e29b-41d4-a716-446655440000"
+            "schema": { "type": "string", "format": "uuid" }
           }
         ],
         "requestBody": {
           "description": "Данные для обновления занятия",
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/UpdateLesson" }
+              "schema": { "$ref": "#/components/schemas/UpdateLessonRequest" }
             }
           },
           "required": true
         },
         "responses": {
           "200": {
-            "description": "Занятие обновлено",
+            "description": "OK",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/Lesson" }
-              }
-            }
-          },
-          "400": {
-            "description": "Ошибка валидации",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/Error" }
-              }
-            }
-          },
-          "404": {
-            "description": "Занятие не найдено",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/Error" }
-              }
-            }
-          },
-          "500": {
-            "description": "Внутренняя ошибка сервера",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/Error" }
+                "schema": { "$ref": "#/components/schemas/LessonResponse" }
               }
             }
           }
@@ -530,32 +324,15 @@
             "in": "path",
             "description": "ID группы",
             "required": true,
-            "schema": { "type": "string", "format": "uuid" },
-            "example": "550e8400-e29b-41d4-a716-446655440000"
+            "schema": { "type": "string", "format": "uuid" }
           }
         ],
         "responses": {
           "200": {
-            "description": "Успешно",
+            "description": "OK",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/Group" }
-              }
-            }
-          },
-          "404": {
-            "description": "Группа не найдена",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/Error" }
-              }
-            }
-          },
-          "500": {
-            "description": "Внутренняя ошибка сервера",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/Error" }
+                "schema": { "$ref": "#/components/schemas/GroupResponse" }
               }
             }
           }
@@ -571,29 +348,10 @@
             "in": "path",
             "description": "ID группы",
             "required": true,
-            "schema": { "type": "string", "format": "uuid" },
-            "example": "550e8400-e29b-41d4-a716-446655440000"
+            "schema": { "type": "string", "format": "uuid" }
           }
         ],
-        "responses": {
-          "204": { "description": "Группа удалена" },
-          "404": {
-            "description": "Группа не найдена",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/Error" }
-              }
-            }
-          },
-          "500": {
-            "description": "Внутренняя ошибка сервера",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/Error" }
-              }
-            }
-          }
-        }
+        "responses": { "200": { "description": "OK" } }
       },
       "patch": {
         "tags": ["Groups"],
@@ -605,49 +363,24 @@
             "in": "path",
             "description": "ID группы",
             "required": true,
-            "schema": { "type": "string", "format": "uuid" },
-            "example": "550e8400-e29b-41d4-a716-446655440000"
+            "schema": { "type": "string", "format": "uuid" }
           }
         ],
         "requestBody": {
           "description": "Данные для обновления группы",
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/UpdateGroup" }
+              "schema": { "$ref": "#/components/schemas/UpdateGroupRequest" }
             }
           },
           "required": true
         },
         "responses": {
           "200": {
-            "description": "Группа обновлена",
+            "description": "OK",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/Group" }
-              }
-            }
-          },
-          "400": {
-            "description": "Ошибка валидации",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/Error" }
-              }
-            }
-          },
-          "404": {
-            "description": "Группа не найдена",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/Error" }
-              }
-            }
-          },
-          "500": {
-            "description": "Внутренняя ошибка сервера",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/Error" }
+                "schema": { "$ref": "#/components/schemas/GroupResponse" }
               }
             }
           }
@@ -668,10 +401,8 @@
             "schema": {
               "type": "string",
               "format": "uuid",
-              "description": "ID предмета",
-              "example": "550e8400-e29b-41d4-a716-446655440000"
-            },
-            "example": "550e8400-e29b-41d4-a716-446655440000"
+              "description": "ID предмета"
+            }
           },
           {
             "name": "page",
@@ -697,18 +428,12 @@
         ],
         "responses": {
           "200": {
-            "description": "Успешно",
+            "description": "OK",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/PagedModelLesson" }
-              }
-            }
-          },
-          "500": {
-            "description": "Внутренняя ошибка сервера",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/Error" }
+                "schema": {
+                  "$ref": "#/components/schemas/PagedModelLessonResponse"
+                }
               }
             }
           }
@@ -718,198 +443,157 @@
   },
   "components": {
     "schemas": {
-      "CreateOrUpdateTeacher": {
+      "CreateOrUpdateTeacherRequest": {
         "type": "object",
         "description": "Запрос на создание или обновление преподавателя",
         "properties": {
           "username": {
             "type": "string",
             "description": "Имя пользователя преподавателя",
-            "example": "petrov_pp",
             "minLength": 1
           },
           "email": {
             "type": "string",
             "format": "email",
             "description": "Email преподавателя",
-            "example": "petrov@university.ru",
             "minLength": 1
           }
         },
         "required": ["email", "username"]
       },
-      "Error": {
+      "ErrorDto": {
         "type": "object",
         "description": "Стандартная модель ошибки API",
         "properties": {
           "status": {
             "type": "integer",
             "format": "int32",
-            "description": "HTTP статус код",
-            "example": 404
+            "description": "HTTP статус код"
           },
-          "message": {
-            "type": "string",
-            "description": "Сообщение об ошибке",
-            "example": "Entity not found"
-          },
+          "message": { "type": "string", "description": "Сообщение об ошибке" },
           "timestamp": {
             "type": "string",
             "format": "date-time",
-            "description": "Время возникновения ошибки",
-            "example": "2024-01-01T12:00:00Z"
+            "description": "Время возникновения ошибки"
           },
           "details": {
             "type": "string",
-            "description": "Дополнительные детали ошибки (например, список валидационных ошибок)",
-            "example": "name: must not be blank"
+            "description": "Дополнительные детали ошибки (например, список валидационных ошибок)"
           }
         }
       },
-      "Teacher": {
+      "TeacherResponse": {
         "type": "object",
         "description": "Информация о преподавателе",
         "properties": {
           "id": {
             "type": "string",
             "format": "uuid",
-            "description": "ID преподавателя",
-            "example": "550e8400-e29b-41d4-a716-446655440005"
+            "description": "ID преподавателя"
           },
           "username": {
             "type": "string",
-            "description": "Имя пользователя преподавателя",
-            "example": "petrov_pp"
+            "description": "Имя пользователя преподавателя"
           },
-          "email": {
-            "type": "string",
-            "description": "Email преподавателя",
-            "example": "petrov@university.ru"
-          },
+          "email": { "type": "string", "description": "Email преподавателя" },
           "createdAt": {
             "type": "string",
             "format": "date-time",
-            "description": "Дата создания",
-            "example": "2024-01-01T12:00:00Z"
+            "description": "Дата создания"
           },
           "updatedAt": {
             "type": "string",
             "format": "date-time",
-            "description": "Дата последнего обновления",
-            "example": "2024-01-02T12:00:00Z"
+            "description": "Дата последнего обновления"
           }
         }
       },
-      "CreateSubject": {
+      "CreateSubjectRequest": {
         "type": "object",
-        "description": "Запрос на создание предмета",
         "properties": {
-          "name": {
-            "type": "string",
-            "description": "Название предмета",
-            "example": "Математический анализ",
-            "minLength": 1
-          },
-          "description": {
-            "type": "string",
-            "description": "Описание предмета",
-            "example": "Базовый курс математического анализа"
-          }
+          "name": { "type": "string", "minLength": 1 },
+          "description": { "type": "string" },
+          "groupId": { "type": "string", "format": "uuid" },
+          "teacherId": { "type": "string", "format": "uuid" }
         },
-        "required": ["name"]
+        "required": ["groupId", "name", "teacherId"]
       },
-      "Subject": {
+      "SubjectResponse": {
         "type": "object",
         "description": "Информация о предмете",
         "properties": {
           "id": {
             "type": "string",
             "format": "uuid",
-            "description": "ID предмета",
-            "example": "550e8400-e29b-41d4-a716-446655440002"
+            "description": "ID предмета"
           },
-          "name": {
-            "type": "string",
-            "description": "Название предмета",
-            "example": "Математический анализ"
-          },
+          "name": { "type": "string", "description": "Название предмета" },
           "description": {
             "type": "string",
-            "description": "Описание предмета",
-            "example": "Базовый курс математического анализа"
+            "description": "Описание предмета"
           },
           "createdAt": {
             "type": "string",
             "format": "date-time",
-            "description": "Дата создания",
-            "example": "2024-01-01T12:00:00Z"
+            "description": "Дата создания"
           },
           "updatedAt": {
             "type": "string",
             "format": "date-time",
-            "description": "Дата последнего обновления",
-            "example": "2024-01-02T12:00:00Z"
+            "description": "Дата последнего обновления"
           }
         }
       },
-      "CreateLessonsByType": {
+      "CreateLessonsByTypeRequest": {
         "type": "object",
         "description": "Запрос на создание занятий по количеству типов",
         "properties": {
           "subjectId": {
             "type": "string",
             "format": "uuid",
-            "description": "ID предмета",
-            "example": "550e8400-e29b-41d4-a716-446655440002"
+            "description": "ID предмета"
           },
           "lectureCount": {
             "type": "integer",
             "format": "int32",
-            "description": "Количество лекций",
-            "example": 10
+            "description": "Количество лекций"
           },
           "practiceCount": {
             "type": "integer",
             "format": "int32",
-            "description": "Количество практик",
-            "example": 8
+            "description": "Количество практик"
           }
         },
         "required": ["lectureCount", "practiceCount", "subjectId"]
       },
-      "Lesson": {
+      "LessonResponse": {
         "type": "object",
         "description": "Информация о занятии",
         "properties": {
           "id": {
             "type": "string",
             "format": "uuid",
-            "description": "ID занятия",
-            "example": "550e8400-e29b-41d4-a716-446655440000"
+            "description": "ID занятия"
           },
           "offeringId": {
             "type": "string",
             "format": "uuid",
-            "description": "ID назначения предмета (offering)",
-            "example": "550e8400-e29b-41d4-a716-446655440001"
+            "description": "ID назначения предмета (offering)"
           },
           "subjectId": {
             "type": "string",
             "format": "uuid",
-            "description": "ID предмета",
-            "example": "550e8400-e29b-41d4-a716-446655440002"
+            "description": "ID предмета"
           },
           "groupId": {
             "type": "string",
             "format": "uuid",
-            "description": "ID группы",
-            "example": "550e8400-e29b-41d4-a716-446655440003"
+            "description": "ID группы"
           },
           "subgroupId": {
             "type": "string",
             "format": "uuid",
-            "description": "ID подгруппы (null для всей группы)",
-            "example": "550e8400-e29b-41d4-a716-446655440004"
+            "description": "ID подгруппы (null для всей группы)"
           },
           "type": {
             "type": "string",
@@ -919,60 +603,50 @@
           "teacherId": {
             "type": "string",
             "format": "uuid",
-            "description": "ID преподавателя",
-            "example": "550e8400-e29b-41d4-a716-446655440005"
+            "description": "ID преподавателя"
           },
           "startedAt": {
             "type": "string",
             "format": "date-time",
-            "description": "Время начала занятия",
-            "example": "2024-01-15T09:00:00Z"
+            "description": "Время начала занятия"
           },
           "endedAt": {
             "type": "string",
             "format": "date-time",
-            "description": "Время окончания занятия",
-            "example": "2024-01-15T10:30:00Z"
+            "description": "Время окончания занятия"
           },
-          "topic": {
-            "type": "string",
-            "description": "Тема занятия",
-            "example": "Введение в алгебру"
-          },
+          "topic": { "type": "string", "description": "Тема занятия" },
           "createdAt": {
             "type": "string",
             "format": "date-time",
-            "description": "Дата создания",
-            "example": "2024-01-01T12:00:00Z"
+            "description": "Дата создания"
           },
           "updatedAt": {
             "type": "string",
             "format": "date-time",
-            "description": "Дата последнего обновления",
-            "example": "2024-01-02T12:00:00Z"
+            "description": "Дата последнего обновления"
           }
         }
       },
-      "BulkSchedule": {
+      "BulkScheduleRequest": {
         "type": "object",
         "description": "Запрос на массовое создание занятий по недельному шаблону",
         "properties": {
           "subjectId": {
             "type": "string",
             "format": "uuid",
-            "description": "ID предмета",
-            "example": "550e8400-e29b-41d4-a716-446655440002"
+            "description": "ID предмета"
           },
           "schedules": {
             "type": "array",
             "description": "Список шаблонов расписания",
-            "items": { "$ref": "#/components/schemas/ScheduleEntry" },
+            "items": { "$ref": "#/components/schemas/Entry" },
             "minItems": 1
           }
         },
         "required": ["schedules", "subjectId"]
       },
-      "ScheduleEntry": {
+      "Entry": {
         "type": "object",
         "description": "Элемент шаблона расписания",
         "properties": {
@@ -984,14 +658,12 @@
           "startDate": {
             "type": "string",
             "format": "date",
-            "description": "Дата начала (первая неделя)",
-            "example": "2024-02-01"
+            "description": "Дата начала (первая неделя)"
           },
           "totalCount": {
             "type": "integer",
             "format": "int32",
             "description": "Общее количество занятий",
-            "example": 16,
             "minimum": 1
           },
           "daysOfWeek": {
@@ -1018,179 +690,158 @@
         },
         "required": ["daysOfWeek", "startDate", "totalCount", "type"]
       },
-      "CreateGroup": {
+      "CreateGroupRequest": {
         "type": "object",
         "description": "Запрос на создание группы со списком студентов",
         "properties": {
           "groupName": {
             "type": "string",
             "description": "Название группы",
-            "example": "ИС-101",
             "minLength": 1
           },
           "students": {
             "type": "array",
             "description": "Список студентов для добавления в группу",
-            "items": { "$ref": "#/components/schemas/StudentGroupMember" },
+            "items": {
+              "$ref": "#/components/schemas/StudentGroupMemberRequest"
+            },
             "minItems": 1
           }
         },
         "required": ["groupName", "students"]
       },
-      "StudentGroupMember": {
+      "StudentGroupMemberRequest": {
         "type": "object",
         "description": "Данные студента при создании группы",
         "properties": {
           "username": {
             "type": "string",
             "description": "Имя пользователя студента",
-            "example": "ivanov_ii",
             "minLength": 1
           },
           "subgroupIndex": {
             "type": "integer",
             "format": "int32",
             "description": "Индекс подгруппы (0, 1, ...)",
-            "example": 0,
             "minimum": 0
           }
         },
         "required": ["username"]
       },
-      "Group": {
+      "GroupResponse": {
         "type": "object",
         "description": "Полная информация о группе",
         "properties": {
           "id": {
             "type": "string",
             "format": "uuid",
-            "description": "ID группы",
-            "example": "550e8400-e29b-41d4-a716-446655440000"
+            "description": "ID группы"
           },
-          "name": {
-            "type": "string",
-            "description": "Название группы",
-            "example": "ИС-101"
-          },
+          "name": { "type": "string", "description": "Название группы" },
           "subgroups": {
             "type": "array",
             "description": "Список подгрупп",
-            "items": { "$ref": "#/components/schemas/Subgroup" }
+            "items": { "$ref": "#/components/schemas/SubgroupResponse" }
           },
           "students": {
             "type": "array",
             "description": "Список студентов группы",
-            "items": { "$ref": "#/components/schemas/Student" }
+            "items": { "$ref": "#/components/schemas/StudentResponse" }
           },
           "createdAt": {
             "type": "string",
             "format": "date-time",
-            "description": "Дата создания",
-            "example": "2024-01-01T12:00:00Z"
+            "description": "Дата создания"
           },
           "updatedAt": {
             "type": "string",
             "format": "date-time",
-            "description": "Дата последнего обновления",
-            "example": "2024-01-02T12:00:00Z"
+            "description": "Дата последнего обновления"
           }
         }
       },
-      "Student": {
+      "StudentResponse": {
         "type": "object",
         "description": "Информация о студенте",
         "properties": {
           "id": {
             "type": "string",
             "format": "uuid",
-            "description": "ID студента",
-            "example": "550e8400-e29b-41d4-a716-446655440002"
+            "description": "ID студента"
           },
           "username": {
             "type": "string",
-            "description": "Имя пользователя студента",
-            "example": "ivanov_ii"
+            "description": "Имя пользователя студента"
           },
           "groupId": {
             "type": "string",
             "format": "uuid",
-            "description": "ID группы",
-            "example": "550e8400-e29b-41d4-a716-446655440000"
+            "description": "ID группы"
           },
           "subgroupId": {
             "type": "string",
             "format": "uuid",
-            "description": "ID подгруппы",
-            "example": "550e8400-e29b-41d4-a716-446655440001"
+            "description": "ID подгруппы"
           },
           "createdAt": {
             "type": "string",
             "format": "date-time",
-            "description": "Дата создания",
-            "example": "2024-01-01T12:00:00Z"
+            "description": "Дата создания"
           },
           "updatedAt": {
             "type": "string",
             "format": "date-time",
-            "description": "Дата последнего обновления",
-            "example": "2024-01-02T12:00:00Z"
+            "description": "Дата последнего обновления"
           }
         }
       },
-      "Subgroup": {
+      "SubgroupResponse": {
         "type": "object",
         "description": "Информация о подгруппе",
         "properties": {
           "id": {
             "type": "string",
             "format": "uuid",
-            "description": "ID подгруппы",
-            "example": "550e8400-e29b-41d4-a716-446655440001"
+            "description": "ID подгруппы"
           },
           "index": {
             "type": "integer",
             "format": "int32",
-            "description": "Индекс подгруппы",
-            "example": 0
+            "description": "Индекс подгруппы"
           },
           "createdAt": {
             "type": "string",
             "format": "date-time",
-            "description": "Дата создания",
-            "example": "2024-01-01T12:00:00Z"
+            "description": "Дата создания"
           },
           "updatedAt": {
             "type": "string",
             "format": "date-time",
-            "description": "Дата последнего обновления",
-            "example": "2024-01-02T12:00:00Z"
+            "description": "Дата последнего обновления"
           }
         }
       },
-      "UpdateSubject": {
+      "UpdateSubjectRequest": {
         "type": "object",
         "description": "Запрос на частичное обновление предмета",
         "properties": {
           "name": {
             "type": "string",
             "description": "Название предмета",
-            "example": "Математический анализ",
             "minLength": 1
           },
           "description": {
             "type": "string",
-            "description": "Описание предмета",
-            "example": "Базовый курс математического анализа"
+            "description": "Описание предмета"
           },
           "archived": {
             "type": "boolean",
-            "description": "Флаг архивации предмета",
-            "example": false
+            "description": "Флаг архивации предмета"
           }
         },
         "required": ["name"]
       },
-      "UpdateLesson": {
+      "UpdateLessonRequest": {
         "type": "object",
         "description": "Запрос на частичное обновление занятия",
         "properties": {
@@ -1202,73 +853,61 @@
           "startedAt": {
             "type": "string",
             "format": "date-time",
-            "description": "Время начала занятия",
-            "example": "2024-01-15T09:00:00Z"
+            "description": "Время начала занятия"
           },
           "endedAt": {
             "type": "string",
             "format": "date-time",
-            "description": "Время окончания занятия",
-            "example": "2024-01-15T10:30:00Z"
+            "description": "Время окончания занятия"
           },
-          "topic": {
-            "type": "string",
-            "description": "Тема занятия",
-            "example": "Введение в алгебру"
-          },
+          "topic": { "type": "string", "description": "Тема занятия" },
           "teacherId": {
             "type": "string",
             "format": "uuid",
-            "description": "ID преподавателя",
-            "example": "550e8400-e29b-41d4-a716-446655440005"
+            "description": "ID преподавателя"
           },
           "subgroupId": {
             "type": "string",
             "format": "uuid",
-            "description": "ID подгруппы (null для всей группы)",
-            "example": "550e8400-e29b-41d4-a716-446655440004"
+            "description": "ID подгруппы (null для всей группы)"
           }
         }
       },
-      "StudentPatch": {
+      "StudentPatchRequest": {
         "type": "object",
         "description": "Данные студента для обновления состава группы",
         "properties": {
           "id": {
             "type": "string",
             "format": "uuid",
-            "description": "ID существующего студента (null для нового)",
-            "example": "550e8400-e29b-41d4-a716-446655440000"
+            "description": "ID существующего студента (null для нового)"
           },
           "username": {
             "type": "string",
             "description": "Имя пользователя студента",
-            "example": "ivanov_ii",
             "minLength": 1
           },
           "subgroupId": {
             "type": "string",
             "format": "uuid",
-            "description": "ID подгруппы",
-            "example": "550e8400-e29b-41d4-a716-446655440001"
+            "description": "ID подгруппы"
           }
         },
         "required": ["username"]
       },
-      "UpdateGroup": {
+      "UpdateGroupRequest": {
         "type": "object",
         "description": "Запрос на частичное обновление группы",
         "properties": {
           "groupName": {
             "type": "string",
             "description": "Новое название группы",
-            "example": "ИС-102",
             "minLength": 1
           },
           "students": {
             "type": "array",
             "description": "Список студентов группы (полное обновление состава)",
-            "items": { "$ref": "#/components/schemas/StudentPatch" },
+            "items": { "$ref": "#/components/schemas/StudentPatchRequest" },
             "minItems": 1
           }
         },
@@ -1283,95 +922,44 @@
           "totalPages": { "type": "integer", "format": "int64" }
         }
       },
-      "PagedModelSubjectPage": {
+      "PagedModelLessonResponse": {
         "type": "object",
         "properties": {
           "content": {
             "type": "array",
-            "items": { "$ref": "#/components/schemas/SubjectPage" }
+            "items": { "$ref": "#/components/schemas/LessonResponse" }
           },
           "page": { "$ref": "#/components/schemas/PageMetadata" }
         }
       },
-      "SubjectPage": {
-        "type": "object",
-        "description": "Краткая информация о предмете (для списка)",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID предмета",
-            "example": "550e8400-e29b-41d4-a716-446655440002"
-          },
-          "name": {
-            "type": "string",
-            "description": "Название предмета",
-            "example": "Математический анализ"
-          },
-          "description": {
-            "type": "string",
-            "description": "Описание предмета",
-            "example": "Базовый курс математического анализа"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Дата создания",
-            "example": "2024-01-01T12:00:00Z"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Дата последнего обновления",
-            "example": "2024-01-02T12:00:00Z"
-          }
-        }
-      },
-      "PagedModelLesson": {
-        "type": "object",
-        "properties": {
-          "content": {
-            "type": "array",
-            "items": { "$ref": "#/components/schemas/Lesson" }
-          },
-          "page": { "$ref": "#/components/schemas/PageMetadata" }
-        }
-      },
-      "GroupPage": {
+      "GroupPageResponse": {
         "type": "object",
         "description": "Краткая информация о группе (для списка)",
         "properties": {
           "id": {
             "type": "string",
             "format": "uuid",
-            "description": "ID группы",
-            "example": "550e8400-e29b-41d4-a716-446655440000"
+            "description": "ID группы"
           },
-          "name": {
-            "type": "string",
-            "description": "Название группы",
-            "example": "ИС-101"
-          },
+          "name": { "type": "string", "description": "Название группы" },
           "createdAt": {
             "type": "string",
             "format": "date-time",
-            "description": "Дата создания",
-            "example": "2024-01-01T12:00:00Z"
+            "description": "Дата создания"
           },
           "updatedAt": {
             "type": "string",
             "format": "date-time",
-            "description": "Дата последнего обновления",
-            "example": "2024-01-02T12:00:00Z"
+            "description": "Дата последнего обновления"
           }
         }
       },
-      "PagedModelGroupPage": {
+      "PagedModelGroupPageResponse": {
         "type": "object",
         "properties": {
           "content": {
             "type": "array",
-            "items": { "$ref": "#/components/schemas/GroupPage" }
+            "items": { "$ref": "#/components/schemas/GroupPageResponse" }
           },
           "page": { "$ref": "#/components/schemas/PageMetadata" }
         }

@@ -1,30 +1,34 @@
 <script setup lang="ts">
+import type { BreadcrumbItem } from '@nuxt/ui'
+
 const route = useRoute()
 
-const activeGroupName = useState<string | null>('groups-active-name', () => null)
-const refreshHandler = useState<null | (() => void | Promise<void>)>(
-  'groups-list-refresh-handler',
+const activeGroupName = useState<string | null>(
+  'groups-active-name',
   () => null,
 )
 
-const _refreshGroupsList = () => refreshHandler.value?.()
+const uuid = computed(() => {
+  const param = route.params.uuid
+  return typeof param === 'string' ? param : null
+})
 
-const breadcrumbItems = computed(() => {
-  const items = [
-    { label: 'Dashboard', to: '/dashboard' },
-    { label: 'Groups', to: '/dashboard/groups' },
+const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
+  const base: BreadcrumbItem[] = [
+    { label: 'Главная', to: '/dashboard' },
+    { label: 'Группы', to: '/dashboard/groups' },
   ]
 
-  const uuid = route.params.uuid
+  if (!uuid.value)
+    return base
 
-  if (typeof uuid === 'string' && uuid) {
-    items.push({
-      label: activeGroupName.value || 'Group',
-      to: `/dashboard/groups/${uuid}`,
-    })
-  }
-
-  return items
+  return [
+    ...base,
+    {
+      label: activeGroupName.value ?? 'Группа',
+      to: `/dashboard/groups/${uuid.value}`,
+    },
+  ]
 })
 </script>
 

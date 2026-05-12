@@ -2,7 +2,7 @@ import type { User } from '#auth-utils'
 import type { components } from '#open-fetch-schemas/backend'
 import type { FetchError } from 'ofetch'
 
-type BackendErrorResponse = components['schemas']['Error']
+type BackendErrorResponse = components['schemas']['ErrorDto']
 
 function isDashboardPath(path: string): boolean {
   return path === '/dashboard' || path.startsWith('/dashboard/')

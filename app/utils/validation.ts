@@ -51,7 +51,16 @@ export type {
   SchemaFor,
 }
 
+function arrayMinLength<T extends BaseSchema<unknown, unknown, BaseIssue<unknown>>>(
+  schema: T,
+  minLength: number,
+  message = `Must contain at least ${minLength} items`,
+) {
+  return v.pipe(v.array(schema), v.minLength(minLength, message))
+}
+
 export {
+  arrayMinLength,
   calendarDateTimeToIso,
   calendarDateToIso,
   email,

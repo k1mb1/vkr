@@ -2,13 +2,11 @@
 import type { BreadcrumbItem } from '@nuxt/ui'
 import { getDashboardPrimaryLinks } from '~/composables/useDashboardNavigation'
 
-const cards = computed(() => getDashboardPrimaryLinks())
+const cards = computed(getDashboardPrimaryLinks)
 
-const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
-  return [
-    { label: 'Dashboard', to: '/dashboard' },
-  ]
-})
+const breadcrumbItems: BreadcrumbItem[] = [
+  { label: 'Главная', to: '/dashboard' },
+]
 </script>
 
 <template>
@@ -19,8 +17,8 @@ const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
 
     <UPageGrid>
       <UPageCard
-        v-for="(card, index) in cards"
-        :key="`${card.label}-${index}`"
+        v-for="card in cards"
+        :key="card.key"
         :to="card.to"
         :target="card.target"
         :icon="card.icon"

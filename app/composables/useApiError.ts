@@ -1,7 +1,7 @@
 import type { components } from '#open-fetch-schemas/backend'
 import type { FetchError } from 'ofetch'
 
-type BackendErrorResponse = components['schemas']['Error']
+type BackendErrorResponse = components['schemas']['ErrorDto']
 
 function extractMessage(error: FetchError): string {
   const data = error.data as BackendErrorResponse | undefined

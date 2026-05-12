@@ -4,11 +4,12 @@ import type { Form } from '#ui/types'
 import type { TabsItem } from '@nuxt/ui'
 import type { StudentTableRow } from '~/components/groups/types'
 import * as v from 'valibot'
+import { arrayMinLength, string, uuidV4 } from '~/utils/validation'
 
-type GroupResponse = components['schemas']['Group']
-type UpdateGroupRequest = components['schemas']['UpdateGroup']
+type GroupResponse = components['schemas']['GroupResponse']
+type UpdateGroupRequest = components['schemas']['UpdateGroupRequest']
 
-type DisplayStudent = {
+interface DisplayStudent {
   id?: string
   username?: string
   subgroupId?: string | null
@@ -48,37 +49,16 @@ const showDiscardModal = ref(false)
 
 type EditSchema = v.InferOutput<typeof UpdateGroupRequestSchema>
 const UpdateGroupRequestSchema: SchemaFor<UpdateGroupRequest> = v.object({
-  groupName: v.pipe(
-    v.string(),
-    v.trim(),
-    v.minLength(1, 'Введите название группы'),
-  ),
+  groupName: string('Введите название группы'),
 
-  students: v.pipe(
-    v.array(
-      v.object({
-        id: v.optional(
-          v.pipe(
-            v.string(),
-            v.uuid('Некорректный UUID студента'),
-          ),
-        ),
-
-        username: v.pipe(
-          v.string(),
-          v.trim(),
-          v.minLength(1, 'Введите username студента'),
-        ),
-
-        subgroupId: v.optional(
-          v.pipe(
-            v.string(),
-            v.uuid('Некорректный UUID подгруппы'),
-          ),
-        ),
-      }),
-    ),
-    v.minLength(1, 'Добавьте хотя бы одного студента'),
+  students: arrayMinLength(
+    v.object({
+      id: v.optional(uuidV4('Некорректный UUID студента')),
+      username: string('Введите username студента'),
+      subgroupId: v.optional(uuidV4('Некорректный UUID подгруппы')),
+    }),
+    1,
+    'Добавьте хотя бы одного студента',
   ),
 })
 
