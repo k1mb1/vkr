@@ -1,29 +1,22 @@
 <script setup lang="ts">
-import { usePagable } from '~/composables/usePagable'
+import { useGroupList } from '~/composables/useGroupList'
 
-const search = ref('')
-const debouncedSearch = ref('')
+const {
+  search,
+  debouncedSearch,
+  page,
+  pageSize,
 
-const { page, pageSize, request, toPageState } = usePagable({
-  filter: () => ({
-    name: debouncedSearch.value || undefined,
-  }),
-})
+  applySearch,
+  clearSearch,
 
-function applySearch() {
-  debouncedSearch.value = search.value
-  page.value = 1
-}
+  pending,
+  error,
+  refresh,
 
-function clearSearch() {
-  search.value = ''
-  debouncedSearch.value = ''
-  page.value = 1
-}
-
-const { data, pending, error, refresh } = useBackend('/api/groups', { method: 'GET', query: request })
-
-const { rows, totalElements } = toPageState(data)
+  rows,
+  totalElements,
+} = useGroupList()
 </script>
 
 <template>

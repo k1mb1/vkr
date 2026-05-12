@@ -40,41 +40,14 @@ const loading = ref(false)
 const formRef = useTemplateRef<Form<typeof CreateGroupRequestSchema>>('form')
 
 // ── Subgroup Management ────────────────────────────────────
-const subgroups = ref<SubgroupId[]>([undefined])
-
-let nextCardId = 1
-const cardInputs = reactive(new Map<number, string>())
-
-const cards = computed(() =>
-  subgroups.value.map((id) => {
-    const cardId = nextCardId++
-    if (!cardInputs.has(cardId)) {
-      cardInputs.set(cardId, '')
-    }
-    return {
-      id: cardId,
-      subgroupIndex: id,
-      get input() {
-        return cardInputs.get(cardId) ?? ''
-      },
-      set input(value: string) {
-        cardInputs.set(cardId, value)
-      },
-    }
-  }),
-)
-
-const hasSubgroups = computed(() =>
-  subgroups.value.some(id => id !== undefined),
-)
-
-function cardLabel(subgroupIndex: SubgroupId): string {
-  if (!hasSubgroups.value)
-    return 'Без подгруппы'
-
-  const pos = (subgroupIndex ?? 0) + 1
-  return `Подгруппа ${pos}`
-}
+const {
+  subgroups,
+  cards,
+  cardLabel,
+  addCard,
+  removeCard,
+  resetCards,
+} = useSubgroupCards()
 
 // ── Students ───────────────────────────────────────────────
 const studentsBySubgroup = computed(() => {
@@ -94,23 +67,11 @@ function getStudents(index: SubgroupId) {
   return studentsBySubgroup.value.get(index) ?? []
 }
 
-function parseUsernames(raw: string): string[] {
-  return raw
-    .split(/\s+/)
-    .map(s => s.trim())
-    .filter(Boolean)
-}
+const { addStudents, handlePaste: handleStudentPaste } = useStudentInput<Student>({ separator: /\s+/ })
 
-function addStudents(subgroupId: SubgroupId, raw: string) {
-  const usernames = parseUsernames(raw)
-  const existing = new Set(state.students.map(s => s.username))
-
-  for (const username of usernames) {
-    if (!existing.has(username)) {
-      state.students.push({ username, subgroupIndex: subgroupId } as Student)
-      existing.add(username)
-    }
-  }
+function doAddStudents(subgroupId: SubgroupId, raw: string) {
+  addStudents(raw, subgroupId, state.students, (username, sid) =>
+    ({ username, subgroupIndex: sid as SubgroupId } as Student))
 }
 
 function removeStudent(username: string, subgroupId: SubgroupId) {
@@ -132,18 +93,15 @@ function handleEnter(card: { subgroupIndex: SubgroupId, input: string }) {
   const text = card.input.trim()
   if (!text || text.includes('\n'))
     return
-  addStudents(card.subgroupIndex, text)
+  doAddStudents(card.subgroupIndex, text)
   card.input = ''
 }
 
 function handlePaste(card: { subgroupIndex: SubgroupId, input: string }, e: ClipboardEvent) {
-  const text = e.clipboardData?.getData('text') ?? ''
-  if (!text.includes('\n'))
-    return
-
-  e.preventDefault()
-  addStudents(card.subgroupIndex, text)
-  card.input = ''
+  const handled = handleStudentPaste(e, card.subgroupIndex, state.students, (username, sid) =>
+    ({ username, subgroupIndex: sid as SubgroupId } as Student))
+  if (handled)
+    card.input = ''
 }
 
 // ── Drag & Drop ─────────────────────────────────────────────
@@ -183,24 +141,7 @@ function onDrop(card: { subgroupIndex: SubgroupId }) {
 }
 
 // ── Card Management ─────────────────────────────────────────
-function addCard() {
-  if (subgroups.value.includes(undefined)) {
-    subgroups.value = subgroups.value.map(id => id ?? 0)
-
-    for (const s of state.students) {
-      s.subgroupIndex ??= 0
-    }
-
-    const nextIndex = Math.max(0, ...subgroups.value.filter((v): v is number => v !== undefined)) + 1
-    subgroups.value.push(nextIndex)
-  }
-  else {
-    const nextIndex = Math.max(0, ...subgroups.value.filter((v): v is number => v !== undefined)) + 1
-    subgroups.value.push(nextIndex)
-  }
-}
-
-function removeCard(subgroupIndex: SubgroupId) {
+function removeCardAndMigrate(subgroupIndex: SubgroupId) {
   if (subgroupIndex == null)
     return
 
@@ -210,10 +151,9 @@ function removeCard(subgroupIndex: SubgroupId) {
     }
   }
 
-  subgroups.value = subgroups.value.filter(id => id !== subgroupIndex)
+  removeCard(subgroupIndex)
 
   if (subgroups.value.length === 1) {
-    subgroups.value = [undefined]
     for (const s of state.students) {
       if (s.subgroupIndex !== undefined)
         s.subgroupIndex = undefined
@@ -224,9 +164,7 @@ function removeCard(subgroupIndex: SubgroupId) {
 function resetForm() {
   state.groupName = ''
   state.students = []
-  subgroups.value = [undefined]
-  cardInputs.clear()
-  nextCardId = 1
+  resetCards()
 }
 
 // ── Submit ────────────────────────────────────────────────
@@ -317,7 +255,7 @@ async function handleCreate() {
                     color="neutral"
                     variant="ghost"
                     :aria-label="`Удалить ${cardLabel(card.subgroupIndex)}`"
-                    @click="removeCard(card.subgroupIndex)"
+                    @click="removeCardAndMigrate(card.subgroupIndex)"
                   />
                 </div>
               </template>

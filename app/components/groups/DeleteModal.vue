@@ -12,38 +12,15 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <UModal
+  <ConfirmModal
     :open="open"
     title="Удалить группу"
-    @update:open="(v: boolean) => { if (!v && !pending) emit('close') }"
-  >
-    <template #body="{ close }">
-      <div class="flex flex-col gap-4">
-        <p>
-          Группа будет удалена безвозвратно и все её данные будут потеряны. Убедитесь, что это действие действительно необходимо.
-        </p>
-
-        <div class="flex justify-end gap-2">
-          <UButton
-            color="neutral"
-            variant="soft"
-            :disabled="pending"
-            @click="close()"
-          >
-            Отмена
-          </UButton>
-
-          <UButton
-            color="error"
-            icon="i-lucide-trash-2"
-            :loading="pending"
-            :disabled="pending"
-            @click="emit('confirm')"
-          >
-            Удалить
-          </UButton>
-        </div>
-      </div>
-    </template>
-  </UModal>
+    description="Группа будет удалена безвозвратно и все её данные будут потеряны. Убедитесь, что это действие действительно необходимо."
+    confirm-label="Удалить"
+    confirm-color="error"
+    confirm-icon="i-lucide-trash-2"
+    :pending="pending"
+    @close="emit('close')"
+    @confirm="emit('confirm')"
+  />
 </template>
