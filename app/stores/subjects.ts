@@ -1,94 +1,95 @@
-import type { SubjectResponse } from '#shared/types/backend'
-import { useSubjectsByTeacher } from '~/composables/api/useSubjectsApi'
+// import type { components } from '#open-fetch-schemas/backend'
 
-export const useSubjectsStore = defineStore('subjects', () => {
-  const { user } = useOidcAuth()
+// type SubjectResponse = components['schemas']['SubjectResponse']
 
-  const teacherId = computed(() => {
-    const value = user.value?.sub
-    return typeof value === 'string' && value.length > 0 ? value : null
-  })
+// export const useSubjectsStore = defineStore('subjects', () => {
+//   const { user } = useOidcAuth()
 
-  const safeTeacherId = computed(() => teacherId.value ?? '')
+//   const teacherId = computed(() => {
+//     const value = user.value?.sub
+//     return typeof value === 'string' && value.length > 0 ? value : null
+//   })
 
-  const {
-    data: activeSubjectsData,
-    pending: activeSubjectsPending,
-    error: activeSubjectsError,
-    refresh: refreshActiveSubjects,
-  } = useSubjectsByTeacher(safeTeacherId, { archived: false }, { immediate: false })
+//   const safeTeacherId = computed(() => teacherId.value ?? '')
 
-  const {
-    data: archivedSubjectsData,
-    pending: archivedSubjectsPending,
-    error: archivedSubjectsError,
-    refresh: refreshArchivedSubjects,
-  } = useSubjectsByTeacher(safeTeacherId, { archived: true }, { immediate: false })
+//   const {
+//     data: activeSubjectsData,
+//     pending: activeSubjectsPending,
+//     error: activeSubjectsError,
+//     refresh: refreshActiveSubjects,
+//   } = useSubjectsByTeacher(safeTeacherId, { archived: false }, { immediate: false })
 
-  const archivedLoaded = ref(false)
-  const activeSubject = ref<SubjectResponse | null>(null)
+//   const {
+//     data: archivedSubjectsData,
+//     pending: archivedSubjectsPending,
+//     error: archivedSubjectsError,
+//     refresh: refreshArchivedSubjects,
+//   } = useSubjectsByTeacher(safeTeacherId, { archived: true }, { immediate: false })
 
-  const activeSubjects = computed<SubjectResponse[]>(() => activeSubjectsData.value ?? [])
-  const archivedSubjects = computed<SubjectResponse[]>(() => archivedSubjectsData.value ?? [])
+//   const archivedLoaded = ref(false)
+//   const activeSubject = ref<SubjectResponse | null>(null)
 
-  async function loadActiveSubjects() {
-    if (!teacherId.value)
-      return
+//   const activeSubjects = computed<SubjectResponse[]>(() => activeSubjectsData.value ?? [])
+//   const archivedSubjects = computed<SubjectResponse[]>(() => archivedSubjectsData.value ?? [])
 
-    await refreshActiveSubjects()
-  }
+//   async function loadActiveSubjects() {
+//     if (!teacherId.value)
+//       return
 
-  async function loadArchivedSubjects() {
-    if (!teacherId.value)
-      return
+//     await refreshActiveSubjects()
+//   }
 
-    archivedLoaded.value = true
-    await refreshArchivedSubjects()
-  }
+//   async function loadArchivedSubjects() {
+//     if (!teacherId.value)
+//       return
 
-  async function loadArchivedSubjectsOnce() {
-    if (archivedLoaded.value)
-      return
+//     archivedLoaded.value = true
+//     await refreshArchivedSubjects()
+//   }
 
-    await loadArchivedSubjects()
-  }
+//   async function loadArchivedSubjectsOnce() {
+//     if (archivedLoaded.value)
+//       return
 
-  async function refreshForCurrentTab(isArchived: boolean) {
-    if (isArchived)
-      await loadArchivedSubjects()
-    else
-      await loadActiveSubjects()
-  }
+//     await loadArchivedSubjects()
+//   }
 
-  function setActiveSubject(subject: SubjectResponse | null) {
-    activeSubject.value = subject
-  }
+//   async function refreshForCurrentTab(isArchived: boolean) {
+//     if (isArchived)
+//       await loadArchivedSubjects()
+//     else
+//       await loadActiveSubjects()
+//   }
 
-  watch(teacherId, async (value) => {
-    if (!value) {
-      archivedLoaded.value = false
-      activeSubject.value = null
-      return
-    }
+//   function setActiveSubject(subject: SubjectResponse | null) {
+//     activeSubject.value = subject
+//   }
 
-    archivedLoaded.value = false
-    await loadActiveSubjects()
-  }, { immediate: true })
+//   watch(teacherId, async (value) => {
+//     if (!value) {
+//       archivedLoaded.value = false
+//       activeSubject.value = null
+//       return
+//     }
 
-  return {
-    teacherId,
-    activeSubjects,
-    archivedSubjects,
-    activeSubjectsPending,
-    archivedSubjectsPending,
-    activeSubjectsError,
-    archivedSubjectsError,
-    archivedLoaded,
-    activeSubject,
-    loadActiveSubjects,
-    loadArchivedSubjects,
-    loadArchivedSubjectsOnce,
-    refreshForCurrentTab,
-    setActiveSubject,
-  }
-})
+//     archivedLoaded.value = false
+//     await loadActiveSubjects()
+//   }, { immediate: true })
+
+//   return {
+//     teacherId,
+//     activeSubjects,
+//     archivedSubjects,
+//     activeSubjectsPending,
+//     archivedSubjectsPending,
+//     activeSubjectsError,
+//     archivedSubjectsError,
+//     archivedLoaded,
+//     activeSubject,
+//     loadActiveSubjects,
+//     loadArchivedSubjects,
+//     loadArchivedSubjectsOnce,
+//     refreshForCurrentTab,
+//     setActiveSubject,
+//   }
+// })

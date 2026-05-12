@@ -1,15 +1,18 @@
 <script setup lang="ts">
-import type { GroupResponse } from '#shared/types/backend'
+import type { components } from '#open-fetch-schemas/backend'
 import type { Form } from '#ui/types'
 import type { TabsItem } from '@nuxt/ui'
-import type * as v from 'valibot'
 import type { StudentTableRow } from '~/components/groups/types'
-import { UpdateGroupRequestSchema } from '#shared/types/backend/student-groups'
-import {
-  patch,
-  remove,
-  useStudentGroup,
-} from '~/composables/api/useStudentsGroups'
+import * as v from 'valibot'
+
+type GroupResponse = components['schemas']['Group']
+type UpdateGroupRequest = components['schemas']['UpdateGroup']
+
+type DisplayStudent = {
+  id?: string
+  username?: string
+  subgroupId?: string | null
+}
 
 const route = useRoute()
 const groupId = computed(() => String(route.params.uuid ?? ''))
@@ -20,7 +23,7 @@ const activeGroupName = useState<string | null>(
 const toast = useToast()
 const { toastError } = useApiError()
 
-const { data, pending, error, refresh } = useStudentGroup(groupId)
+const { data, pending, error, refresh } = useBackend('/api/groups/{id}', { method: 'GET', path: { id: groupId } })
 
 const group = computed<GroupResponse | null>(() => data.value ?? null)
 const subgroupTabPrefix = 'subgroup:'
@@ -44,6 +47,40 @@ const editLoading = ref(false)
 const showDiscardModal = ref(false)
 
 type EditSchema = v.InferOutput<typeof UpdateGroupRequestSchema>
+const UpdateGroupRequestSchema: SchemaFor<UpdateGroupRequest> = v.object({
+  groupName: v.pipe(
+    v.string(),
+    v.trim(),
+    v.minLength(1, 'Введите название группы'),
+  ),
+
+  students: v.pipe(
+    v.array(
+      v.object({
+        id: v.optional(
+          v.pipe(
+            v.string(),
+            v.uuid('Некорректный UUID студента'),
+          ),
+        ),
+
+        username: v.pipe(
+          v.string(),
+          v.trim(),
+          v.minLength(1, 'Введите username студента'),
+        ),
+
+        subgroupId: v.optional(
+          v.pipe(
+            v.string(),
+            v.uuid('Некорректный UUID подгруппы'),
+          ),
+        ),
+      }),
+    ),
+    v.minLength(1, 'Добавьте хотя бы одного студента'),
+  ),
+})
 
 const draft = reactive<EditSchema>({
   groupName: '',
@@ -55,20 +92,20 @@ const editFormRef
 
 const newStudentsInput = ref('')
 
-const activeSubgroupId = computed<string | null>(() => {
+const activeSubgroupId = computed<string | undefined>(() => {
   if (activeTab.value === 'students')
-    return null
+    return undefined
   return activeTab.value.replace(subgroupTabPrefix, '')
 })
 
 function enterEditMode() {
   if (!group.value)
     return
-  draft.groupName = group.value.name
-  draft.students = group.value.students.map(s => ({
+  draft.groupName = group.value.name ?? ''
+  draft.students = (group.value.students ?? []).map(s => ({
     id: s.id,
-    username: s.username,
-    subgroupId: s.subgroupId,
+    username: s.username ?? '',
+    subgroupId: s.subgroupId ?? undefined,
   }))
   isEditing.value = true
   studentSearch.value = ''
@@ -79,12 +116,12 @@ function hasDraftChanges(): boolean {
     return false
   if (draft.groupName.trim() !== group.value.name)
     return true
-  if (draft.students.length !== group.value.students.length)
+  if (draft.students.length !== group.value.students?.length)
     return true
   return draft.students.some((ds, i) => {
-    const gs = group.value!.students[i]
+    const gs = group.value?.students?.[i]
     return (
-      !gs || ds.username !== gs.username || ds.subgroupId !== gs.subgroupId
+      !gs || ds.username !== gs.username || (ds.subgroupId ?? null) !== gs.subgroupId
     )
   })
 }
@@ -108,7 +145,7 @@ function cancelDiscardChanges() {
   showDiscardModal.value = false
 }
 
-const displayStudents = computed(() => {
+const displayStudents = computed<DisplayStudent[]>(() => {
   return isEditing.value ? draft.students : (group.value?.students ?? [])
 })
 
@@ -116,7 +153,7 @@ function updateDraftStudentUsername(
   studentId: string | null,
   username: string,
 ) {
-  const student = draft.students.find(s => s.id === studentId)
+  const student = draft.students.find(s => s.id === (studentId ?? undefined))
   if (student)
     student.username = username.trim()
 }
@@ -127,12 +164,12 @@ function updateDraftStudentSubgroup(
 ) {
   const student = draft.students[draftIndex]
   if (student) {
-    student.subgroupId = subgroupId
+    student.subgroupId = subgroupId ?? undefined
   }
 }
 
 function removeDraftStudent(studentId: string | null) {
-  const idx = draft.students.findIndex(s => s.id === studentId)
+  const idx = draft.students.findIndex(s => s.id === (studentId ?? undefined))
   if (idx !== -1)
     draft.students.splice(idx, 1)
 }
@@ -144,13 +181,13 @@ function parseUsernames(raw: string): string[] {
     .filter(Boolean)
 }
 
-function addDraftStudents(raw: string, subgroupId: string | null) {
+function addDraftStudents(raw: string, subgroupId: string | undefined) {
   const usernames = parseUsernames(raw)
   const existing = new Set(draft.students.map(s => s.username))
 
   for (const username of usernames) {
     if (!existing.has(username)) {
-      draft.students.push({ id: null, username, subgroupId })
+      draft.students.push({ id: undefined, username, subgroupId })
       existing.add(username)
     }
   }
@@ -184,7 +221,13 @@ async function handlePatch() {
 
   editLoading.value = true
   try {
-    const result = await patch(groupId.value, data)
+    const result = await useBackend('/api/groups/{id}', {
+      method: 'patch',
+      path: {
+        id: groupId.value,
+      },
+      body: data,
+    })
     if (result.error.value) {
       toastError(result.error.value)
       return
@@ -221,7 +264,7 @@ const tabsData = computed(() => {
   const hasSubgroups = (group.value?.subgroups ?? []).length > 0
 
   const studentsWithoutSubgroup = groupStudents.filter(
-    s => s.subgroupId === null,
+    s => s.subgroupId == null,
   )
   if (
     !hasSubgroups
@@ -229,8 +272,8 @@ const tabsData = computed(() => {
   ) {
     const studentsRows = studentsWithoutSubgroup.map((student, localIndex) => ({
       key: `students:${String(student.id ?? `${student.username}:${localIndex}`)}`,
-      id: student.id,
-      username: student.username,
+      id: student.id ?? null,
+      username: student.username ?? '',
       subgroupId: student.subgroupId ?? null,
       draftIndex: groupStudents.indexOf(student),
     }))
@@ -254,8 +297,8 @@ const tabsData = computed(() => {
     )
     const subgroupRows = subgroupStudents.map((student, localIndex) => ({
       key: `${tabValue}:${String(student.id ?? `${student.username}:${localIndex}`)}`,
-      id: student.id,
-      username: student.username,
+      id: student.id ?? null,
+      username: student.username ?? '',
       subgroupId: student.subgroupId ?? null,
       draftIndex: groupStudents.indexOf(student),
     }))
@@ -331,7 +374,7 @@ const filteredTabRows = computed<StudentTableRow[]>(() => {
 
 const subgroupOptions = computed(() => {
   return (group.value?.subgroups ?? []).map((sg, idx) => ({
-    value: sg.id,
+    value: sg.id!,
     label: `Подгруппа ${idx + 1}`,
   }))
 })
@@ -379,7 +422,7 @@ async function onDeleteGroup() {
   if (deleteGroupPending.value)
     return
   deleteGroupPending.value = true
-  const { error } = await remove(groupId.value)
+  const { error } = await useBackend('/api/groups/{id}', { method: 'DELETE', path: { id: groupId.value } })
   deleteGroupPending.value = false
   if (error.value) {
     toastError(error.value, 'Ошибка')
@@ -428,9 +471,9 @@ async function onDeleteGroup() {
 
       <GroupsDetailHeader
         v-model="draft.groupName"
-        :name="group.name"
-        :students-count="group.students.length"
-        :subgroups-count="group.subgroups.length"
+        :name="group.name ?? ''"
+        :students-count="(group.students ?? []).length"
+        :subgroups-count="(group.subgroups ?? []).length"
         :is-editing="isEditing"
         :edit-loading="editLoading"
         @edit="enterEditMode"

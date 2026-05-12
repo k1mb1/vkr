@@ -1,156 +1,60 @@
-import type { H3Event } from 'h3'
 import { getAccessToken } from '#server/utils/getAccessToken'
 import { getProxyRequestHeaders, proxyRequest } from 'h3'
 
-const TRAILING_SLASH_RE = /\/+$/
-const LEADING_SLASH_RE = /^\/+/
+const DEFAULT_TIMEOUT_MS = 15_000
 
-const DEFAULT_PROXY_TIMEOUT_MS = 15000
-
-type HttpMethod
-  = | 'GET'
-    | 'HEAD'
-    | 'POST'
-    | 'PUT'
-    | 'PATCH'
-    | 'DELETE'
-    | 'CONNECT'
-    | 'OPTIONS'
-    | 'TRACE'
-
-interface HttpErrorShape {
-  statusCode?: number
-  message?: string
-  data?: {
-    message?: string
-  }
-  response?: {
-    status?: number
-  }
-}
-
-function normalizeMethod(method?: string): HttpMethod {
-  const m = (method ?? 'GET').toUpperCase()
-  if (
-    m === 'GET'
-    || m === 'HEAD'
-    || m === 'POST'
-    || m === 'PUT'
-    || m === 'PATCH'
-    || m === 'DELETE'
-    || m === 'CONNECT'
-    || m === 'OPTIONS'
-    || m === 'TRACE'
-  ) {
-    return m
-  }
-  return 'GET'
-}
-
-function joinUrl(base: string, path: string): string {
-  return `${base.replace(TRAILING_SLASH_RE, '')}/${path.replace(LEADING_SLASH_RE, '')}`
-}
-
-function resolveTimeoutMs(value: unknown): number {
-  const parsed = Number(value)
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return DEFAULT_PROXY_TIMEOUT_MS
-  }
-  return Math.floor(parsed)
-}
-
-function appendQueryToUrl(targetUrl: string, query: Record<string, unknown>): string {
-  const url = new URL(targetUrl)
-
-  for (const [key, value] of Object.entries(query)) {
-    if (value == null) {
-      continue
-    }
-    if (Array.isArray(value)) {
-      for (const item of value) {
-        if (item != null) {
-          url.searchParams.append(key, String(item))
-        }
-      }
-      continue
-    }
-    url.searchParams.append(key, String(value))
-  }
-
-  return url.toString()
-}
-
-export default defineEventHandler(async (event: H3Event) => {
+export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig(event)
-  const backendUrl = (config.backendUrl as string) || (config.public.backendBaseUrl as string)
-  const proxyTimeoutMs = resolveTimeoutMs(config.proxyTimeoutMs)
-  const authOptional = getHeader(event, 'x-proxy-auth-optional') === 'true'
+  const backendUrl = config.public.backendBaseUrl
 
   if (!backendUrl) {
-    throw createError({ statusCode: 500, message: 'Backend URL is not configured' })
+    throw createError({
+      statusCode: 500,
+      message: 'Backend URL is not configured',
+    })
   }
 
+  // Auth
+  const authOptional = getHeader(event, 'x-proxy-auth-optional') === 'true'
   let accessToken: string | null = null
   try {
     accessToken = await getAccessToken(event)
   }
-  catch (error: unknown) {
-    const authError = error as HttpErrorShape
-    if (!authOptional || (authError.statusCode && authError.statusCode !== 401)) {
-      throw error
+  catch (err: any) {
+    if (!authOptional || err?.statusCode !== 401)
+      throw err
+  }
+
+  // Build target URL
+  const path = getRouterParam(event, 'path') ?? ''
+  const query = getQuery(event)
+  const url = new URL(`${backendUrl}/${path}`.replace(/([^:])\/+/g, '$1/'))
+  for (const [k, v] of Object.entries(query)) {
+    for (const item of ([] as string[]).concat(v as string)) {
+      if (item != null)
+        url.searchParams.append(k, item)
     }
   }
 
-  const method = normalizeMethod(event.method)
-
-  const pathParam = getRouterParam(event, 'path') ?? ''
-  const targetPath = `/${pathParam}`
-  const query = getQuery(event) as Record<string, unknown>
-
-  const baseTargetUrl = joinUrl(String(backendUrl), targetPath)
-  const targetUrl = appendQueryToUrl(baseTargetUrl, query)
-
+  // Headers
   const headers = new Headers(getProxyRequestHeaders(event))
-  headers.delete('x-proxy-auth-optional')
-  if (accessToken) {
+  if (accessToken)
     headers.set('authorization', `Bearer ${accessToken}`)
-  }
+
+  // Proxy
+  const timeoutMs = Number(config.proxyTimeoutMs) || DEFAULT_TIMEOUT_MS
 
   if (import.meta.dev) {
-    console.warn('[proxy]', {
-      method,
-      targetPath,
-      hasAuth: Boolean(accessToken),
-      proxyTimeoutMs,
+    console.warn('[proxy]', event.method, url.pathname, {
+      auth: !!accessToken,
     })
   }
 
-  try {
-    return await proxyRequest(event, targetUrl, {
-      headers,
-      fetchOptions: {
-        signal: AbortSignal.timeout(proxyTimeoutMs),
-        ignoreResponseError: true,
-      },
-    })
-  }
-  catch (error: unknown) {
-    const proxyError = error as HttpErrorShape
-
-    if (import.meta.dev) {
-      console.error('[proxy] request failed', {
-        method,
-        targetPath,
-        statusCode: proxyError.statusCode,
-        responseStatus: proxyError.response?.status,
-        message: proxyError.message,
-      })
-    }
-
-    throw createError({
-      statusCode: proxyError.response?.status ?? 502,
-      message: `Proxy request failed: ${method} ${targetPath}`,
-      cause: error,
-    })
-  }
+  return proxyRequest(event, url.toString(), {
+    headers,
+    fetchOptions: {
+      signal: AbortSignal.timeout(timeoutMs),
+      ignoreResponseError: true,
+    },
+  })
 })

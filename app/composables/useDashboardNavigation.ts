@@ -1,6 +1,6 @@
 import type { NavigationMenuItem } from '@nuxt/ui'
 import type { Ref } from 'vue'
-import { useSubjectsStore } from '~/stores/subjects'
+// import { useSubjectsStore } from '~/stores/subjects'
 
 type DashboardPrimaryLink = NavigationMenuItem & { description: string }
 
@@ -48,12 +48,12 @@ const DASHBOARD_PRIMARY_LINKS = {
   feedback: DashboardPrimaryLink
 }
 
-const SUBJECT_STATUS = {
-  noSession: [{ label: 'Сессия не инициализирована', icon: 'i-lucide-circle-alert', disabled: true }],
-  loading: [{ label: 'Загрузка предметов...', icon: 'i-lucide-loader-circle', disabled: true }],
-  error: [{ label: 'Ошибка загрузки предметов', icon: 'i-lucide-circle-x', disabled: true }],
-  empty: [{ label: 'Предметов пока нет', icon: 'i-lucide-book-open', disabled: true }],
-} as const satisfies Record<string, NavigationMenuItem[]>
+// const SUBJECT_STATUS = {
+//   noSession: [{ label: 'Сессия не инициализирована', icon: 'i-lucide-circle-alert', disabled: true }],
+//   loading: [{ label: 'Загрузка предметов...', icon: 'i-lucide-loader-circle', disabled: true }],
+//   error: [{ label: 'Ошибка загрузки предметов', icon: 'i-lucide-circle-x', disabled: true }],
+//   empty: [{ label: 'Предметов пока нет', icon: 'i-lucide-book-open', disabled: true }],
+// } as const satisfies Record<string, NavigationMenuItem[]>
 
 export function getDashboardPrimaryLinks(): DashboardPrimaryLink[] {
   return [
@@ -66,29 +66,29 @@ export function getDashboardPrimaryLinks(): DashboardPrimaryLink[] {
 }
 
 export function useDashboardNavigation(open: Ref<boolean>) {
-  const subjectsStore = useSubjectsStore()
+  // const subjectsStore = useSubjectsStore()
 
   const closeSidebar = () => {
     open.value = false
   }
 
-  const subjectChildren = computed<NavigationMenuItem[]>(() => {
-    if (!subjectsStore.teacherId)
-      return SUBJECT_STATUS.noSession
-    if (subjectsStore.activeSubjectsPending)
-      return SUBJECT_STATUS.loading
-    if (subjectsStore.activeSubjectsError || (subjectsStore.archivedLoaded && subjectsStore.archivedSubjectsError))
-      return SUBJECT_STATUS.error
+  // const subjectChildren = computed<NavigationMenuItem[]>(() => {
+  //   if (!subjectsStore.teacherId)
+  //     return SUBJECT_STATUS.noSession
+  //   if (subjectsStore.activeSubjectsPending)
+  //     return SUBJECT_STATUS.loading
+  //   if (subjectsStore.activeSubjectsError || (subjectsStore.archivedLoaded && subjectsStore.archivedSubjectsError))
+  //     return SUBJECT_STATUS.error
 
-    const items = [
-      ...subjectsStore.activeSubjects.map(s => ({ label: s.name, to: `/dashboard/subjects/${s.id}`, onSelect: closeSidebar })),
-      ...(subjectsStore.archivedLoaded
-        ? subjectsStore.archivedSubjects.map(s => ({ label: `[Архив] ${s.name}`, to: `/dashboard/subjects/${s.id}`, icon: 'i-lucide-archive', onSelect: closeSidebar }))
-        : []),
-    ]
+  //   const items = [
+  //     ...subjectsStore.activeSubjects.map(s => ({ label: s.name, to: `/dashboard/subjects/${s.id}`, onSelect: closeSidebar })),
+  //     ...(subjectsStore.archivedLoaded
+  //       ? subjectsStore.archivedSubjects.map(s => ({ label: `[Архив] ${s.name}`, to: `/dashboard/subjects/${s.id}`, icon: 'i-lucide-archive', onSelect: closeSidebar }))
+  //       : []),
+  //   ]
 
-    return items.length ? items : SUBJECT_STATUS.empty
-  })
+  //   return items.length ? items : SUBJECT_STATUS.empty
+  // })
 
   const withSidebarAction = (item: NavigationMenuItem): NavigationMenuItem => {
     return {
@@ -114,7 +114,7 @@ export function useDashboardNavigation(open: Ref<boolean>) {
         {
           ...subjectsLink,
           defaultOpen: true,
-          children: subjectChildren.value,
+          // children: subjectChildren.value,
         },
         groupsLink,
       ],

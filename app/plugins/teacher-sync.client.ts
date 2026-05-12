@@ -1,31 +1,11 @@
-import type { BackendErrorResponse, UpdateTeacherRequestPayload } from '#shared/types/backend'
+import type { User } from '#auth-utils'
+import type { components } from '#open-fetch-schemas/backend'
 import type { FetchError } from 'ofetch'
-import { upsertTeacher } from '~/composables/api/useTeachersApi'
+
+type BackendErrorResponse = components['schemas']['Error']
 
 function isDashboardPath(path: string): boolean {
   return path === '/dashboard' || path.startsWith('/dashboard/')
-}
-
-function buildFallbackUsername(email: string): string {
-  return email.split('@')[0] || 'teacher'
-}
-
-function extractIdentity(rawUser?: { sub?: string, email?: string, name?: string } | null): { teacherId: string, payload: UpdateTeacherRequestPayload } | null {
-  const teacherId = rawUser?.sub
-  const email = rawUser?.email
-  const username = rawUser?.name || (email ? buildFallbackUsername(email) : undefined)
-
-  if (!teacherId || !email || !username) {
-    return null
-  }
-
-  return {
-    teacherId,
-    payload: {
-      email,
-      username,
-    },
-  }
 }
 
 function extractErrorMessage(error: unknown): string {
@@ -34,86 +14,74 @@ function extractErrorMessage(error: unknown): string {
 }
 
 export default defineNuxtPlugin(() => {
+  const { $backend } = useNuxtApp()
   const router = useRouter()
   const route = useRoute()
   const { user, loggedIn } = useOidcAuth()
-  const syncedUserSub = useState<string | null>('teacher-sync-user-sub', () => null)
-  const syncInFlight = useState<boolean>('teacher-sync-in-flight', () => false)
-  const teacherSyncError = useState<string | null>('teacher-sync-error', () => null)
-  let latestSyncRunId = 0
 
-  async function runTeacherSyncIfNeeded(path: string) {
-    if (!isDashboardPath(path) || !loggedIn.value || syncInFlight.value) {
+  const syncedSub = useState<string | null>('teacher-sync-sub', () => null)
+  const syncError = useState<string | null>('teacher-sync-error', () => null)
+  let inFlight = false
+
+  async function syncIfNeeded(path: string) {
+    if (!isDashboardPath(path) || !loggedIn.value || inFlight)
       return
-    }
 
-    const identity = extractIdentity(user.value)
-    if (!identity) {
+    const { sub: teacherId, email, name } = user.value as User
+
+    if (syncedSub.value === teacherId)
       return
-    }
 
-    const { teacherId, payload } = identity
-
-    if (syncedUserSub.value === teacherId) {
-      return
-    }
-
-    syncInFlight.value = true
-    teacherSyncError.value = null
-    const syncRunId = ++latestSyncRunId
+    inFlight = true
+    syncError.value = null
 
     try {
-      const request = await upsertTeacher(teacherId, payload)
-
-      if (request.error.value) {
-        throw request.error.value
-      }
-
-      if (syncRunId === latestSyncRunId && user.value?.sub === teacherId) {
-        syncedUserSub.value = teacherId
-      }
-    }
-    catch (error: unknown) {
-      teacherSyncError.value = extractErrorMessage(error)
-      console.warn('[teacher-sync] createOrUpdate failed', {
-        teacherId,
-        error: teacherSyncError.value,
+      await $backend('/api/teachers/{id}', {
+        method: 'PUT',
+        path: { id: teacherId! },
+        body: {
+          email: email!,
+          username: name!,
+        },
       })
     }
+    catch (error) {
+      syncError.value = extractErrorMessage(error)
+      console.warn('[teacher-sync] failed', { teacherId, error: syncError.value })
+    }
     finally {
-      syncInFlight.value = false
+      inFlight = false
     }
   }
 
-  router.afterEach((to) => {
-    void runTeacherSyncIfNeeded(to.path)
-  })
+  function resetSync() {
+    syncedSub.value = null
+    syncError.value = null
+  }
+
+  router.afterEach(to => void syncIfNeeded(to.path))
 
   watch(loggedIn, (isLoggedIn) => {
-    if (!isLoggedIn) {
-      syncedUserSub.value = null
-      teacherSyncError.value = null
-      return
-    }
-
-    void runTeacherSyncIfNeeded(route.path)
+    if (!isLoggedIn)
+      return resetSync()
+    void syncIfNeeded(route.path)
   })
 
   watch(() => user.value?.sub, (newSub, oldSub) => {
-    if (oldSub && newSub !== oldSub) {
-      syncedUserSub.value = null
-      teacherSyncError.value = null
-    }
-
-    void runTeacherSyncIfNeeded(route.path)
+    if (oldSub && newSub !== oldSub)
+      resetSync()
+    void syncIfNeeded(route.path)
   })
 
-  watch(() => [user.value?.email, user.value?.name], () => {
-    if (isDashboardPath(route.path)) {
-      syncedUserSub.value = null
-      void runTeacherSyncIfNeeded(route.path)
-    }
-  })
+  watch(
+    () => [user.value?.email, user.value?.name] as const,
+    () => {
+      if (!isDashboardPath(route.path))
+        return
+      resetSync()
+      void syncIfNeeded(route.path)
+    },
+  )
 
-  void runTeacherSyncIfNeeded(route.path)
+  void syncIfNeeded(route.path)
 })

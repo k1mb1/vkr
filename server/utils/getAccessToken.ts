@@ -1,100 +1,100 @@
 import type { H3Event } from 'h3'
 
-interface OidcDiscoveryResponse {
-  token_endpoint?: string
-}
-
-interface OidcRefreshResponse {
-  access_token: string
+interface OidcTokenResponse {
+  access_token?: string
   refresh_token?: string
   expires_in?: number
   error?: string
   error_description?: string
 }
 
+// Кешируем endpoint в памяти — нет смысла ходить на discovery при каждом запросе
+let cachedTokenEndpoint: string | null = null
+
 async function resolveTokenEndpoint(event: H3Event): Promise<string> {
-  const config = useRuntimeConfig(event)
-  const openidConfig = config.oauth?.oidc?.openidConfig
+  if (cachedTokenEndpoint)
+    return cachedTokenEndpoint
 
-  if (!openidConfig) {
-    throw createError({ statusCode: 500, message: 'OIDC discovery URL is not configured' })
+  const discoveryUrl = useRuntimeConfig(event).oauth?.oidc?.openidConfig
+  if (!discoveryUrl || typeof discoveryUrl !== 'string') {
+    throw createError({
+      statusCode: 500,
+      message: 'OIDC discovery URL is not configured',
+    })
   }
 
-  if (typeof openidConfig !== 'string') {
-    throw createError({ statusCode: 500, message: 'Invalid OIDC discovery config' })
+  const { token_endpoint } = await $fetch<{ token_endpoint?: string }>(
+    discoveryUrl,
+  )
+  if (!token_endpoint) {
+    throw createError({
+      statusCode: 500,
+      message: 'OIDC token endpoint was not discovered',
+    })
   }
 
-  const discovery = await $fetch<OidcDiscoveryResponse>(openidConfig)
-  const tokenEndpoint = discovery?.token_endpoint
-
-  if (!tokenEndpoint) {
-    throw createError({ statusCode: 500, message: 'OIDC token endpoint was not discovered' })
-  }
-
-  return tokenEndpoint
+  return (cachedTokenEndpoint = token_endpoint)
 }
 
 /**
  * Returns a valid access token from session.
- * If expired, automatically refreshes through OIDC and updates session.
+ * Automatically refreshes via OIDC if token is about to expire.
  */
 export async function getAccessToken(event: H3Event): Promise<string> {
   const session = await getUserSession(event)
-  const secure = session.secure
+  const { secure, tokenExpiresAt } = session
 
   if (!secure?.accessToken) {
     throw createError({ statusCode: 401, message: 'Not authenticated' })
   }
 
-  const nowMs = Date.now()
-  const tokenExpiresAt = session.tokenExpiresAt
-
-  if (tokenExpiresAt && tokenExpiresAt - 30_000 > nowMs) {
+  // Токен ещё валиден (с запасом 30 сек)
+  if (tokenExpiresAt && tokenExpiresAt - 30_000 > Date.now()) {
     return secure.accessToken
   }
 
   if (!secure.refreshToken) {
-    throw createError({ statusCode: 401, message: 'Session expired. Please log in again.' })
+    throw createError({
+      statusCode: 401,
+      message: 'Session expired. Please log in again.',
+    })
   }
 
-  const config = useRuntimeConfig(event)
+  const { oauth } = useRuntimeConfig(event)
   const tokenEndpoint = await resolveTokenEndpoint(event)
 
-  const newTokens = await $fetch<OidcRefreshResponse>(tokenEndpoint, {
+  const tokens = await $fetch<OidcTokenResponse>(tokenEndpoint, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       grant_type: 'refresh_token',
       refresh_token: secure.refreshToken,
-      client_id: String(config.oauth.oidc.clientId),
-      client_secret: String(config.oauth.oidc.clientSecret),
+      client_id: String(oauth.oidc.clientId),
+      client_secret: String(oauth.oidc.clientSecret),
     }).toString(),
-  }).catch((error) => {
+  }).catch((err) => {
     throw createError({
       statusCode: 401,
-      message: `Token refresh failed: ${error?.data?.error_description ?? error?.data?.error ?? error?.message}`,
+      message: `Token refresh failed: ${err?.data?.error_description ?? err?.data?.error ?? err?.message}`,
     })
   })
 
-  if (newTokens.error || !newTokens.access_token) {
+  if (!tokens.access_token) {
     throw createError({
       statusCode: 401,
-      message: `Token refresh failed: ${newTokens.error_description ?? newTokens.error ?? 'invalid refresh response'}`,
+      message: `Token refresh failed: ${tokens.error_description ?? tokens.error ?? 'invalid response'}`,
     })
   }
 
-  const expiresInMs = (newTokens.expires_in ?? 3600) * 1000
-  const nextExpiresAt = Date.now() + expiresInMs
-
   await replaceUserSession(event, {
     ...session,
-    tokenExpiresAt: nextExpiresAt,
+    tokenExpiresAt: Date.now() + (tokens.expires_in ?? 3600) * 1000,
     secure: {
       ...secure,
-      accessToken: newTokens.access_token,
-      refreshToken: newTokens.refresh_token ?? secure.refreshToken,
+      accessToken: tokens.access_token,
+      refreshToken: tokens.refresh_token ?? secure.refreshToken,
     },
   })
 
-  return newTokens.access_token
+  return tokens.access_token
 }

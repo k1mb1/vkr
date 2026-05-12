@@ -1,14 +1,13 @@
 <script setup lang="ts">
-import { useStudentGroups } from '~/composables/api/useStudentsGroups'
 import { usePagable } from '~/composables/usePagable'
 
 const search = ref('')
 const debouncedSearch = ref('')
 
 const { page, pageSize, request, toPageState } = usePagable({
-  filter: computed(() => ({
+  filter: () => ({
     name: debouncedSearch.value || undefined,
-  })),
+  }),
 })
 
 function applySearch() {
@@ -22,7 +21,7 @@ function clearSearch() {
   page.value = 1
 }
 
-const { data, pending, error, refresh } = useStudentGroups(request)
+const { data, pending, error, refresh } = useBackend('/api/groups', { method: 'GET', query: request })
 
 const { rows, totalElements } = toPageState(data)
 </script>

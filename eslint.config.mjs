@@ -12,5 +12,6 @@ export default withNuxt(
     },
     gitignore: true,
     stylistic: true,
+    jsonc: true,
   }),
 )

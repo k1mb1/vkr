@@ -1,10 +1,39 @@
 <script setup lang="ts">
+import type { components } from '#open-fetch-schemas/backend'
 import type { Form } from '#ui/types'
-import type * as v from 'valibot'
-import { CreateGroupRequestSchema } from '#shared/types/backend/student-groups'
-import { create } from '~/composables/api/useStudentsGroups'
+import * as v from 'valibot'
+
 import { useApiError } from '~/composables/useApiError'
 
+type CreateGroupRequest = components['schemas']['CreateGroup']
+
+const CreateGroupRequestSchema: SchemaFor<CreateGroupRequest> = v.object({
+  groupName: v.pipe(
+    v.string(),
+    v.trim(),
+    v.minLength(1, 'Введите название группы'),
+  ),
+
+  students: v.pipe(
+    v.array(
+      v.object({
+        username: v.pipe(
+          v.string(),
+          v.trim(),
+          v.minLength(1, 'Введите username студента'),
+        ),
+
+        subgroupIndex: v.optional(
+          v.pipe(
+            v.number(),
+            v.minValue(0, 'Индекс подгруппы не может быть отрицательным'),
+          ),
+        ),
+      }),
+    ),
+    v.minLength(1, 'Добавьте хотя бы одного студента'),
+  ),
+})
 type Schema = v.InferOutput<typeof CreateGroupRequestSchema>
 
 const open = ref(false)
@@ -24,17 +53,17 @@ const formRef = useTemplateRef<Form<typeof CreateGroupRequestSchema>>('form')
 // ── Subgroup Cards ─────────────────────────────────────────
 interface SubgroupCard {
   id: number
-  subgroupIndex: number | null
+  subgroupIndex: number | undefined
   input: string
 }
 
 let nextId = 1
 const cards = ref<SubgroupCard[]>([
-  { id: nextId++, subgroupIndex: null, input: '' },
+  { id: nextId++, subgroupIndex: undefined, input: '' },
 ])
 
 const hasSubgroups = computed(() =>
-  cards.value.some(c => c.subgroupIndex !== null),
+  cards.value.some(c => c.subgroupIndex !== undefined),
 )
 
 function cardLabel(card: SubgroupCard): string {
@@ -42,13 +71,12 @@ function cardLabel(card: SubgroupCard): string {
     return 'Без подгруппы'
 
   const pos = (card.subgroupIndex ?? 0) + 1
-  const name = state.groupName.trim()
-  return name ? `${name}/${pos}` : `Подгруппа ${pos}`
+  return `Подгруппа ${pos}`
 }
 
 // ── Students by subgroup (computed for perf) ────────────────
 const studentsBySubgroup = computed(() => {
-  const map = new Map<number | null, Schema['students']>()
+  const map = new Map<number | undefined, Schema['students']>()
   for (const student of state.students) {
     const list = map.get(student.subgroupIndex) ?? []
     list.push(student)
@@ -57,7 +85,7 @@ const studentsBySubgroup = computed(() => {
   return map
 })
 
-function getStudents(index: number | null) {
+function getStudents(index: number | undefined) {
   return studentsBySubgroup.value.get(index) ?? []
 }
 
@@ -69,7 +97,7 @@ function parseUsernames(raw: string): string[] {
     .filter(Boolean)
 }
 
-function addStudents(index: number | null, raw: string) {
+function addStudents(index: number | undefined, raw: string) {
   const usernames = parseUsernames(raw)
   const existing = new Set(state.students.map(s => s.username))
 
@@ -99,7 +127,7 @@ function handlePaste(card: SubgroupCard, e: ClipboardEvent) {
   card.input = ''
 }
 
-function removeStudent(username: string, subgroupIndex: number | null) {
+function removeStudent(username: string, subgroupIndex: number | undefined) {
   const idx = state.students.findIndex(
     s => s.username === username && s.subgroupIndex === subgroupIndex,
   )
@@ -110,7 +138,7 @@ function removeStudent(username: string, subgroupIndex: number | null) {
 // ── Drag & Drop ─────────────────────────────────────────────
 interface DragPayload {
   username: string
-  subgroupIndex: number | null
+  subgroupIndex: number | undefined
 }
 
 const dragging = ref<DragPayload | null>(null)
@@ -163,15 +191,15 @@ function onDrop(card: SubgroupCard) {
 // ── Card Management ─────────────────────────────────────────
 function addCard() {
   const nonNullCount = cards.value.filter(
-    c => c.subgroupIndex !== null,
+    c => c.subgroupIndex !== undefined,
   ).length
 
   if (nonNullCount === 0) {
-    // Первое добавление подгруппы — конвертируем null-карточку в индекс 0
-    const nullCard = cards.value.find(c => c.subgroupIndex === null)
+    // Первое добавление подгруппы — конвертируем undefined-карточку в индекс 0
+    const nullCard = cards.value.find(c => c.subgroupIndex === undefined)
     if (nullCard) {
       for (const student of state.students) {
-        if (student.subgroupIndex === null)
+        if (student.subgroupIndex === undefined)
           student.subgroupIndex = 0
       }
       nullCard.subgroupIndex = 0
@@ -184,12 +212,12 @@ function addCard() {
 }
 
 function removeCard(card: SubgroupCard) {
-  if (card.subgroupIndex === null)
+  if (card.subgroupIndex === undefined)
     return
 
   for (const student of state.students) {
     if (student.subgroupIndex === card.subgroupIndex) {
-      student.subgroupIndex = null
+      student.subgroupIndex = undefined
     }
   }
 
@@ -201,19 +229,19 @@ function removeCard(card: SubgroupCard) {
   // Если осталась одна карточка — возвращаем её в null (нет подгрупп)
   const lastCard = cards.value.length === 1 ? cards.value[0] : undefined
   if (lastCard) {
-    if (lastCard.subgroupIndex !== null) {
+    if (lastCard.subgroupIndex !== undefined) {
       for (const student of state.students) {
         if (student.subgroupIndex === lastCard.subgroupIndex)
-          student.subgroupIndex = null
+          student.subgroupIndex = undefined
       }
-      lastCard.subgroupIndex = null
+      lastCard.subgroupIndex = undefined
     }
     return
   }
 
   let newIndex = 0
   for (const c of cards.value) {
-    if (c.subgroupIndex !== null) {
+    if (c.subgroupIndex !== undefined) {
       const oldIndex = c.subgroupIndex
       if (oldIndex !== newIndex) {
         for (const student of state.students) {
@@ -231,7 +259,7 @@ function removeCard(card: SubgroupCard) {
 function resetForm() {
   state.groupName = ''
   state.students = []
-  cards.value = [{ id: nextId++, subgroupIndex: null, input: '' }]
+  cards.value = [{ id: nextId++, subgroupIndex: undefined, input: '' }]
 }
 
 // ── Submit ────────────────────────────────────────────────
@@ -246,7 +274,7 @@ async function handleCreate() {
 
   loading.value = true
   try {
-    const result = await create(data)
+    const result = await useBackend('/api/groups', { method: 'POST', body: data })
     if (result.error.value) {
       toastError(result.error.value)
       return
@@ -321,11 +349,10 @@ async function handleCreate() {
                     variant="subtle"
                   />
                   <UButton
-                    v-if="cards.length > 1 && card.subgroupIndex !== null"
+                    v-if="cards.length > 1 && card.subgroupIndex !== undefined"
                     icon="i-lucide-x"
                     color="neutral"
                     variant="ghost"
-                    size="xs"
                     :aria-label="`Удалить ${cardLabel(card)}`"
                     @click="removeCard(card)"
                   />

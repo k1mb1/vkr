@@ -1,7 +1,0 @@
-export * from '~/composables/api/useAttendanceApi'
-export * from '~/composables/api/useLessonsApi'
-export * from '~/composables/api/useLessonTasksApi'
-export * from '~/composables/api/useStudentsApi'
-export * from '~/composables/api/useStudentsGroups'
-export * from '~/composables/api/useSubjectsApi'
-export * from '~/composables/api/useTeachersApi'
