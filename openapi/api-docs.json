@@ -637,6 +637,34 @@
           }
         }
       }
+    },
+    "/api/groups/{id}/subgroups": {
+      "get": {
+        "tags": ["Groups"],
+        "summary": "Get all subgroups of a group",
+        "operationId": "getSubgroups",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/SubgroupResponse" }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
