@@ -3,27 +3,25 @@ import type { components } from '#open-fetch-schemas/backend'
 
 type SubgroupResponse = components['schemas']['SubgroupResponse']
 type SubgroupIndex = SubgroupResponse['index']
+type GroupId = components['schemas']['GroupResponse']['id']
 
-interface Props {
-  groupId: string
-}
-
-const props = defineProps<Props>()
+const props = defineProps<{
+  groupId: GroupId
+}>()
 
 const modelValue = defineModel<SubgroupIndex>()
 
 const { data, pending, error } = useBackend('/api/groups/{id}/subgroups', {
   method: 'GET',
-  path: {
-    id: computed(() => props.groupId),
-  },
+  path: { id: computed(() => String(props.groupId ?? '')) },
 })
 
+const items = computed(() => data.value ?? [])
+
 const subgroupOptions = computed(() => {
-  const subgroups = data.value ?? []
   return [
     { value: undefined as SubgroupIndex, label: 'Все' },
-    ...subgroups.map((s: SubgroupResponse) => ({
+    ...items.value.map(s => ({
       value: s.index,
       label: `Подгруппа ${s.index}`,
     })),

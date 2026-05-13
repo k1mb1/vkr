@@ -24,7 +24,6 @@ const DASHBOARD_PRIMARY_LINKS = [
     exact: true,
     description: 'Создание и управление учебными предметами.',
     defaultOpen: true,
-    // children: () => subjectChildren.value
   },
   {
     key: 'groups',
@@ -51,6 +50,8 @@ export function getDashboardPrimaryLinks(): DashboardPrimaryLink[] {
 const isExternal = (item: NavigationMenuItem) => item.target === '_blank'
 
 export function useDashboardNavigation(open: Ref<boolean>) {
+  const { children: subjectChildren } = useSubjectNavigation()
+
   const closeSidebar = () => {
     open.value = false
   }
@@ -59,8 +60,7 @@ export function useDashboardNavigation(open: Ref<boolean>) {
     return {
       ...item,
       onSelect: closeSidebar,
-      // если появятся children-функции — можно раскрывать здесь
-      // children: typeof item.children === 'function' ? item.children() : item.children,
+      children: item.key === 'subjects' ? subjectChildren.value : item.children,
     }
   }
 

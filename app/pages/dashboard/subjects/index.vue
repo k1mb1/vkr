@@ -47,6 +47,11 @@ const { rows, totalElements } = toPageState(data)
             :loading="pending"
             @click="refresh()"
           />
+          <UButton
+            to="/dashboard/subjects/create"
+            icon="i-lucide-plus"
+            label="Создать"
+          />
         </template>
       </UPageHeader>
 

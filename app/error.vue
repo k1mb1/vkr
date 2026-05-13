@@ -11,8 +11,8 @@ interface ErrorData {
   requiredGroups?: string[]
 }
 
-const statusCode = computed(() => props.error.statusCode ?? props.error.status ?? 500)
-const statusMessage = computed(() => props.error.statusMessage ?? props.error.statusText ?? 'Unexpected Error')
+const statusCode = computed(() => props.error.status ?? props.error.status ?? 500)
+const statusMessage = computed(() => props.error.statusText ?? props.error.statusText ?? 'Unexpected Error')
 const errorMessage = computed(() => props.error.message || 'Something went wrong. Please try again.')
 const errorData = computed(() => (props.error.data ?? {}) as ErrorData)
 

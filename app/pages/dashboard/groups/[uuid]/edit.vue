@@ -240,7 +240,7 @@ function handleCancel() {
     <template v-else-if="group">
       <ULink
         :to="`/dashboard/groups/${groupId}`"
-        class="text-sm text-muted hover:text-default flex items-center gap-1 -mb-2"
+        class="text-muted hover:text-default flex items-center gap-1 -mb-2"
       >
         <UIcon name="i-lucide-arrow-left" />
         К группе
@@ -314,7 +314,7 @@ function handleCancel() {
               class="flex items-center gap-2"
               :class="row.id === undefined ? 'rounded-lg bg-success/5 px-2 py-1 -mx-2' : ''"
             >
-              <span class="w-8 text-center text-sm text-muted">{{ row.index }}</span>
+              <span class="w-8 text-center text-muted">{{ row.index }}</span>
               <UInput
                 :model-value="row.username"
                 class="flex-1"
@@ -335,7 +335,7 @@ function handleCancel() {
               />
             </div>
 
-            <div v-if="filteredTabRows.length === 0" class="py-4 text-sm text-muted">
+            <div v-if="filteredTabRows.length === 0" class="py-4 text-muted">
               {{ activeTabData.emptyDescription }}
             </div>
 

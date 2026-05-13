@@ -48,6 +48,9 @@ const { links } = useDashboardNavigation(open)
             tooltip
             popover
             :class="{ 'mt-auto': i === links.length - 1 }"
+            :ui="{
+              content: 'max-h-56 overflow-y-auto data-[state=open]:animate-[collapsible-down_200ms_ease-out] data-[state=closed]:animate-[collapsible-up_200ms_ease-out]',
+            }"
           />
         </template>
       </template>

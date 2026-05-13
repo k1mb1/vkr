@@ -157,7 +157,7 @@ watch(
     <template v-else-if="group">
       <ULink
         to="/dashboard/groups"
-        class="text-sm text-muted hover:text-default flex items-center gap-1 -mb-2"
+        class="text-muted hover:text-default flex items-center gap-1 -mb-2"
       >
         <UIcon name="i-lucide-arrow-left" />
         К списку групп
@@ -173,7 +173,7 @@ watch(
           <h1 class="text-xl font-semibold">
             {{ group.name }}
           </h1>
-          <div class="flex items-center gap-2 text-sm text-muted">
+          <div class="flex items-center gap-2 text-muted">
             <span>{{ (group.students ?? []).length }} студентов</span>
             <span>·</span>
             <span>{{ (group.subgroups ?? []).length }} подгрупп</span>

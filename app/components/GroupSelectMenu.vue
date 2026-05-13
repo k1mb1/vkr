@@ -2,18 +2,20 @@
 import type { components } from '#open-fetch-schemas/backend'
 import { refDebounced, useInfiniteScroll } from '@vueuse/core'
 
-type TeacherResponse = components['schemas']['TeacherResponse']
-type TeacherId = TeacherResponse['id']
+type GroupResponse = components['schemas']['GroupResponse']
+type GroupId = GroupResponse['id']
 
-const modelValue = defineModel<TeacherId>()
+const modelValue = defineModel<GroupId>()
 
-interface TeacherOption { value: NonNullable<TeacherId>, label: string }
+interface GroupOption { value: NonNullable<GroupId>, label: string }
 
+// Internal full-object state so USelectMenu always has the label, even when
+// the selected item is absent from the current search results.
 const search = ref('')
 const debouncedSearch = refDebounced(search, 1000)
-const items = ref<TeacherResponse[]>([])
+const items = ref<GroupResponse[]>([])
 
-const selectedOption = ref<TeacherOption>()
+const selectedOption = ref<GroupOption>()
 
 watch(selectedOption, opt => (modelValue.value = opt?.value))
 watch(() => modelValue.value, (id) => {
@@ -21,19 +23,19 @@ watch(() => modelValue.value, (id) => {
     selectedOption.value = undefined
     return
   }
-  const found = items.value.find(t => t.id === id)
+  const found = items.value.find(g => g.id === id)
   if (found) {
-    selectedOption.value = { value: found.id!, label: found.username ?? '—' }
+    selectedOption.value = { value: found.id!, label: found.name ?? '—' }
   }
 })
 
 const { page, request, toPageState } = usePagable({
   filter: () => ({
-    username: debouncedSearch.value || undefined,
+    name: debouncedSearch.value || undefined,
   }),
 })
 
-const { data, pending, error } = useBackend('/api/teachers', {
+const { data, pending, error } = useBackend('/api/groups', {
   method: 'GET',
   query: request,
 })
@@ -59,10 +61,10 @@ watch(debouncedSearch, () => {
   items.value = []
 })
 
-const teacherOptions = computed(() =>
-  items.value.map(t => ({
-    value: t.id!,
-    label: t.username ?? '—',
+const groupOptions = computed(() =>
+  items.value.map(g => ({
+    value: g.id!,
+    label: g.name ?? '—',
   })),
 )
 
@@ -85,10 +87,10 @@ useInfiniteScroll(
       ref="selectMenuRef"
       v-model="selectedOption"
       v-model:search-term="search"
-      :items="teacherOptions"
+      :items="groupOptions"
       ignore-filter
       :loading="pending"
-      placeholder="Поиск по ФИО"
+      placeholder="Поиск по названию"
       class="w-full"
     >
       <template #empty>
@@ -99,7 +101,7 @@ useInfiniteScroll(
 
       <template #content-bottom>
         <p v-if="!hasMore && items.length > 0" class="py-2 text-center text-muted">
-          Все учителя загружены
+          Все группы загружены
         </p>
       </template>
     </USelectMenu>

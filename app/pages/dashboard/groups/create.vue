@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { components } from '#open-fetch-schemas/backend'
 import type { Form } from '#ui/types'
+import type { FetchError } from 'ofetch'
 import * as v from 'valibot'
 
 import { useApiError } from '~/composables/useApiError'
@@ -25,6 +26,7 @@ const CreateGroupRequestSchema: SchemaFor<CreateGroupRequest> = v.object({
 type Schema = v.InferOutput<typeof CreateGroupRequestSchema>
 
 // ── State ──────────────────────────────────────────────────
+const { $backend } = useNuxtApp()
 const { toastError } = useApiError()
 const toast = useToast()
 
@@ -183,20 +185,17 @@ async function handleCreate() {
 
   loading.value = true
   try {
-    const result = await useBackend('/api/groups', { method: 'POST', body: data })
-    if (result.error.value) {
-      toastError(result.error.value)
-      return
-    }
-    if (result.data.value) {
-      toast.add({
-        title: 'Группа создана',
-        color: 'success',
-        icon: 'i-lucide-check',
-      })
-      await navigateTo(`/dashboard/groups/${result.data.value.id}`)
-    }
+    const result = await $backend('/api/groups', { method: 'POST', body: data })
+    toast.add({
+      title: 'Группа создана',
+      color: 'success',
+      icon: 'i-lucide-check',
+    })
+    await navigateTo(`/dashboard/groups/${result.id}`)
     resetForm()
+  }
+  catch (e) {
+    toastError(e as FetchError)
   }
   finally {
     loading.value = false
@@ -295,7 +294,7 @@ async function handleCreate() {
                   name="i-lucide-grip-vertical"
                   class="shrink-0 text-(--ui-text-muted)"
                 />
-                <span class="flex-1 truncate text-sm">{{
+                <span class="flex-1 truncate">{{
                   student.username
                 }}</span>
                 <UButton

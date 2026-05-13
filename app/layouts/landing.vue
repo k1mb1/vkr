@@ -58,7 +58,7 @@ const { t } = useI18n({
           <USeparator />
 
           <div class="flex items-center justify-between gap-3">
-            <span class="text-sm text-muted">{{ t('nav.language') }}</span>
+            <span class="text-muted">{{ t('nav.language') }}</span>
             <AppLocaleSelect full />
           </div>
         </div>
@@ -73,7 +73,7 @@ const { t } = useI18n({
 
     <UFooter>
       <template #left>
-        <p class="text-sm text-muted">
+        <p class="text-muted">
           © {{ new Date().getFullYear() }} {{ t('footer.copy') }}
         </p>
       </template>

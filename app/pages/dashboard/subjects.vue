@@ -14,21 +14,25 @@ const uuid = computed(() => {
 })
 
 const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
-  const base: BreadcrumbItem[] = [
+  const items: BreadcrumbItem[] = [
     { label: 'Главная', to: '/dashboard' },
     { label: 'Предметы', to: '/dashboard/subjects' },
   ]
 
-  if (!uuid.value)
-    return base
-
-  return [
-    ...base,
-    {
+  if (route.path === '/dashboard/subjects/create') {
+    items.push({ label: 'Создание' })
+  }
+  else if (uuid.value) {
+    items.push({
       label: activeSubjectName.value ?? 'Предмет',
-      to: `/dashboard/groups/${uuid.value}`,
-    },
-  ]
+      to: `/dashboard/subjects/${uuid.value}`,
+    })
+    if (route.path.endsWith('/edit')) {
+      items.push({ label: 'Редактирование' })
+    }
+  }
+
+  return items
 })
 </script>
 

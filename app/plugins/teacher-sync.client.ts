@@ -44,6 +44,7 @@ export default defineNuxtPlugin(() => {
           username: name!,
         },
       })
+      syncedSub.value = teacherId ?? null
     }
     catch (error) {
       syncError.value = extractErrorMessage(error)
@@ -59,29 +60,20 @@ export default defineNuxtPlugin(() => {
     syncError.value = null
   }
 
-  router.afterEach(to => void syncIfNeeded(to.path))
-
-  watch(loggedIn, (isLoggedIn) => {
-    if (!isLoggedIn)
-      return resetSync()
+  if (isDashboardPath(route.path)) {
     void syncIfNeeded(route.path)
+  }
+
+  router.afterEach((to, from) => {
+    if (isDashboardPath(to.path) && !isDashboardPath(from.path)) {
+      void syncIfNeeded(to.path)
+    }
   })
 
   watch(() => user.value?.sub, (newSub, oldSub) => {
-    if (oldSub && newSub !== oldSub)
-      resetSync()
-    void syncIfNeeded(route.path)
-  })
-
-  watch(
-    () => [user.value?.email, user.value?.name] as const,
-    () => {
-      if (!isDashboardPath(route.path))
-        return
+    if (oldSub && newSub !== oldSub) {
       resetSync()
       void syncIfNeeded(route.path)
-    },
-  )
-
-  void syncIfNeeded(route.path)
+    }
+  })
 })
