@@ -7,6 +7,8 @@ import { useApiError } from '~/composables/useApiError'
 import { arrayMinLength, nonNegativeInteger, string } from '~/utils/validation'
 
 type CreateGroupRequest = components['schemas']['CreateGroupRequest']
+type Student = components['schemas']['StudentGroupMemberRequest']
+type SubgroupId = Student['subgroupIndex']
 
 const CreateGroupRequestSchema: SchemaFor<CreateGroupRequest> = v.object({
   groupName: string('Введите название группы'),
@@ -22,12 +24,7 @@ const CreateGroupRequestSchema: SchemaFor<CreateGroupRequest> = v.object({
 })
 type Schema = v.InferOutput<typeof CreateGroupRequestSchema>
 
-type Student = components['schemas']['StudentGroupMemberRequest']
-type SubgroupId = Student['subgroupIndex']
-
 // ── State ──────────────────────────────────────────────────
-const open = ref(false)
-
 const { toastError } = useApiError()
 const toast = useToast()
 
@@ -141,6 +138,17 @@ function onDrop(card: { subgroupIndex: SubgroupId }) {
 }
 
 // ── Card Management ─────────────────────────────────────────
+function handleAddCard() {
+  const hadUndefined = subgroups.value.includes(undefined)
+  addCard()
+  if (hadUndefined) {
+    for (const s of state.students) {
+      if (s.subgroupIndex === undefined)
+        s.subgroupIndex = 0
+    }
+  }
+}
+
 function removeCardAndMigrate(subgroupIndex: SubgroupId) {
   if (subgroupIndex == null)
     return
@@ -186,7 +194,6 @@ async function handleCreate() {
         color: 'success',
         icon: 'i-lucide-check',
       })
-      open.value = false
       await navigateTo(`/dashboard/groups/${result.data.value.id}`)
     }
     resetForm()
@@ -198,156 +205,159 @@ async function handleCreate() {
 </script>
 
 <template>
-  <UModal
-    v-model:open="open"
-    fullscreen
-    title="Создать группу"
-    :ui="{ body: 'flex-1 p-4 overflow-hidden' }"
-  >
-    <UButton label="Создать группу" icon="i-lucide-users" />
+  <div class="flex h-full flex-col gap-4">
+    <UPageHeader title="Создать группу">
+      <template #links>
+        <UButton
+          to="/dashboard/groups"
+          icon="i-lucide-arrow-left"
+          color="neutral"
+          variant="ghost"
+          label="Назад"
+        />
+      </template>
+    </UPageHeader>
 
-    <template #body>
-      <UForm
-        ref="form"
-        :schema="CreateGroupRequestSchema"
-        :state="state"
-        class="flex h-full flex-col gap-4"
-      >
-        <UFormField label="Название группы" name="groupName" required>
-          <UInput
-            v-model="state.groupName"
-            placeholder="Например: ИВТ-21"
-            class="w-full"
-          />
-        </UFormField>
+    <UForm
+      ref="form"
+      :schema="CreateGroupRequestSchema"
+      :state="state"
+      class="flex flex-1 flex-col gap-4 overflow-hidden"
+    >
+      <UFormField label="Название группы" name="groupName" required>
+        <UInput
+          v-model="state.groupName"
+          placeholder="Например: ИВТ-21"
+          class="w-full sm:w-96"
+        />
+      </UFormField>
 
-        <UFormField name="students" />
+      <UFormField name="students" />
 
-        <div class="flex flex-1 gap-3 overflow-x-auto pb-1">
-          <div
-            v-for="card in cards"
-            :key="card.id"
-            class="flex h-full w-64 shrink-0 flex-col"
-            @dragover.prevent="onDragOver($event, card.id)"
-            @dragleave="onDragLeave($event, card.id)"
-            @drop.prevent="onDrop(card)"
+      <div class="flex flex-1 gap-3 overflow-x-auto pb-1">
+        <div
+          v-for="card in cards"
+          :key="card.id"
+          class="flex h-full w-64 shrink-0 flex-col"
+          @dragover.prevent="onDragOver($event, card.id)"
+          @dragleave="onDragLeave($event, card.id)"
+          @drop.prevent="onDrop(card)"
+        >
+          <UCard
+            :ui="{
+              root: [
+                'h-full flex flex-col transition-colors duration-200',
+                dragOverId === card.id ? 'ring-2 ring-(--ui-primary)' : '',
+              ],
+              body: 'flex-1 flex flex-col gap-1 overflow-y-auto',
+              header: 'flex items-center justify-between',
+            }"
           >
-            <UCard
-              :ui="{
-                root: [
-                  'h-full flex flex-col transition-colors duration-200',
-                  dragOverId === card.id ? 'ring-2 ring-(--ui-primary)' : '',
-                ],
-                body: 'flex-1 flex flex-col gap-1 overflow-y-auto',
-                header: 'flex items-center justify-between',
-              }"
-            >
-              <template #header>
-                <span class="font-medium truncate">{{ cardLabel(card.subgroupIndex) }}</span>
-                <div class="flex items-center gap-1 shrink-0">
-                  <UBadge
-                    :label="String(getStudents(card.subgroupIndex).length)"
-                    variant="subtle"
-                  />
-                  <UButton
-                    v-if="cards.length > 1 && card.subgroupIndex !== null"
-                    icon="i-lucide-x"
-                    color="neutral"
-                    variant="ghost"
-                    :aria-label="`Удалить ${cardLabel(card.subgroupIndex)}`"
-                    @click="removeCardAndMigrate(card.subgroupIndex)"
-                  />
-                </div>
-              </template>
-
-              <TransitionGroup
-                v-if="getStudents(card.subgroupIndex).length"
-                name="student"
-                tag="div"
-                class="flex flex-col gap-1"
-              >
-                <div
-                  v-for="student in getStudents(card.subgroupIndex)"
-                  :key="student.username"
-                  draggable="true"
-                  class="group flex cursor-grab items-center gap-1 rounded-md bg-(--ui-bg-elevated) px-2 py-1 select-none active:cursor-grabbing"
-                  :class="[
-                    dragging?.username === student.username
-                      && dragging?.subgroupIndex === student.subgroupIndex
-                      ? 'opacity-40'
-                      : '',
-                  ]"
-                  @dragstart="onDragStart(student)"
-                  @dragend="onDragEnd"
-                >
-                  <UIcon
-                    name="i-lucide-grip-vertical"
-                    class="shrink-0 text-(--ui-text-muted)"
-                  />
-                  <span class="flex-1 truncate text-sm">{{
-                    student.username
-                  }}</span>
-                  <UButton
-                    icon="i-lucide-x"
-                    color="neutral"
-                    variant="ghost"
-                    class="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                    :aria-label="`Удалить ${student.username}`"
-                    @click="removeStudent(student.username, student.subgroupIndex)"
-                  />
-                </div>
-              </TransitionGroup>
-
-              <UEmpty
-                v-else
-                variant="naked"
-                icon="i-lucide-users"
-                description="Перетащите сюда или добавьте студентов"
-                class="flex-1"
-              />
-
-              <template #footer>
-                <UInput
-                  v-model="card.input"
-                  placeholder="Имя / вставьте список"
-                  icon="i-lucide-user-plus"
-                  @keydown.enter.prevent="handleEnter(card)"
-                  @paste="handlePaste(card, $event)"
+            <template #header>
+              <span class="font-medium truncate">{{ cardLabel(card.subgroupIndex) }}</span>
+              <div class="flex items-center gap-1 shrink-0">
+                <UBadge
+                  :label="String(getStudents(card.subgroupIndex).length)"
+                  variant="subtle"
                 />
-              </template>
-            </UCard>
-          </div>
+                <UButton
+                  v-if="cards.length > 1 && card.subgroupIndex !== null"
+                  icon="i-lucide-x"
+                  color="neutral"
+                  variant="ghost"
+                  :aria-label="`Удалить ${cardLabel(card.subgroupIndex)}`"
+                  @click="removeCardAndMigrate(card.subgroupIndex)"
+                />
+              </div>
+            </template>
 
-          <UButton
-            icon="i-lucide-plus"
-            color="neutral"
-            variant="outline"
-            class="shrink-0 self-stretch"
-            @click="addCard"
-          >
-            Добавить подгруппу
-          </UButton>
+            <TransitionGroup
+              v-if="getStudents(card.subgroupIndex).length"
+              name="student"
+              tag="div"
+              class="flex flex-col gap-1"
+            >
+              <div
+                v-for="student in getStudents(card.subgroupIndex)"
+                :key="student.username"
+                draggable="true"
+                class="group flex cursor-grab items-center gap-1 rounded-md bg-(--ui-bg-elevated) px-2 py-1 select-none active:cursor-grabbing"
+                :class="[
+                  dragging?.username === student.username
+                    && dragging?.subgroupIndex === student.subgroupIndex
+                    ? 'opacity-40'
+                    : '',
+                ]"
+                @dragstart="onDragStart(student)"
+                @dragend="onDragEnd"
+              >
+                <UIcon
+                  name="i-lucide-grip-vertical"
+                  class="shrink-0 text-(--ui-text-muted)"
+                />
+                <span class="flex-1 truncate text-sm">{{
+                  student.username
+                }}</span>
+                <UButton
+                  icon="i-lucide-x"
+                  color="neutral"
+                  variant="ghost"
+                  class="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                  :aria-label="`Удалить ${student.username}`"
+                  @click="removeStudent(student.username, student.subgroupIndex)"
+                />
+              </div>
+            </TransitionGroup>
+
+            <UEmpty
+              v-else
+              variant="naked"
+              icon="i-lucide-users"
+              description="Перетащите сюда или добавьте студентов"
+              class="flex-1"
+            />
+
+            <template #footer>
+              <UInput
+                v-model="card.input"
+                placeholder="Имя / вставьте список"
+                icon="i-lucide-user-plus"
+                @keydown.enter.prevent="handleEnter(card)"
+                @paste="handlePaste(card, $event)"
+              />
+            </template>
+          </UCard>
         </div>
 
-        <div class="flex justify-end gap-2">
-          <UButton
-            color="neutral"
-            variant="ghost"
-            type="button"
-            @click="resetForm"
-          >
-            Очистить
-          </UButton>
-          <UButton
-            type="button"
-            icon="i-lucide-check"
-            :loading="loading"
-            @click="handleCreate"
-          >
-            Создать группу
-          </UButton>
-        </div>
-      </UForm>
-    </template>
-  </UModal>
+        <UButton
+          icon="i-lucide-plus"
+          color="neutral"
+          variant="outline"
+          class="shrink-0 self-stretch"
+          @click="handleAddCard"
+        >
+          Добавить подгруппу
+        </UButton>
+      </div>
+
+      <div class="flex justify-end gap-2">
+        <UButton
+          color="neutral"
+          variant="ghost"
+          type="button"
+          @click="resetForm"
+        >
+          Очистить
+        </UButton>
+        <UButton
+          type="button"
+          icon="i-lucide-check"
+          :loading="loading"
+          @click="handleCreate"
+        >
+          Создать группу
+        </UButton>
+      </div>
+    </UForm>
+  </div>
 </template>

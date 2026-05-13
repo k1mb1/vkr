@@ -44,8 +44,8 @@ export function usePagable<TFilter extends Record<string, any> = Record<string, 
     return {
       page: page.value - 1,
       size: pageSize,
-      ...(rawFilter ?? {}),
-    }
+      ...rawFilter,
+    } as { page: number, size: number } & SafeFilter<TFilter>
   })
 
   function toPageState<TSchema extends PagedModel<ContentOf<TSchema>>>(

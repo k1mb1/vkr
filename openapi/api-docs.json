@@ -18,7 +18,11 @@
     { "name": "Groups", "description": "Управление группами и их составом" },
     { "name": "Subjects", "description": "Управление предметами" },
     { "name": "Lessons", "description": "Управление занятиями и расписанием" },
-    { "name": "Teachers", "description": "Управление преподавателями" }
+    { "name": "Teachers", "description": "Управление преподавателями" },
+    {
+      "name": "Subject Assignments",
+      "description": "Teacher–Offering bindings"
+    }
   ],
   "paths": {
     "/api/teachers/{id}": {
@@ -67,6 +71,67 @@
       }
     },
     "/api/subjects": {
+      "get": {
+        "tags": ["Subjects"],
+        "summary": "Get subjects page filtered by name",
+        "operationId": "getPage",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "description": "Название предмета (частичное совпадение)",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Название предмета (частичное совпадение)"
+            }
+          },
+          {
+            "name": "teacherId",
+            "in": "query",
+            "description": "ID учителя",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "ID учителя"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Zero-based page index (0..N)",
+            "required": false,
+            "schema": { "type": "integer", "default": 0, "minimum": 0 }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "description": "The size of the page to be returned",
+            "required": false,
+            "schema": { "type": "integer", "default": 20, "minimum": 1 }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "description": "Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported.",
+            "required": false,
+            "schema": { "type": "array", "items": { "type": "string" } }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagedModelSubjectPageResponse"
+                }
+              }
+            }
+          }
+        }
+      },
       "post": {
         "tags": ["Subjects"],
         "summary": "Создать предмет",
@@ -263,6 +328,57 @@
         }
       }
     },
+    "/api/subject-assignments/{id}": {
+      "delete": {
+        "tags": ["Subject Assignments"],
+        "summary": "Remove a teacher from a subject offering",
+        "operationId": "delete",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      },
+      "patch": {
+        "tags": ["Subject Assignments"],
+        "summary": "Update an existing teacher–offering binding (teacher / subgroup / lessonTypeScope)",
+        "operationId": "update",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSubjectAssignmentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubjectAssignmentResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/lessons/{id}": {
       "delete": {
         "tags": ["Lessons"],
@@ -381,6 +497,36 @@
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/GroupResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/subjects/{id}/teaching-rows": {
+      "get": {
+        "tags": ["Subjects"],
+        "summary": "Get flat rows (group × teacher × lessonTypeScope × subgroup) for the subject's teaching table",
+        "operationId": "getTeachingRows",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SubjectTeachingRowResponse"
+                  }
+                }
               }
             }
           }
@@ -598,7 +744,7 @@
           "type": {
             "type": "string",
             "description": "Тип занятия",
-            "enum": ["NONE", "LECTURE", "PRACTICE"]
+            "enum": ["LECTURE", "PRACTICE"]
           },
           "teacherId": {
             "type": "string",
@@ -653,7 +799,7 @@
           "type": {
             "type": "string",
             "description": "Тип занятия",
-            "enum": ["NONE", "LECTURE", "PRACTICE"]
+            "enum": ["LECTURE", "PRACTICE"]
           },
           "startDate": {
             "type": "string",
@@ -841,6 +987,35 @@
         },
         "required": ["name"]
       },
+      "UpdateSubjectAssignmentRequest": {
+        "type": "object",
+        "properties": {
+          "teacherId": { "type": "string", "format": "uuid" },
+          "subgroupId": { "type": "string", "format": "uuid" },
+          "lessonTypeScope": {
+            "type": "string",
+            "description": "Тип занятия",
+            "enum": ["LECTURE", "PRACTICE"]
+          }
+        },
+        "required": ["teacherId"]
+      },
+      "SubjectAssignmentResponse": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "teacherId": { "type": "string", "format": "uuid" },
+          "offeringId": { "type": "string", "format": "uuid" },
+          "subgroupId": { "type": "string", "format": "uuid" },
+          "lessonTypeScope": {
+            "type": "string",
+            "description": "Тип занятия",
+            "enum": ["LECTURE", "PRACTICE"]
+          },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
       "UpdateLessonRequest": {
         "type": "object",
         "description": "Запрос на частичное обновление занятия",
@@ -848,7 +1023,7 @@
           "type": {
             "type": "string",
             "description": "Тип занятия",
-            "enum": ["NONE", "LECTURE", "PRACTICE"]
+            "enum": ["LECTURE", "PRACTICE"]
           },
           "startedAt": {
             "type": "string",
@@ -920,6 +1095,60 @@
           "number": { "type": "integer", "format": "int64" },
           "totalElements": { "type": "integer", "format": "int64" },
           "totalPages": { "type": "integer", "format": "int64" }
+        }
+      },
+      "PagedModelSubjectPageResponse": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/SubjectPageResponse" }
+          },
+          "page": { "$ref": "#/components/schemas/PageMetadata" }
+        }
+      },
+      "SubjectPageResponse": {
+        "type": "object",
+        "description": "Краткая информация о предмете (для списка)",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID предмета"
+          },
+          "name": { "type": "string", "description": "Название предмета" },
+          "description": {
+            "type": "string",
+            "description": "Описание предмета"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Дата создания"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Дата последнего обновления"
+          }
+        }
+      },
+      "SubjectTeachingRowResponse": {
+        "type": "object",
+        "properties": {
+          "offeringId": { "type": "string", "format": "uuid" },
+          "groupId": { "type": "string", "format": "uuid" },
+          "groupName": { "type": "string" },
+          "assignmentId": { "type": "string", "format": "uuid" },
+          "teacherId": { "type": "string", "format": "uuid" },
+          "teacherName": { "type": "string" },
+          "lessonTypeScope": {
+            "type": "string",
+            "description": "Тип занятия",
+            "enum": ["LECTURE", "PRACTICE"]
+          },
+          "subgroupId": { "type": "string", "format": "uuid" },
+          "subgroupIndex": { "type": "integer", "format": "int32" }
         }
       },
       "PagedModelLessonResponse": {

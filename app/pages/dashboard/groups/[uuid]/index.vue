@@ -1,0 +1,270 @@
+<script setup lang="ts">
+import type { components } from '#open-fetch-schemas/backend'
+import type { Subgroup } from '~/composables/useGroupTabs'
+
+const route = useRoute()
+const groupId = computed(() => String(route.params.uuid ?? ''))
+const activeGroupName = useState<string | null>(
+  'groups-active-name',
+  () => null,
+)
+
+// ── Load group ─────────────────────────────────────────────
+const { data, pending, error } = useBackend('/api/groups/{id}', {
+  method: 'GET',
+  path: { id: groupId },
+})
+
+const group = computed(() => data.value ?? null)
+
+// ── Delete ─────────────────────────────────────────────────
+const { toastError } = useApiError()
+const toast = useToast()
+
+const deletingGroup = ref(false)
+const deleteGroupPending = ref(false)
+
+async function onDeleteGroup() {
+  if (deleteGroupPending.value)
+    return
+  deleteGroupPending.value = true
+  const { error } = await useBackend('/api/groups/{id}', {
+    method: 'DELETE',
+    path: { id: groupId.value },
+  })
+  deleteGroupPending.value = false
+  if (error.value) {
+    toastError(error.value, 'Ошибка')
+    return
+  }
+  toast.add({
+    title: 'Группа удалена',
+    color: 'success',
+    icon: 'i-lucide-check',
+  })
+  await navigateTo('/dashboard/groups')
+}
+
+// ── Tabs & Table ───────────────────────────────────────────
+const subgroupTabPrefix = 'subgroup:'
+const activeTab = ref('students')
+const sortDirection = ref<'asc' | 'desc'>('asc')
+const studentSearch = ref('')
+
+function toggleNameSort(): void {
+  sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
+}
+
+const usernameCollator = new Intl.Collator('ru-RU', {
+  sensitivity: 'base',
+  numeric: true,
+})
+
+const {
+  tabsData,
+  groupTabs,
+  availableTabValues,
+} = useGroupTabs<components['schemas']['StudentResponse']>({
+  students: computed(() => (group.value?.students ?? [])),
+  subgroups: computed(() => (group.value?.subgroups ?? []).map(sg => ({ id: sg.id!, index: sg.index })) as Subgroup[]),
+  getId: s => s.id ?? null,
+  getUsername: s => s.username ?? '',
+  getSubgroupId: s => s.subgroupId ?? null,
+  showEmptyStudentsTab: false,
+  subgroupTabPrefix,
+})
+
+const activeTabData = useActiveTab(tabsData, activeTab)
+
+const activeTabRows = computed(() => {
+  const sourceRows = activeTabData.value?.rows ?? []
+  const sortedRows = [...sourceRows].sort((left, right) => {
+    return sortDirection.value === 'asc'
+      ? usernameCollator.compare(left.username, right.username)
+      : usernameCollator.compare(right.username, left.username)
+  })
+  return sortedRows.map((row, index) => ({
+    ...row,
+    index: index + 1,
+  }))
+})
+
+const filteredTabRows = computed(() => {
+  let rows = activeTabRows.value
+  const q = studentSearch.value.trim().toLowerCase()
+  if (q)
+    rows = rows.filter(r => r.username.toLowerCase().includes(q))
+  return rows
+})
+
+watch(
+  groupId,
+  () => {
+    activeGroupName.value = null
+    studentSearch.value = ''
+  },
+  { immediate: true },
+)
+
+watch(
+  group,
+  (value) => {
+    activeGroupName.value = value?.name ?? null
+  },
+  { immediate: true },
+)
+
+watch(
+  availableTabValues,
+  (values) => {
+    if (!values.length) {
+      activeTab.value = 'students'
+      return
+    }
+    if (!activeTab.value || !values.includes(activeTab.value)) {
+      const firstValue = values[0]
+      if (firstValue)
+        activeTab.value = firstValue
+    }
+  },
+  { immediate: true },
+)
+</script>
+
+<template>
+  <div class="flex flex-col gap-6">
+    <template v-if="pending && !group">
+      <USkeleton class="h-8 w-1/3" />
+      <USkeleton class="h-12 w-full" />
+      <UCard>
+        <template #header>
+          <USkeleton class="h-6 w-32" />
+        </template>
+        <div class="flex flex-col gap-2">
+          <USkeleton v-for="i in 5" :key="i" class="h-10 w-full" />
+        </div>
+      </UCard>
+    </template>
+
+    <UAlert
+      v-else-if="error"
+      color="error"
+      variant="soft"
+      title="Ошибка при загрузке группы"
+      :description="error.message"
+    />
+
+    <template v-else-if="group">
+      <ULink
+        to="/dashboard/groups"
+        class="text-sm text-muted hover:text-default flex items-center gap-1 -mb-2"
+      >
+        <UIcon name="i-lucide-arrow-left" />
+        К списку групп
+      </ULink>
+
+      <div class="flex items-center gap-4">
+        <UAvatar
+          icon="i-lucide-users"
+          size="xl"
+          class="rounded-xl bg-secondary/10 text-secondary"
+        />
+        <div class="flex-1">
+          <h1 class="text-xl font-semibold">
+            {{ group.name }}
+          </h1>
+          <div class="flex items-center gap-2 text-sm text-muted">
+            <span>{{ (group.students ?? []).length }} студентов</span>
+            <span>·</span>
+            <span>{{ (group.subgroups ?? []).length }} подгрупп</span>
+          </div>
+        </div>
+        <UButton
+          :to="`/dashboard/groups/${groupId}/edit`"
+          label="Редактировать"
+          icon="i-lucide-pencil"
+          variant="outline"
+        />
+        <UButton
+          icon="i-lucide-trash-2"
+          color="error"
+          variant="ghost"
+          @click="deletingGroup = true"
+        />
+      </div>
+
+      <UTabs v-if="groupTabs.length" v-model="activeTab" :items="groupTabs" />
+
+      <UCard v-if="groupTabs.length && activeTabData">
+        <template #header>
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <h3 class="text-lg font-semibold">
+                {{ activeTabData.title }}
+              </h3>
+              <UBadge color="neutral" variant="soft">
+                {{ activeTabRows.length }}
+              </UBadge>
+            </div>
+            <UButton
+              icon="i-lucide-user-plus"
+              label="Добавить"
+              variant="ghost"
+              :to="`/dashboard/groups/${groupId}/edit`"
+            />
+          </div>
+        </template>
+
+        <div class="mb-4">
+          <UInput
+            v-model="studentSearch"
+            icon="i-lucide-search"
+            placeholder="Поиск по имени..."
+            class="w-full sm:w-72"
+          />
+        </div>
+
+        <GroupsStudentsTable
+          :rows="filteredTabRows"
+          :loading="pending"
+          :sort-direction="sortDirection"
+          :empty-title="activeTabData.emptyTitle"
+          :empty-description="activeTabData.emptyDescription"
+          @toggle-sort="toggleNameSort"
+        />
+      </UCard>
+
+      <UCard v-else>
+        <UEmpty
+          icon="i-lucide-users"
+          title="В группе пока нет студентов и подгрупп"
+          description="Добавьте студентов в группу или создайте подгруппы."
+          variant="naked"
+          :actions="[
+            {
+              label: 'Добавить студентов',
+              icon: 'i-lucide-user-plus',
+              to: `/dashboard/groups/${groupId}/edit`,
+            },
+          ]"
+        />
+      </UCard>
+    </template>
+
+    <UEmpty
+      v-else
+      icon="i-lucide-search-x"
+      title="Группа не найдена"
+      description="Проверьте ссылку или вернитесь к списку групп."
+      variant="naked"
+      class="h-full"
+    />
+
+    <GroupsDeleteModal
+      :open="deletingGroup"
+      :pending="deleteGroupPending"
+      @close="deletingGroup = false"
+      @confirm="onDeleteGroup"
+    />
+  </div>
+</template>

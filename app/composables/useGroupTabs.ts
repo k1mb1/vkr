@@ -1,22 +1,21 @@
-import type { components } from '#open-fetch-schemas/backend'
 import type { TabsItem } from '@nuxt/ui'
 
-type StudentResponse = components['schemas']['StudentResponse']
-type SubgroupResponse = components['schemas']['SubgroupResponse']
-
-export interface TabStudentRow {
+export interface TabStudentRow<T = unknown> {
   key: string
   id: string | null
+  index: number
   username: string
   subgroupId: string | null
   draftIndex: number
+  data: T
 }
 
-export type DisplayStudent = StudentResponse
+export interface Subgroup {
+  id: string
+  index?: number | null
+}
 
-export type Subgroup = SubgroupResponse
-
-export interface TabData {
+export interface TabData<T = unknown> {
   value: string
   label: string
   count: number
@@ -24,41 +23,43 @@ export interface TabData {
   title: string
   emptyTitle: string
   emptyDescription: string
-  rows: TabStudentRow[]
+  rows: TabStudentRow<T>[]
 }
 
-export interface UseGroupTabsOptions {
-  students: Ref<DisplayStudent[]>
+export interface UseGroupTabsOptions<T> {
+  students: Ref<T[]>
   subgroups: Ref<Subgroup[]>
-  isEditing: Ref<boolean>
+  getId: (student: T) => string | null
+  getUsername: (student: T) => string
+  getSubgroupId: (student: T) => string | null
+  showEmptyStudentsTab?: boolean
   subgroupTabPrefix?: string
 }
 
-export interface UseGroupTabsReturn {
-  tabsData: ComputedRef<TabData[]>
+export interface UseGroupTabsReturn<T> {
+  tabsData: ComputedRef<TabData<T>[]>
   groupTabs: ComputedRef<TabsItem[]>
   availableTabValues: ComputedRef<string[]>
-  activeTabData: ComputedRef<TabData | null>
 }
 
-export function useGroupTabs(options: UseGroupTabsOptions): UseGroupTabsReturn {
-  const { students, subgroups, isEditing, subgroupTabPrefix = 'subgroup:' } = options
+export function useGroupTabs<T>(options: UseGroupTabsOptions<T>): UseGroupTabsReturn<T> {
+  const {
+    students,
+    subgroups,
+    getId,
+    getUsername,
+    getSubgroupId,
+    showEmptyStudentsTab = false,
+    subgroupTabPrefix = 'subgroup:',
+  } = options
 
-  const tabsData = computed<TabData[]>(() => {
-    const tabs: TabData[] = []
+  const tabsData = computed<TabData<T>[]>(() => {
+    const tabs: TabData<T>[] = []
     const groupStudents = students.value
     const hasSubgroups = subgroups.value.length > 0
 
-    const studentsWithoutSubgroup = groupStudents.filter(s => s.subgroupId == null)
-    if (!hasSubgroups && (studentsWithoutSubgroup.length > 0 || isEditing.value)) {
-      const studentsRows = studentsWithoutSubgroup.map((student, localIndex) => ({
-        key: `students:${String(student.id ?? `${student.username}:${localIndex}`)}`,
-        id: student.id ?? null,
-        username: student.username ?? '',
-        subgroupId: student.subgroupId ?? null,
-        draftIndex: groupStudents.indexOf(student),
-      }))
-
+    const studentsWithoutSubgroup = groupStudents.filter(s => getSubgroupId(s) == null)
+    if (!hasSubgroups && (studentsWithoutSubgroup.length > 0 || showEmptyStudentsTab)) {
       tabs.push({
         value: 'students',
         label: 'Студенты',
@@ -67,20 +68,21 @@ export function useGroupTabs(options: UseGroupTabsOptions): UseGroupTabsReturn {
         title: 'Основные студенты',
         emptyTitle: 'Нет студентов',
         emptyDescription: 'В этой вкладке пока нет студентов.',
-        rows: studentsRows,
+        rows: studentsWithoutSubgroup.map((student, localIndex) => ({
+          key: `students:${String(getId(student) ?? `${getUsername(student)}:${localIndex}`)}`,
+          id: getId(student),
+          index: localIndex + 1,
+          username: getUsername(student),
+          subgroupId: getSubgroupId(student),
+          draftIndex: groupStudents.indexOf(student),
+          data: student,
+        })),
       })
     }
 
     for (const [index, subgroup] of subgroups.value.entries()) {
       const tabValue = `${subgroupTabPrefix}${subgroup.id}`
-      const subgroupStudents = groupStudents.filter(s => s.subgroupId === subgroup.id)
-      const subgroupRows = subgroupStudents.map((student, localIndex) => ({
-        key: `${tabValue}:${String(student.id ?? `${student.username}:${localIndex}`)}`,
-        id: student.id ?? null,
-        username: student.username ?? '',
-        subgroupId: student.subgroupId ?? null,
-        draftIndex: groupStudents.indexOf(student),
-      }))
+      const subgroupStudents = groupStudents.filter(s => getSubgroupId(s) === subgroup.id)
 
       const subgroupLabel = `Подгруппа ${(subgroup.index ?? index) + 1}`
 
@@ -92,7 +94,15 @@ export function useGroupTabs(options: UseGroupTabsOptions): UseGroupTabsReturn {
         title: subgroupLabel,
         emptyTitle: 'Подгруппа пуста',
         emptyDescription: 'Студенты для этой подгруппы пока не назначены.',
-        rows: subgroupRows,
+        rows: subgroupStudents.map((student, localIndex) => ({
+          key: `${tabValue}:${String(getId(student) ?? `${getUsername(student)}:${localIndex}`)}`,
+          id: getId(student),
+          index: localIndex + 1,
+          username: getUsername(student),
+          subgroupId: getSubgroupId(student),
+          draftIndex: groupStudents.indexOf(student),
+          data: student,
+        })),
       })
     }
 
@@ -112,20 +122,14 @@ export function useGroupTabs(options: UseGroupTabsOptions): UseGroupTabsReturn {
     tabsData.value.map(tab => tab.value),
   )
 
-  const activeTabData = computed<TabData | null>(() => {
-    // Этот computed требует activeTab снаружи — возвращаем просто первый таб
-    return tabsData.value[0] ?? null
-  })
-
   return {
     tabsData,
     groupTabs,
     availableTabValues,
-    activeTabData,
   }
 }
 
-export function useActiveTab(tabsData: Ref<TabData[]>, activeTab: Ref<string>): ComputedRef<TabData | null> {
+export function useActiveTab<T>(tabsData: Ref<TabData<T>[]>, activeTab: Ref<string>): ComputedRef<TabData<T> | null> {
   return computed(() => {
     const tab = tabsData.value.find(item => item.value === activeTab.value)
     return tab ?? tabsData.value[0] ?? null

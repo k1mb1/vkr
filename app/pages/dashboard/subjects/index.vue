@@ -1,27 +1,43 @@
 <script setup lang="ts">
-import { useGroupList } from '~/composables/useGroupList'
+import type { User } from '#auth-utils'
+import { usePagable } from '~/composables/usePagable'
 
-const {
-  search,
-  debouncedSearch,
-  page,
-  pageSize,
+const { user } = useOidcAuth()
 
-  applySearch,
-  clearSearch,
+const search = ref('')
+const debouncedSearch = ref('')
 
-  pending,
-  error,
-  refresh,
+const { sub: teacherId } = user.value as User
 
-  rows,
-  totalElements,
-} = useGroupList()
+const { page, pageSize, request, toPageState } = usePagable({
+  filter: () => ({
+    name: debouncedSearch.value || undefined,
+    teacherId: teacherId!,
+  }),
+})
+
+function applySearch() {
+  debouncedSearch.value = search.value
+  page.value = 1
+}
+
+function clearSearch() {
+  search.value = ''
+  debouncedSearch.value = ''
+  page.value = 1
+}
+
+const { data, pending, error, refresh } = useBackend('/api/subjects', {
+  method: 'GET',
+  query: request,
+})
+
+const { rows, totalElements } = toPageState(data)
 </script>
 
 <template>
   <div class="flex h-full flex-col gap-6">
-    <UPageHeader title="Группы">
+    <UPageHeader title="Предметы">
       <template #links>
         <UButton
           icon="i-lucide-refresh-cw"
@@ -30,11 +46,6 @@ const {
           :loading="pending"
           @click="refresh()"
         />
-        <UButton
-          to="/dashboard/groups/create"
-          label="Создать группу"
-          icon="i-lucide-users"
-        />
       </template>
     </UPageHeader>
 
@@ -42,7 +53,7 @@ const {
       <UInput
         v-model="search"
         icon="i-lucide-search"
-        placeholder="Поиск групп"
+        placeholder="Поиск предметов"
         class="w-full"
         :ui="{ root: 'sm:w-96' }"
         @keydown.enter="applySearch"
@@ -78,23 +89,24 @@ const {
 
     <UEmpty
       v-else-if="rows.length === 0"
-      icon="i-lucide-users"
-      :title="debouncedSearch ? 'Группы не найдены' : 'Группы не найдены'"
+      icon="i-lucide-book-open"
+      :title="debouncedSearch ? 'Предметы не найдены' : 'Предметы не найдены'"
       :description="
         debouncedSearch
           ? 'Попробуйте изменить запрос поиска.'
-          : 'Создайте первую группу с помощью кнопки выше.'
+          : 'Создайте первый предмет с помощью кнопки выше.'
       "
       variant="naked"
     />
 
     <UPageGrid v-else>
       <UPageCard
-        v-for="group in rows"
-        :key="group.id"
-        :to="`/dashboard/groups/${group.id}`"
-        :title="group.name"
-        icon="i-lucide-users"
+        v-for="subject in rows"
+        :key="subject.id"
+        :to="`/dashboard/subjects/${subject.id}`"
+        :title="subject.name"
+        :description="subject.description"
+        icon="i-lucide-book-open"
         :ui="{
           wrapper: 'flex-row items-center gap-3',
           leading: 'mb-0',
