@@ -21,7 +21,6 @@ const DASHBOARD_PRIMARY_LINKS = [
     label: 'Предметы',
     icon: 'i-lucide-book-open',
     to: '/dashboard/subjects',
-    exact: true,
     description: 'Создание и управление учебными предметами.',
     defaultOpen: true,
   },

@@ -1,17 +1,17 @@
 <script setup lang="ts">
-import type { BreadcrumbItem } from '@nuxt/ui'
+import type { BreadcrumbItem, NavigationMenuItem } from '@nuxt/ui'
 
 const route = useRoute()
-
-const activeSubjectName = useState<string | null>(
-  'subjects-active-name',
-  () => null,
-)
+const { subjects } = useSubjectNavigation()
 
 const uuid = computed(() => {
   const param = route.params.uuid
   return typeof param === 'string' ? param : null
 })
+
+const activeSubjectName = computed(() =>
+  uuid.value ? (subjects.value.find(s => s.id === uuid.value)?.name ?? null) : null,
+)
 
 const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
   const items: BreadcrumbItem[] = [
@@ -27,23 +27,40 @@ const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
       label: activeSubjectName.value ?? 'Предмет',
       to: `/dashboard/subjects/${uuid.value}`,
     })
-    if (route.path.endsWith('/edit')) {
-      items.push({ label: 'Редактирование' })
-    }
   }
 
   return items
 })
+
+const toolbarItems = computed<NavigationMenuItem[][]>(() => uuid.value
+  ? [[
+      {
+        label: 'Таблица',
+        icon: 'i-lucide-table',
+        to: `/dashboard/subjects/${uuid.value}`,
+        exact: true,
+      },
+      {
+        label: 'teaching-table',
+        icon: 'i-lucide-table',
+        to: `/dashboard/subjects/${uuid.value}/teaching-table`,
+        exact: true,
+      },
+    ]]
+  : [])
 </script>
 
 <template>
   <NuxtLayout
     name="dashboard"
-    panel-id="dashboard-groups"
+    panel-id="dashboard-subjects"
     :navbar-ui="{ right: 'gap-3' }"
   >
     <template #navbar-title>
       <UBreadcrumb :items="breadcrumbItems" />
+    </template>
+    <template v-if="toolbarItems.length" #toolbar>
+      <UNavigationMenu :items="toolbarItems" highlight class="-mx-1 flex-1" />
     </template>
     <NuxtPage />
   </NuxtLayout>
