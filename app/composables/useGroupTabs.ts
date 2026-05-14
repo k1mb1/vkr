@@ -84,7 +84,7 @@ export function useGroupTabs<T>(options: UseGroupTabsOptions<T>): UseGroupTabsRe
       const tabValue = `${subgroupTabPrefix}${subgroup.id}`
       const subgroupStudents = groupStudents.filter(s => getSubgroupId(s) === subgroup.id)
 
-      const subgroupLabel = `Подгруппа ${(subgroup.index ?? index) + 1}`
+      const subgroupLabel = `Подгруппа ${subgroup.index ?? (index + 1)}`
 
       tabs.push({
         value: tabValue,

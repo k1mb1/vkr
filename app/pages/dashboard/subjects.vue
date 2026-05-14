@@ -40,9 +40,14 @@ const toolbarItems = computed<NavigationMenuItem[][]>(() => uuid.value
         to: `/dashboard/subjects/${uuid.value}`,
       },
       {
-        label: 'teaching-table',
+        label: 'Назначение',
         icon: 'i-lucide-table',
         to: `/dashboard/subjects/${uuid.value}/teaching`,
+      },
+      {
+        label: 'Назначение',
+        icon: 'i-lucide-table',
+        to: `/dashboard/subjects/${uuid.value}/lessons`,
       },
     ]]
   : [])

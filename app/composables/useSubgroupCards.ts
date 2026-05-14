@@ -19,7 +19,7 @@ export interface UseSubgroupCardsReturn {
 export function useSubgroupCards(): UseSubgroupCardsReturn {
   const subgroups = ref<SubgroupId[]>([undefined])
 
-  let nextCardId = 1
+  let nextCardId = 2
   const cardInputs = reactive(new Map<number, string>())
 
   const cards = computed<SubgroupCard[]>(() =>
@@ -49,7 +49,7 @@ export function useSubgroupCards(): UseSubgroupCardsReturn {
     if (!hasSubgroups.value)
       return 'Без подгруппы'
 
-    const pos = (subgroupIndex ?? 0) + 1
+    const pos = (subgroupIndex ?? 1)
     return `Подгруппа ${pos}`
   }
 
@@ -57,7 +57,7 @@ export function useSubgroupCards(): UseSubgroupCardsReturn {
     const hasUndefined = subgroups.value.includes(undefined)
 
     if (hasUndefined) {
-      subgroups.value = subgroups.value.map(id => id ?? 0)
+      subgroups.value = subgroups.value.map(id => id ?? 1)
     }
 
     const nextIndex = Math.max(0, ...subgroups.value.filter((v): v is number => v !== undefined)) + 1

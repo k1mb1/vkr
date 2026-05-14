@@ -11,9 +11,11 @@ const props = defineProps<{
 
 const modelValue = defineModel<SubgroupResponse>()
 
-const { data, pending, error } = useBackend('/api/groups/{id}/subgroups', {
+const { data, pending, error } = useBackend('/api/subgroups', {
   method: 'GET',
-  path: { id: computed(() => String(props.groupId ?? '')) },
+  query: {
+    groupId: computed(() => String(props.groupId ?? '')),
+  },
 })
 
 const items = computed(() => data.value ?? [])

@@ -17,7 +17,7 @@ const CreateGroupRequestSchema: SchemaFor<CreateGroupRequest> = v.object({
   students: arrayMinLength(
     v.object({
       username: string('Введите username студента'),
-      subgroupIndex: v.optional(nonNegativeInteger()),
+      subgroupIndex: v.optional(v.pipe(nonNegativeInteger(), v.minValue(1))),
     }),
     1,
     'Добавьте хотя бы одного студента',
@@ -146,7 +146,7 @@ function handleAddCard() {
   if (hadUndefined) {
     for (const s of state.students) {
       if (s.subgroupIndex === undefined)
-        s.subgroupIndex = 0
+        s.subgroupIndex = 1
     }
   }
 }

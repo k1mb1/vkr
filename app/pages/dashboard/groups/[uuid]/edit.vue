@@ -67,7 +67,7 @@ watch(
 const subgroupOptions = computed(() => {
   return (group.value?.subgroups ?? []).map((sg, idx) => ({
     value: sg.id!,
-    label: `Подгруппа ${idx + 1}`,
+    label: `Подгруппа ${sg.index ?? (idx + 1)}`,
   }))
 })
 
@@ -84,12 +84,6 @@ function updateStudentSubgroup(index: number, subgroupId: string | null) {
   const student = state.students[index]
   if (student)
     student.subgroupId = subgroupId ?? undefined
-}
-
-function removeStudent(studentId: string | null) {
-  const idx = state.students.findIndex(s => s.id === studentId)
-  if (idx !== -1)
-    state.students.splice(idx, 1)
 }
 
 // ── Add new students ───────────────────────────────────────
@@ -327,12 +321,7 @@ function handleCancel() {
                 class="w-44"
                 @update:model-value="(v: string) => updateStudentSubgroup(row.draftIndex, v)"
               />
-              <UButton
-                icon="i-lucide-trash-2"
-                color="error"
-                variant="ghost"
-                @click="removeStudent(row.id)"
-              />
+
             </div>
 
             <div v-if="filteredTabRows.length === 0" class="py-4 text-muted">

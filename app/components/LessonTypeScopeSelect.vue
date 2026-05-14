@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { components } from '#open-fetch-schemas/backend'
 
-type LessonTypeScope = components['schemas']['CreateSubjectAssignmentRequest']['lessonTypeScope']
+type LessonTypeScope = components['schemas']['UpdateTeacherSubjectPermissionRequest']['allowedLessonType']
 
 const modelValue = defineModel<LessonTypeScope>()
 

@@ -15,14 +15,15 @@
   ],
   "security": [{ "bearerAuth": [] }],
   "tags": [
+    {
+      "name": "Teacher Subject Permissions",
+      "description": "Права преподавателей на предметы"
+    },
+    { "name": "Subgroups", "description": "Управление подгруппами" },
     { "name": "Groups", "description": "Управление группами и их составом" },
     { "name": "Subjects", "description": "Управление предметами" },
     { "name": "Lessons", "description": "Управление занятиями и расписанием" },
-    { "name": "Teachers", "description": "Управление преподавателями" },
-    {
-      "name": "Subject Assignments",
-      "description": "Teacher–Offering bindings"
-    }
+    { "name": "Teachers", "description": "Управление преподавателями" }
   ],
   "paths": {
     "/api/teachers/{id}": {
@@ -64,6 +65,64 @@
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/ErrorDto" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/teacher-subject-permissions": {
+      "get": {
+        "tags": ["Teacher Subject Permissions"],
+        "summary": "Получить список прав преподавателей на предмет",
+        "operationId": "getPermissions",
+        "parameters": [
+          {
+            "name": "subjectId",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TeacherSubjectPermissionResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Teacher Subject Permissions"],
+        "summary": "Создать право преподавателя на предмет",
+        "operationId": "create",
+        "requestBody": {
+          "description": "Данные для создания права",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTeacherSubjectPermissionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherSubjectPermissionResponse"
+                }
               }
             }
           }
@@ -151,35 +210,6 @@
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/SubjectResponse" }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/subject-assignments": {
-      "post": {
-        "tags": ["Subject Assignments"],
-        "summary": "Assign a teacher to a subject offering (optionally scoped to subgroup / lesson type)",
-        "operationId": "create",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateSubjectAssignmentRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SubjectAssignmentResponse"
-                }
               }
             }
           }
@@ -322,6 +352,58 @@
         }
       }
     },
+    "/api/teacher-subject-permissions/{id}": {
+      "delete": {
+        "tags": ["Teacher Subject Permissions"],
+        "summary": "Удалить (архивировать) право преподавателя на предмет",
+        "operationId": "delete",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      },
+      "patch": {
+        "tags": ["Teacher Subject Permissions"],
+        "summary": "Обновить право преподавателя на предмет",
+        "operationId": "update",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "description": "Данные для обновления права",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTeacherSubjectPermissionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherSubjectPermissionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/subjects/{id}": {
       "patch": {
         "tags": ["Subjects"],
@@ -351,57 +433,6 @@
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/SubjectResponse" }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/subject-assignments/{id}": {
-      "delete": {
-        "tags": ["Subject Assignments"],
-        "summary": "Remove a teacher from a subject offering",
-        "operationId": "delete",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": { "type": "string", "format": "uuid" }
-          }
-        ],
-        "responses": { "200": { "description": "OK" } }
-      },
-      "patch": {
-        "tags": ["Subject Assignments"],
-        "summary": "Update an existing teacher–offering binding (teacher / subgroup / lessonTypeScope)",
-        "operationId": "update",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": { "type": "string", "format": "uuid" }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateSubjectAssignmentRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SubjectAssignmentResponse"
-                }
               }
             }
           }
@@ -584,15 +615,16 @@
         }
       }
     },
-    "/api/subjects/{id}/teaching-rows": {
+    "/api/subgroups": {
       "get": {
-        "tags": ["Subjects"],
-        "summary": "Get flat rows (group × teacher × lessonTypeScope × subgroup) for the subject's teaching table",
-        "operationId": "getTeachingRows",
+        "tags": ["Subgroups"],
+        "summary": "Получить список подгрупп группы",
+        "operationId": "getSubgroups",
         "parameters": [
           {
-            "name": "id",
-            "in": "path",
+            "name": "groupId",
+            "in": "query",
+            "description": "ID группы",
             "required": true,
             "schema": { "type": "string", "format": "uuid" }
           }
@@ -604,9 +636,7 @@
               "application/json": {
                 "schema": {
                   "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/SubjectTeachingRowResponse"
-                  }
+                  "items": { "$ref": "#/components/schemas/SubgroupResponse" }
                 }
               }
             }
@@ -660,34 +690,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PagedModelLessonResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/groups/{id}/subgroups": {
-      "get": {
-        "tags": ["Groups"],
-        "summary": "Get all subgroups of a group",
-        "operationId": "getSubgroups",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": { "type": "string", "format": "uuid" }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": { "$ref": "#/components/schemas/SubgroupResponse" }
                 }
               }
             }
@@ -763,6 +765,94 @@
           }
         }
       },
+      "CreateTeacherSubjectPermissionRequest": {
+        "type": "object",
+        "description": "Запрос на создание права преподавателя на предмет",
+        "properties": {
+          "teacherId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID преподавателя"
+          },
+          "subjectId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID предмета"
+          },
+          "groupId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID группы"
+          },
+          "allowedSubgroupId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID разрешённой подгруппы (null = вся группа)"
+          },
+          "allowedLessonType": {
+            "type": "string",
+            "description": "Разрешённый тип занятия (null = все типы)",
+            "enum": ["LECTURE", "PRACTICE"]
+          }
+        },
+        "required": ["groupId", "subjectId", "teacherId"]
+      },
+      "TeacherSubjectPermissionResponse": {
+        "type": "object",
+        "description": "Право преподавателя на предмет",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID права"
+          },
+          "teacherId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID преподавателя"
+          },
+          "teacherName": {
+            "type": "string",
+            "description": "Имя преподавателя"
+          },
+          "subjectId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID предмета"
+          },
+          "groupId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID группы"
+          },
+          "groupName": { "type": "string", "description": "Название группы" },
+          "allowedSubgroupId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID разрешённой подгруппы"
+          },
+          "allowedSubgroupIndex": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Индекс разрешённой подгруппы"
+          },
+          "allowedLessonType": {
+            "type": "string",
+            "description": "Разрешённый тип занятия",
+            "enum": ["LECTURE", "PRACTICE"]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Дата создания"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Дата последнего обновления"
+          }
+        }
+      },
       "CreateSubjectRequest": {
         "type": "object",
         "properties": {
@@ -799,36 +889,6 @@
           }
         }
       },
-      "CreateSubjectAssignmentRequest": {
-        "type": "object",
-        "properties": {
-          "teacherId": { "type": "string", "format": "uuid" },
-          "offeringId": { "type": "string", "format": "uuid" },
-          "subgroupId": { "type": "string", "format": "uuid" },
-          "lessonTypeScope": {
-            "type": "string",
-            "description": "Тип занятия",
-            "enum": ["LECTURE", "PRACTICE"]
-          }
-        },
-        "required": ["offeringId", "teacherId"]
-      },
-      "SubjectAssignmentResponse": {
-        "type": "object",
-        "properties": {
-          "id": { "type": "string", "format": "uuid" },
-          "teacherId": { "type": "string", "format": "uuid" },
-          "offeringId": { "type": "string", "format": "uuid" },
-          "subgroupId": { "type": "string", "format": "uuid" },
-          "lessonTypeScope": {
-            "type": "string",
-            "description": "Тип занятия",
-            "enum": ["LECTURE", "PRACTICE"]
-          },
-          "createdAt": { "type": "string", "format": "date-time" },
-          "updatedAt": { "type": "string", "format": "date-time" }
-        }
-      },
       "CreateLessonsByTypeRequest": {
         "type": "object",
         "description": "Запрос на создание занятий по количеству типов",
@@ -837,6 +897,11 @@
             "type": "string",
             "format": "uuid",
             "description": "ID предмета"
+          },
+          "groupId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID группы"
           },
           "lectureCount": {
             "type": "integer",
@@ -849,7 +914,7 @@
             "description": "Количество практик"
           }
         },
-        "required": ["lectureCount", "practiceCount", "subjectId"]
+        "required": ["groupId", "lectureCount", "practiceCount", "subjectId"]
       },
       "LessonResponse": {
         "type": "object",
@@ -859,11 +924,6 @@
             "type": "string",
             "format": "uuid",
             "description": "ID занятия"
-          },
-          "offeringId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID назначения предмета (offering)"
           },
           "subjectId": {
             "type": "string",
@@ -922,6 +982,11 @@
             "format": "uuid",
             "description": "ID предмета"
           },
+          "groupId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID группы"
+          },
           "schedules": {
             "type": "array",
             "description": "Список шаблонов расписания",
@@ -929,7 +994,7 @@
             "minItems": 1
           }
         },
-        "required": ["schedules", "subjectId"]
+        "required": ["groupId", "schedules", "subjectId"]
       },
       "Entry": {
         "type": "object",
@@ -1007,8 +1072,8 @@
           "subgroupIndex": {
             "type": "integer",
             "format": "int32",
-            "description": "Индекс подгруппы (0, 1, ...)",
-            "minimum": 0
+            "description": "Индекс подгруппы (1, 2, ...)",
+            "minimum": 1
           }
         },
         "required": ["username"]
@@ -1106,6 +1171,32 @@
           }
         }
       },
+      "UpdateTeacherSubjectPermissionRequest": {
+        "type": "object",
+        "description": "Запрос на обновление права преподавателя на предмет",
+        "properties": {
+          "teacherId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID преподавателя"
+          },
+          "groupId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID группы"
+          },
+          "allowedSubgroupId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID разрешённой подгруппы (null = вся группа)"
+          },
+          "allowedLessonType": {
+            "type": "string",
+            "description": "Разрешённый тип занятия (null = все типы)",
+            "enum": ["LECTURE", "PRACTICE"]
+          }
+        }
+      },
       "UpdateSubjectRequest": {
         "type": "object",
         "description": "Запрос на частичное обновление предмета",
@@ -1126,23 +1217,20 @@
         },
         "required": ["name"]
       },
-      "UpdateSubjectAssignmentRequest": {
-        "type": "object",
-        "properties": {
-          "teacherId": { "type": "string", "format": "uuid" },
-          "subgroupId": { "type": "string", "format": "uuid" },
-          "lessonTypeScope": {
-            "type": "string",
-            "description": "Тип занятия",
-            "enum": ["LECTURE", "PRACTICE"]
-          }
-        },
-        "required": ["teacherId"]
-      },
       "UpdateLessonRequest": {
         "type": "object",
         "description": "Запрос на частичное обновление занятия",
         "properties": {
+          "subjectId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID предмета"
+          },
+          "groupId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID группы"
+          },
           "type": {
             "type": "string",
             "description": "Тип занятия",
@@ -1264,24 +1352,6 @@
             "format": "date-time",
             "description": "Дата последнего обновления"
           }
-        }
-      },
-      "SubjectTeachingRowResponse": {
-        "type": "object",
-        "properties": {
-          "offeringId": { "type": "string", "format": "uuid" },
-          "groupId": { "type": "string", "format": "uuid" },
-          "groupName": { "type": "string" },
-          "assignmentId": { "type": "string", "format": "uuid" },
-          "teacherId": { "type": "string", "format": "uuid" },
-          "teacherName": { "type": "string" },
-          "lessonTypeScope": {
-            "type": "string",
-            "description": "Тип занятия",
-            "enum": ["LECTURE", "PRACTICE"]
-          },
-          "subgroupId": { "type": "string", "format": "uuid" },
-          "subgroupIndex": { "type": "integer", "format": "int32" }
         }
       },
       "PagedModelLessonResponse": {
