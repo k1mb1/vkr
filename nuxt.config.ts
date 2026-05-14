@@ -62,8 +62,6 @@ export default defineNuxtConfig({
     },
   },
 
-  ssr: false,
-
   i18n: {
     strategy: 'no_prefix',
     defaultLocale: 'ru',

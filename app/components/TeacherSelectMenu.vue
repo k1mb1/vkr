@@ -5,6 +5,10 @@ import { refDebounced, useInfiniteScroll } from '@vueuse/core'
 type TeacherResponse = components['schemas']['TeacherResponse']
 type TeacherId = TeacherResponse['id']
 
+const props = defineProps<{
+  exclude?: NonNullable<TeacherId>[]
+}>()
+
 const modelValue = defineModel<TeacherId>()
 
 interface TeacherOption { value: NonNullable<TeacherId>, label: string }
@@ -60,10 +64,12 @@ watch(debouncedSearch, () => {
 })
 
 const teacherOptions = computed(() =>
-  items.value.map(t => ({
-    value: t.id!,
-    label: t.username ?? '—',
-  })),
+  items.value
+    .filter(t => !props.exclude?.includes(t.id!))
+    .map(t => ({
+      value: t.id!,
+      label: t.username ?? '—',
+    })),
 )
 
 const { alertProps } = useApiError()

@@ -157,6 +157,35 @@
         }
       }
     },
+    "/api/subject-assignments": {
+      "post": {
+        "tags": ["Subject Assignments"],
+        "summary": "Assign a teacher to a subject offering (optionally scoped to subgroup / lesson type)",
+        "operationId": "create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSubjectAssignmentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubjectAssignmentResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/lessons/by-type": {
       "post": {
         "tags": ["Lessons"],
@@ -770,6 +799,36 @@
           }
         }
       },
+      "CreateSubjectAssignmentRequest": {
+        "type": "object",
+        "properties": {
+          "teacherId": { "type": "string", "format": "uuid" },
+          "offeringId": { "type": "string", "format": "uuid" },
+          "subgroupId": { "type": "string", "format": "uuid" },
+          "lessonTypeScope": {
+            "type": "string",
+            "description": "Тип занятия",
+            "enum": ["LECTURE", "PRACTICE"]
+          }
+        },
+        "required": ["offeringId", "teacherId"]
+      },
+      "SubjectAssignmentResponse": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "teacherId": { "type": "string", "format": "uuid" },
+          "offeringId": { "type": "string", "format": "uuid" },
+          "subgroupId": { "type": "string", "format": "uuid" },
+          "lessonTypeScope": {
+            "type": "string",
+            "description": "Тип занятия",
+            "enum": ["LECTURE", "PRACTICE"]
+          },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
       "CreateLessonsByTypeRequest": {
         "type": "object",
         "description": "Запрос на создание занятий по количеству типов",
@@ -1079,22 +1138,6 @@
           }
         },
         "required": ["teacherId"]
-      },
-      "SubjectAssignmentResponse": {
-        "type": "object",
-        "properties": {
-          "id": { "type": "string", "format": "uuid" },
-          "teacherId": { "type": "string", "format": "uuid" },
-          "offeringId": { "type": "string", "format": "uuid" },
-          "subgroupId": { "type": "string", "format": "uuid" },
-          "lessonTypeScope": {
-            "type": "string",
-            "description": "Тип занятия",
-            "enum": ["LECTURE", "PRACTICE"]
-          },
-          "createdAt": { "type": "string", "format": "date-time" },
-          "updatedAt": { "type": "string", "format": "date-time" }
-        }
       },
       "UpdateLessonRequest": {
         "type": "object",
