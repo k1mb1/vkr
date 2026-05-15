@@ -80,7 +80,13 @@
           {
             "name": "subjectId",
             "in": "query",
-            "required": true,
+            "required": false,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "teacherId",
+            "in": "query",
+            "required": false,
             "schema": { "type": "string", "format": "uuid" }
           }
         ],
@@ -647,14 +653,14 @@
     "/api/lessons": {
       "get": {
         "tags": ["Lessons"],
-        "summary": "Получить страницу занятий с фильтрацией по предмету",
-        "operationId": "getLessonPage",
+        "summary": "Получить список занятий с фильтрацией по предмету и доступу учителя",
+        "operationId": "getLessons",
         "parameters": [
           {
             "name": "subjectId",
             "in": "query",
             "description": "ID предмета",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "string",
               "format": "uuid",
@@ -662,25 +668,15 @@
             }
           },
           {
-            "name": "page",
+            "name": "teacherId",
             "in": "query",
-            "description": "Zero-based page index (0..N)",
-            "required": false,
-            "schema": { "type": "integer", "default": 0, "minimum": 0 }
-          },
-          {
-            "name": "size",
-            "in": "query",
-            "description": "The size of the page to be returned",
-            "required": false,
-            "schema": { "type": "integer", "default": 20, "minimum": 1 }
-          },
-          {
-            "name": "sort",
-            "in": "query",
-            "description": "Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported.",
-            "required": false,
-            "schema": { "type": "array", "items": { "type": "string" } }
+            "description": "ID учителя",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "ID учителя"
+            }
           }
         ],
         "responses": {
@@ -689,7 +685,8 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PagedModelLessonResponse"
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/LessonResponse" }
                 }
               }
             }
@@ -903,6 +900,11 @@
             "format": "uuid",
             "description": "ID группы"
           },
+          "subgroupId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID подгруппы"
+          },
           "lectureCount": {
             "type": "integer",
             "format": "int32",
@@ -986,6 +988,11 @@
             "type": "string",
             "format": "uuid",
             "description": "ID группы"
+          },
+          "subgroupId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID подгруппы"
           },
           "schedules": {
             "type": "array",
@@ -1352,16 +1359,6 @@
             "format": "date-time",
             "description": "Дата последнего обновления"
           }
-        }
-      },
-      "PagedModelLessonResponse": {
-        "type": "object",
-        "properties": {
-          "content": {
-            "type": "array",
-            "items": { "$ref": "#/components/schemas/LessonResponse" }
-          },
-          "page": { "$ref": "#/components/schemas/PageMetadata" }
         }
       },
       "GroupPageResponse": {

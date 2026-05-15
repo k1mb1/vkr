@@ -3,37 +3,37 @@ import type { components } from '#open-fetch-schemas/backend'
 import type { DropdownMenuItem, TableColumn } from '@nuxt/ui'
 import type { FetchError } from 'ofetch'
 
-type SubjectTeachingRowResponse = components['schemas']['SubjectTeachingRowResponse']
+type TeacherSubjectPermissionResponse = components['schemas']['TeacherSubjectPermissionResponse']
 
 const route = useRoute()
 const subjectId = computed(() => String(route.params.uuid ?? ''))
 
-const { data, pending, error, refresh } = useBackend('/api/subjects/{id}/teaching-rows', {
+const { data, pending, error, refresh } = useBackend('/api/teacher-subject-permissions', {
   method: 'GET',
-  path: { id: subjectId },
+  query: { subjectId: subjectId.value },
 })
 
-const rows = computed<SubjectTeachingRowResponse[]>(() => data.value ?? [])
+const rows = computed<TeacherSubjectPermissionResponse[]>(() => data.value ?? [])
 
-const columns: TableColumn<SubjectTeachingRowResponse>[] = [
+const columns: TableColumn<TeacherSubjectPermissionResponse>[] = [
   { accessorKey: 'teacherName', header: 'Преподаватель' },
   {
-    accessorKey: 'lessonTypeScope',
+    accessorKey: 'allowedLessonType',
     header: 'Тип занятия',
     cell: ({ row }) => {
-      const scope = row.original.lessonTypeScope
-      if (!scope)
+      const type = row.original.allowedLessonType
+      if (!type)
         return 'Все'
       const map: Record<string, string> = { LECTURE: 'Лекция', PRACTICE: 'Практика' }
-      return map[scope] ?? scope
+      return map[type] ?? type
     },
   },
   {
-    accessorKey: 'subgroupIndex',
+    accessorKey: 'allowedSubgroupIndex',
     header: 'Подгруппа',
     cell: ({ row }) => {
-      const index = row.original.subgroupIndex
-      return index === null || index === undefined ? 'Все' : `Подгруппа ${(index ?? 0) + 1}`
+      const index = row.original.allowedSubgroupIndex
+      return index === null || index === undefined ? 'Все' : `Подгруппа ${index}`
     },
   },
   { id: 'actions', header: '' },
@@ -41,7 +41,7 @@ const columns: TableColumn<SubjectTeachingRowResponse>[] = [
 
 // ── Delete ────────────────────────────────────────────────
 
-const deleteTarget = ref<SubjectTeachingRowResponse | null>(null)
+const deleteTarget = ref<TeacherSubjectPermissionResponse | null>(null)
 const deleteModal = ref(false)
 const deleting = ref(false)
 
@@ -49,7 +49,7 @@ const { $backend } = useNuxtApp()
 const { toastError } = useApiError()
 const toast = useToast()
 
-function openDeleteModal(row: SubjectTeachingRowResponse) {
+function openDeleteModal(row: TeacherSubjectPermissionResponse) {
   deleteTarget.value = row
   deleteModal.value = true
 }
@@ -60,14 +60,14 @@ function closeDeleteModal() {
 }
 
 async function handleDelete() {
-  if (!deleteTarget.value?.assignmentId)
+  if (!deleteTarget.value?.id)
     return
 
   deleting.value = true
   try {
-    await $backend('/api/subject-assignments/{id}', {
+    await $backend('/api/teacher-subject-permissions/{id}', {
       method: 'DELETE',
-      path: { id: deleteTarget.value.assignmentId },
+      path: { id: deleteTarget.value.id },
     })
     toast.add({ title: 'Назначение удалено', color: 'success', icon: 'i-lucide-check' })
     closeDeleteModal()
@@ -82,27 +82,16 @@ async function handleDelete() {
 }
 
 const router = useRouter()
-const teachingCreateState = useTeachingCreateState()
-const teachingEditState = useTeachingEditState()
 
 function goToCreate() {
-  const firstRow = rows.value[0]
-  if (firstRow) {
-    teachingCreateState.value = {
-      offeringId: firstRow.offeringId,
-      groupId: firstRow.groupId,
-      existingTeacherIds: rows.value.map(r => r.teacherId).filter((id): id is string => !!id),
-    }
-  }
-  router.push(`/dashboard/subjects/${subjectId.value}/teaching/create`)
+  router.push(`/dashboard/subjects/${subjectId.value}/permissions/create`)
 }
 
-function goToEdit(row: SubjectTeachingRowResponse) {
-  teachingEditState.value = row
-  router.push(`/dashboard/subjects/${subjectId.value}/teaching/${row.assignmentId}/edit`)
+function goToEdit(row: TeacherSubjectPermissionResponse) {
+  router.push(`/dashboard/subjects/${subjectId.value}/permissions/${row.id}/edit`)
 }
 
-function rowActions(row: SubjectTeachingRowResponse): DropdownMenuItem[][] {
+function rowActions(row: TeacherSubjectPermissionResponse): DropdownMenuItem[][] {
   return [
     [
       {
@@ -125,10 +114,16 @@ function rowActions(row: SubjectTeachingRowResponse): DropdownMenuItem[][] {
 
 <template>
   <div class="flex h-full flex-col gap-6">
-    <UPageHeader
-      title="Назначения"
-      :description="rows[0]?.groupName ? `Группа: ${rows[0].groupName}` : undefined"
-    >
+    <UPageHeader title="Назначения">
+      <template v-if="rows[0]?.groupId" #description>
+        Группа:
+        <ULink
+          :to="`/dashboard/groups/${rows[0].groupId}`"
+          class="text-(--ui-primary) hover:underline"
+        >
+          {{ rows[0].groupName }}
+        </ULink>
+      </template>
       <template #links>
         <UButton
           icon="i-lucide-refresh-cw"

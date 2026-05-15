@@ -20,13 +20,7 @@ const { data, pending, error } = useBackend('/api/subgroups', {
 
 const items = computed(() => data.value ?? [])
 
-const indexToSubgroup = computed(() => {
-  const map = new Map<SubgroupIndex, SubgroupResponse>()
-  for (const s of items.value) {
-    map.set(s.index, s)
-  }
-  return map
-})
+const indexToSubgroup = computed(() => new Map(items.value.map(s => [s.index, s])))
 
 const selectedIndex = computed<SubgroupIndex>({
   get: () => modelValue.value?.index,
@@ -35,15 +29,13 @@ const selectedIndex = computed<SubgroupIndex>({
   },
 })
 
-const subgroupOptions = computed(() => {
-  return [
-    { value: undefined as SubgroupIndex, label: 'Все' },
-    ...items.value.map(s => ({
-      value: s.index,
-      label: `Подгруппа ${(s.index ?? 0) + 1}`,
-    })),
-  ]
-})
+const subgroupOptions = computed(() => [
+  { value: null as unknown as SubgroupIndex, label: 'Все' },
+  ...items.value.map(s => ({
+    value: s.index,
+    label: `Подгруппа ${s.index}`,
+  })),
+])
 
 const { alertProps } = useApiError()
 </script>
@@ -54,6 +46,9 @@ const { alertProps } = useApiError()
       v-model="selectedIndex"
       :items="subgroupOptions"
       :loading="pending"
+      :trailing="!pending"
+      :disabled="pending"
+      icon="i-lucide-users"
       placeholder="Выберите подгруппу..."
       class="w-full"
     />
