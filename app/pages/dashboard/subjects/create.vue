@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { User } from '#auth-utils'
 import type { components } from '#open-fetch-schemas/backend'
 import type { Form } from '#ui/types'
 import type { FetchError } from 'ofetch'
@@ -17,6 +18,9 @@ const CreateSubjectRequestSchema: SchemaFor<CreateSubjectRequest> = v.object({
 })
 type Schema = v.InferOutput<typeof CreateSubjectRequestSchema>
 
+const { user } = useOidcAuth()
+const { sub: myTeacherId } = user.value as User
+
 const { $backend } = useNuxtApp()
 const { toastError } = useApiError()
 const toast = useToast()
@@ -25,13 +29,12 @@ const state = reactive<Schema>({
   name: '',
   description: undefined,
   groupId: '',
-  teacherId: '',
+  teacherId: myTeacherId!,
 })
 
 const loading = ref(false)
 const formRef = useTemplateRef<Form<typeof CreateSubjectRequestSchema>>('form')
 
-// ── Submit ────────────────────────────────────────────────
 async function handleCreate() {
   const data = await formRef.value?.validate({ transform: true })
   if (!data)
@@ -59,7 +62,6 @@ function resetForm() {
   state.name = ''
   state.description = undefined
   state.groupId = ''
-  state.teacherId = ''
 }
 </script>
 
@@ -103,10 +105,6 @@ function resetForm() {
 
       <UFormField label="Группа" name="groupId" required>
         <GroupSelectMenu v-model="state.groupId" />
-      </UFormField>
-
-      <UFormField label="Преподаватель" name="teacherId" required>
-        <TeacherSelectMenu v-model="state.teacherId" />
       </UFormField>
 
       <div class="flex justify-end gap-2">

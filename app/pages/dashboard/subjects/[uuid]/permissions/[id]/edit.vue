@@ -40,7 +40,11 @@ const permission = computed<TeacherSubjectPermissionResponse | undefined>(() => 
   return (allPermissions.value ?? []).find(p => p.id === permissionId)
 })
 
-// ── Form state ─────────────────────────────────────────────
+// ── My scope ─────────────────────────────────────────────
+
+const { groupOptions, subgroupOptionsFor, lessonTypeOptionsFor, loadingScope } = useMyPermissionScope(subjectId)
+
+// ── Form state ────────────────────────────────────────────
 
 const state = reactive<Schema>({
   teacherId: '',
@@ -61,6 +65,37 @@ watch(
   },
   { immediate: true },
 )
+
+// Reset downstream when group or subgroup changes (only for user-driven changes,
+// not when seeding from existing permission)
+const seeded = ref(false)
+watch(permission, (p) => {
+  if (p)
+    seeded.value = true
+}, { immediate: true })
+
+watch(() => state.groupId, () => {
+  if (!seeded.value)
+    return
+  state.allowedSubgroupId = null
+  state.allowedLessonType = null
+})
+watch(() => state.allowedSubgroupId, (_, old) => {
+  if (!seeded.value || old === null)
+    return
+  state.allowedLessonType = null
+})
+
+const subgroupOptions = computed(() => subgroupOptionsFor(state.groupId))
+const lessonTypeOptions = computed(() => lessonTypeOptionsFor(state.groupId, state.allowedSubgroupId))
+
+// USelect requires string | undefined, but state.allowedSubgroupId is string | null | undefined
+const restrictedSubgroupModel = computed({
+  get: () => state.allowedSubgroupId ?? undefined,
+  set: (val: string | undefined) => { state.allowedSubgroupId = val ?? null },
+})
+
+// ── Submit ────────────────────────────────────────────────
 
 const { $backend } = useNuxtApp()
 const { toastError } = useApiError()
@@ -144,21 +179,39 @@ const isReady = computed(() => !!permission.value)
       </UFormField>
 
       <UFormField label="Группа" name="groupId" required>
-        <GroupSelectMenu
+        <USelect
           v-model="state.groupId"
-          :initial-label="permission?.groupName"
+          :items="groupOptions"
+          :loading="loadingScope"
+          placeholder="Выберите группу..."
+          class="w-full"
         />
       </UFormField>
 
       <UFormField label="Подгруппа" name="allowedSubgroupId">
+        <!-- Full access: use normal SubgroupSelect -->
         <SubgroupSelect
+          v-if="subgroupOptions === null"
           v-model="state.allowedSubgroupId"
           :group-id="state.groupId"
+        />
+        <!-- Restricted access: show only teacher's own subgroups -->
+        <USelect
+          v-else
+          v-model="restrictedSubgroupModel"
+          :items="subgroupOptions"
+          :disabled="!state.groupId"
+          class="w-full"
         />
       </UFormField>
 
       <UFormField label="Тип занятия" name="allowedLessonType">
-        <LessonTypeScopeSelect v-model="state.allowedLessonType" />
+        <USelect
+          v-model="state.allowedLessonType"
+          :items="lessonTypeOptions"
+          :disabled="!state.groupId"
+          class="w-full"
+        />
       </UFormField>
 
       <div class="flex justify-end gap-2">

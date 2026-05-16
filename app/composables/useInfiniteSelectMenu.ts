@@ -20,16 +20,25 @@ export function useInfiniteSelectMenu<T>(options: {
   const items = ref<T[]>([]) as Ref<T[]>
   const hasMore = computed(() => page.value < totalPages.value)
 
+  // Cache the last resolved label so we can return a valid option even while
+  // items are reloading (prevents USelectMenu from emitting undefined and
+  // accidentally clearing the parent's modelValue mid-flight).
+  const cachedLabel = ref<string | undefined>()
+
   const selectedOption = computed<SelectOption | undefined>({
     get() {
       const id = modelValue.value
       if (!id)
         return undefined
       const found = items.value.find(item => getId(item) === id)
-      if (found)
-        return { value: id, label: getLabel(found) }
-      const label = toValue(options.initialLabel)
-      return label ? { value: id, label } : undefined
+      if (found) {
+        cachedLabel.value = getLabel(found)
+        return { value: id, label: cachedLabel.value }
+      }
+      const label = toValue(options.initialLabel) ?? cachedLabel.value
+      // Always return an option when we have an id — even if items haven't
+      // loaded yet — so USelectMenu never emits undefined back to the parent.
+      return { value: id, label: label ?? id }
     },
     set(opt) {
       modelValue.value = opt?.value
