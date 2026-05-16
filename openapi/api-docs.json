@@ -23,7 +23,8 @@
     { "name": "Groups", "description": "Управление группами и их составом" },
     { "name": "Subjects", "description": "Управление предметами" },
     { "name": "Lessons", "description": "Управление занятиями и расписанием" },
-    { "name": "Teachers", "description": "Управление преподавателями" }
+    { "name": "Teachers", "description": "Управление преподавателями" },
+    { "name": "Attendances", "description": "Посещаемость" }
   ],
   "paths": {
     "/api/teachers/{id}": {
@@ -680,29 +681,18 @@
     "/api/lessons": {
       "get": {
         "tags": ["Lessons"],
-        "summary": "Получить список занятий с фильтрацией по предмету и доступу учителя",
+        "summary": "Получить список занятий по permissionId преподавателя",
         "operationId": "getLessons",
         "parameters": [
           {
-            "name": "subjectId",
+            "name": "permissionId",
             "in": "query",
-            "description": "ID предмета",
+            "description": "ID права преподавателя на предмет",
             "required": true,
             "schema": {
               "type": "string",
               "format": "uuid",
-              "description": "ID предмета"
-            }
-          },
-          {
-            "name": "teacherId",
-            "in": "query",
-            "description": "ID учителя",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "ID учителя"
+              "description": "ID права преподавателя на предмет"
             }
           }
         ],
@@ -714,6 +704,39 @@
                 "schema": {
                   "type": "array",
                   "items": { "$ref": "#/components/schemas/LessonResponse" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/attendances": {
+      "get": {
+        "tags": ["Attendances"],
+        "summary": "Получить таблицу посещений по permissionId преподавателя",
+        "operationId": "getAttendances",
+        "parameters": [
+          {
+            "name": "permissionId",
+            "in": "query",
+            "description": "ID права преподавателя на предмет",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "ID права преподавателя на предмет"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/AttendanceResponse" }
                 }
               }
             }
@@ -1418,6 +1441,52 @@
             "items": { "$ref": "#/components/schemas/GroupPageResponse" }
           },
           "page": { "$ref": "#/components/schemas/PageMetadata" }
+        }
+      },
+      "AttendanceResponse": {
+        "type": "object",
+        "description": "Запись о посещаемости",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID записи"
+          },
+          "studentId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID студента"
+          },
+          "studentUsername": {
+            "type": "string",
+            "description": "Имя студента"
+          },
+          "lessonId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID занятия"
+          },
+          "lessonStartedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Время начала занятия"
+          },
+          "status": {
+            "type": "string",
+            "description": "Статус посещения",
+            "enum": ["PRESENT", "ABSENT", "LATE", "EXCUSED"]
+          },
+          "comment": { "type": "string", "description": "Комментарий" },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Дата создания"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Дата последнего обновления"
+          }
         }
       }
     },
