@@ -3,9 +3,9 @@ import type { components } from '#open-fetch-schemas/backend'
 import type { FetchError } from 'ofetch'
 
 type BulkScheduleRequest = components['schemas']['BulkScheduleRequest']
-
-type DayOfWeek = 'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY'
-type LessonType = 'LECTURE' | 'PRACTICE'
+type shedules = BulkScheduleRequest['schedules'][number]
+type DayOfWeek = shedules['daysOfWeek'][number][number]
+type LessonType = shedules['type']
 
 const DAYS: { value: DayOfWeek, label: string }[] = [
   { value: 'MONDAY', label: 'Пн' },
@@ -38,8 +38,12 @@ const { $backend } = useNuxtApp()
 const { toastError } = useApiError()
 const toast = useToast()
 
-function makeEntry(): EntryState {
-  return { type: 'LECTURE', startDate: '', totalCount: 1, daysOfWeek: [[]] }
+// ── My scope ─────────────────────────────────────────────
+
+const { groupOptions, subgroupOptionsFor, lessonTypeOptionsFor, loadingScope } = useMyPermissionScope(subjectId)
+
+function makeEntry(defaultType: LessonType = 'LECTURE'): EntryState {
+  return { type: defaultType, startDate: '', totalCount: 1, daysOfWeek: [[]] }
 }
 
 const state = reactive<Schema>({
@@ -49,10 +53,44 @@ const state = reactive<Schema>({
   schedules: [makeEntry()],
 })
 
+// Auto-select the single group from the teacher's own permissions
+watch(groupOptions, (opts) => {
+  if (opts.length > 0 && !state.groupId)
+    state.groupId = opts[0]!.value
+}, { immediate: true })
+
+watch(() => state.groupId, () => {
+  state.subgroupId = null
+})
+
+const subgroupOptions = computed(() => subgroupOptionsFor(state.groupId))
+
+const allowedLessonTypeOptions = computed<{ value: LessonType, label: string }[]>(() => {
+  const opts = lessonTypeOptionsFor(state.groupId, state.subgroupId)
+  return opts
+    .filter((o): o is { value: LessonType, label: string } => o.value !== null)
+})
+
+// Keep each entry's type within the allowed set
+watch(allowedLessonTypeOptions, (opts) => {
+  const allowed = new Set(opts.map(o => o.value))
+  for (const entry of state.schedules) {
+    if (!allowed.has(entry.type) && opts.length > 0)
+      entry.type = opts[0]!.value
+  }
+})
+
+// USelect requires string | undefined, but state.subgroupId is string | null | undefined
+const restrictedSubgroupModel = computed({
+  get: () => state.subgroupId ?? undefined,
+  set: (val: string | undefined) => { state.subgroupId = val ?? null },
+})
+
 // ── Schedule entry management ──────────────────────────────
 
 function addEntry() {
-  state.schedules.push(makeEntry())
+  const firstAllowed = allowedLessonTypeOptions.value[0]?.value ?? 'LECTURE'
+  state.schedules.push(makeEntry(firstAllowed))
 }
 
 function removeEntry(i: number) {
@@ -135,11 +173,6 @@ async function handleCreate() {
     loading.value = false
   }
 }
-
-const lessonTypeOptions = [
-  { value: 'LECTURE', label: 'Лекция' },
-  { value: 'PRACTICE', label: 'Практика' },
-]
 </script>
 
 <template>
@@ -156,13 +189,31 @@ const lessonTypeOptions = [
       </template>
     </UPageHeader>
 
-    <div class="flex flex-col gap-4">
-      <UFormField label="Группа" required>
-        <GroupSelectMenu v-model="state.groupId" />
-      </UFormField>
+    <UAlert
+      v-if="!loadingScope && groupOptions.length === 0"
+      color="warning"
+      variant="soft"
+      icon="i-lucide-circle-alert"
+      title="Нет назначений"
+      description="У вас нет назначений по данному предмету."
+    />
 
+    <div v-else class="flex flex-col gap-4">
       <UFormField label="Подгруппа">
-        <SubgroupSelect v-model="state.subgroupId" :group-id="state.groupId" />
+        <!-- Full access: use normal SubgroupSelect -->
+        <SubgroupSelect
+          v-if="subgroupOptions === null"
+          v-model="state.subgroupId"
+          :group-id="state.groupId"
+        />
+        <!-- Restricted access: show only teacher's own subgroups -->
+        <USelect
+          v-else
+          v-model="restrictedSubgroupModel"
+          :items="subgroupOptions"
+          :disabled="!state.groupId"
+          class="w-full"
+        />
       </UFormField>
 
       <USeparator />
@@ -201,7 +252,8 @@ const lessonTypeOptions = [
             <UFormField label="Тип занятия" required>
               <USelect
                 v-model="entry.type"
-                :items="lessonTypeOptions"
+                :items="allowedLessonTypeOptions"
+                :disabled="allowedLessonTypeOptions.length <= 1"
                 class="w-full"
               />
             </UFormField>
@@ -279,6 +331,7 @@ const lessonTypeOptions = [
         color="neutral"
         variant="outline"
         class="self-start"
+        :disabled="allowedLessonTypeOptions.length === 0"
         @click="addEntry"
       />
 
@@ -293,6 +346,7 @@ const lessonTypeOptions = [
         <UButton
           icon="i-lucide-check"
           :loading="loading"
+          :disabled="!state.groupId || allowedLessonTypeOptions.length === 0"
           @click="handleCreate"
         >
           Создать занятия
