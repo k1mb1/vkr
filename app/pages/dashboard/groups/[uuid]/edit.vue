@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { components } from '#open-fetch-schemas/backend'
 import type { Form } from '#ui/types'
+import type { FetchError } from 'ofetch'
 import * as v from 'valibot'
 
 import { useApiError } from '~/composables/useApiError'
@@ -27,10 +28,10 @@ type Schema = v.InferOutput<typeof UpdateGroupRequestSchema>
 const route = useRoute()
 const groupId = computed(() => String(route.params.uuid ?? ''))
 
+const { $backend } = useNuxtApp()
 const { toastError } = useApiError()
 const toast = useToast()
 
-// ── Load group ─────────────────────────────────────────────
 const { data, pending, error, refresh } = useBackend('/api/groups/{id}', {
   method: 'GET',
   path: { id: groupId },
@@ -38,7 +39,6 @@ const { data, pending, error, refresh } = useBackend('/api/groups/{id}', {
 
 const group = computed<GroupResponse | null>(() => data.value ?? null)
 
-// ── Form state ─────────────────────────────────────────────
 const state = reactive<Schema>({
   groupName: '',
   students: [],
@@ -47,7 +47,6 @@ const state = reactive<Schema>({
 const loading = ref(false)
 const formRef = useTemplateRef<Form<typeof UpdateGroupRequestSchema>>('form')
 
-// ── Init from group data ───────────────────────────────────
 watch(
   group,
   (g) => {
@@ -63,7 +62,6 @@ watch(
   { immediate: true },
 )
 
-// ── Subgroup options ───────────────────────────────────────
 const subgroupOptions = computed(() => {
   return (group.value?.subgroups ?? []).map((sg, idx) => ({
     value: sg.id!,
@@ -73,7 +71,7 @@ const subgroupOptions = computed(() => {
 
 const hasSubgroups = computed(() => subgroupOptions.value.length > 0)
 
-// ── Student management ─────────────────────────────────────
+// Student management
 function updateStudentUsername(studentId: string | null, username: string) {
   const student = state.students.find(s => s.id === studentId)
   if (student)
@@ -86,7 +84,11 @@ function updateStudentSubgroup(index: number, subgroupId: string | null) {
     student.subgroupId = subgroupId ?? undefined
 }
 
-// ── Add new students ───────────────────────────────────────
+function removeStudent(draftIndex: number) {
+  state.students.splice(draftIndex, 1)
+}
+
+// new students
 const newStudentsInput = ref('')
 
 const { addStudents: addStudentsRaw, handlePaste: handlePasteRaw } = useStudentInput<Schema['students'][number]>({ separator: /\n+/ })
@@ -99,7 +101,7 @@ function addStudents(raw: string, subgroupId: string | undefined) {
   }))
 }
 
-// ── Tabs ───────────────────────────────────────────────────
+// Tabs
 const subgroupTabPrefix = 'subgroup:'
 const activeTab = ref('students')
 const studentSearch = ref('')
@@ -173,7 +175,7 @@ const filteredTabRows = computed(() => {
   return rows
 })
 
-// ── Submit ─────────────────────────────────────────────────
+// Submit
 async function handleSave() {
   const data = await formRef.value?.validate({ transform: true })
   if (!data)
@@ -181,15 +183,11 @@ async function handleSave() {
 
   loading.value = true
   try {
-    const result = await useBackend('/api/groups/{id}', {
-      method: 'patch',
+    await $backend('/api/groups/{id}', {
+      method: 'PATCH',
       path: { id: groupId.value },
       body: data,
     })
-    if (result.error.value) {
-      toastError(result.error.value)
-      return
-    }
     toast.add({
       title: 'Группа обновлена',
       color: 'success',
@@ -197,6 +195,9 @@ async function handleSave() {
     })
     await refresh()
     await navigateTo(`/dashboard/groups/${groupId.value}`)
+  }
+  catch (e) {
+    toastError(e as FetchError)
   }
   finally {
     loading.value = false
@@ -232,14 +233,6 @@ function handleCancel() {
     />
 
     <template v-else-if="group">
-      <ULink
-        :to="`/dashboard/groups/${groupId}`"
-        class="text-muted hover:text-default flex items-center gap-1 -mb-2"
-      >
-        <UIcon name="i-lucide-arrow-left" />
-        К группе
-      </ULink>
-
       <div class="flex items-center gap-4">
         <UAvatar
           icon="i-lucide-users"
@@ -308,7 +301,7 @@ function handleCancel() {
               class="flex items-center gap-2"
               :class="row.id === undefined ? 'rounded-lg bg-success/5 px-2 py-1 -mx-2' : ''"
             >
-              <span class="w-8 text-center text-muted">{{ row.index }}</span>
+              <span class="text-muted w-8 text-center">{{ row.index }}</span>
               <UInput
                 :model-value="row.username"
                 class="flex-1"
@@ -321,10 +314,16 @@ function handleCancel() {
                 class="w-44"
                 @update:model-value="(v: string) => updateStudentSubgroup(row.draftIndex, v)"
               />
-
+              <UButton
+                icon="i-lucide-x"
+                color="neutral"
+                variant="ghost"
+                :aria-label="`Удалить ${row.username}`"
+                @click="removeStudent(row.draftIndex)"
+              />
             </div>
 
-            <div v-if="filteredTabRows.length === 0" class="py-4 text-muted">
+            <div v-if="filteredTabRows.length === 0" class="text-muted py-4">
               {{ activeTabData.emptyDescription }}
             </div>
 

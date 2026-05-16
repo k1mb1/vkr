@@ -18,6 +18,11 @@ const rows = computed<TeacherSubjectPermissionResponse[]>(() => data.value ?? []
 const columns: TableColumn<TeacherSubjectPermissionResponse>[] = [
   { accessorKey: 'teacherName', header: 'Преподаватель' },
   {
+    accessorKey: 'groupName',
+    header: 'Группа',
+    cell: ({ row }) => row.original.groupName ?? '—',
+  },
+  {
     accessorKey: 'allowedLessonType',
     header: 'Тип занятия',
     cell: ({ row }) => {
@@ -81,14 +86,15 @@ async function handleDelete() {
   }
 }
 
-const router = useRouter()
-
 function goToCreate() {
-  router.push(`/dashboard/subjects/${subjectId.value}/permissions/create`)
+  navigateTo(`/dashboard/subjects/${subjectId.value}/permissions/create`)
 }
 
 function goToEdit(row: TeacherSubjectPermissionResponse) {
-  router.push(`/dashboard/subjects/${subjectId.value}/permissions/${row.id}/edit`)
+  navigateTo({
+    path: `/dashboard/subjects/${subjectId.value}/permissions/${row.id}/edit`,
+    state: { permission: JSON.parse(JSON.stringify(row)) },
+  })
 }
 
 function rowActions(row: TeacherSubjectPermissionResponse): DropdownMenuItem[][] {
@@ -114,16 +120,7 @@ function rowActions(row: TeacherSubjectPermissionResponse): DropdownMenuItem[][]
 
 <template>
   <div class="flex h-full flex-col gap-6">
-    <UPageHeader title="Назначения">
-      <template v-if="rows[0]?.groupId" #description>
-        Группа:
-        <ULink
-          :to="`/dashboard/groups/${rows[0].groupId}`"
-          class="text-(--ui-primary) hover:underline"
-        >
-          {{ rows[0].groupName }}
-        </ULink>
-      </template>
+    <UPageHeader title="Назначения преподавателей">
       <template #links>
         <UButton
           icon="i-lucide-refresh-cw"
@@ -172,9 +169,9 @@ function rowActions(row: TeacherSubjectPermissionResponse): DropdownMenuItem[][]
 
       <template #empty>
         <UEmpty
-          icon="i-lucide-book-open"
+          icon="i-lucide-shield-off"
           title="Назначения не найдены"
-          description="Для этого предмета пока нет назначений."
+          description="Добавьте первое назначение с помощью кнопки выше."
           variant="naked"
           class="py-6"
         />

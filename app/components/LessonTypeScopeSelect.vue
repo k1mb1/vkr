@@ -1,31 +1,19 @@
 <script setup lang="ts">
 import type { components } from '#open-fetch-schemas/backend'
 
-type LessonTypeScope = components['schemas']['UpdateTeacherSubjectPermissionRequest']['allowedLessonType']
-
-const modelValue = defineModel<LessonTypeScope>()
-
+type LessonType = NonNullable<components['schemas']['UpdateTeacherSubjectPermissionRequest']['allowedLessonType']>
+const modelValue = defineModel<LessonType | null | undefined>()
 const items = [
-  { value: 'ALL', label: 'Все' },
-  { value: 'LECTURE', label: 'Лекция' },
-  { value: 'PRACTICE', label: 'Практика' },
+  { value: null as LessonType | null, label: 'Все типы' },
+  { value: 'LECTURE' as LessonType, label: 'Лекция' },
+  { value: 'PRACTICE' as LessonType, label: 'Практика' },
 ]
-
-const selected = computed({
-  get() {
-    return modelValue.value ?? 'ALL'
-  },
-  set(val: string) {
-    modelValue.value = val === 'ALL' ? undefined : (val as LessonTypeScope)
-  },
-})
 </script>
 
 <template>
   <USelect
-    v-model="selected"
+    v-model="modelValue"
     :items="items"
-    default-value="ALL"
     class="w-full"
   />
 </template>

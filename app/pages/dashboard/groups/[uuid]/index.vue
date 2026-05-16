@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { components } from '#open-fetch-schemas/backend'
+import type { FetchError } from 'ofetch'
 import type { Subgroup } from '~/composables/useGroupTabs'
 
 const route = useRoute()
@@ -9,7 +10,6 @@ const activeGroupName = useState<string | null>(
   () => null,
 )
 
-// ── Load group ─────────────────────────────────────────────
 const { data, pending, error } = useBackend('/api/groups/{id}', {
   method: 'GET',
   path: { id: groupId },
@@ -17,7 +17,7 @@ const { data, pending, error } = useBackend('/api/groups/{id}', {
 
 const group = computed(() => data.value ?? null)
 
-// ── Delete ─────────────────────────────────────────────────
+const { $backend } = useNuxtApp()
 const { toastError } = useApiError()
 const toast = useToast()
 
@@ -25,27 +25,29 @@ const deletingGroup = ref(false)
 const deleteGroupPending = ref(false)
 
 async function onDeleteGroup() {
-  if (deleteGroupPending.value)
-    return
   deleteGroupPending.value = true
-  const { error } = await useBackend('/api/groups/{id}', {
-    method: 'DELETE',
-    path: { id: groupId.value },
-  })
-  deleteGroupPending.value = false
-  if (error.value) {
-    toastError(error.value, 'Ошибка')
-    return
+  try {
+    await $backend('/api/groups/{id}', {
+      method: 'DELETE',
+      path: { id: groupId.value },
+    })
+    toast.add({
+      title: 'Группа удалена',
+      color: 'success',
+      icon: 'i-lucide-check',
+    })
+    await navigateTo('/dashboard/groups')
   }
-  toast.add({
-    title: 'Группа удалена',
-    color: 'success',
-    icon: 'i-lucide-check',
-  })
-  await navigateTo('/dashboard/groups')
+  catch (e) {
+    toastError(e as FetchError)
+  }
+  finally {
+    deleteGroupPending.value = false
+    deletingGroup.value = false
+  }
 }
 
-// ── Tabs & Table ───────────────────────────────────────────
+// Tabs & Table
 const subgroupTabPrefix = 'subgroup:'
 const activeTab = ref('students')
 const sortDirection = ref<'asc' | 'desc'>('asc')
@@ -155,14 +157,6 @@ watch(
     />
 
     <template v-else-if="group">
-      <ULink
-        to="/dashboard/groups"
-        class="text-muted hover:text-default flex items-center gap-1 -mb-2"
-      >
-        <UIcon name="i-lucide-arrow-left" />
-        К списку групп
-      </ULink>
-
       <div class="flex items-center gap-4">
         <UAvatar
           icon="i-lucide-users"
@@ -173,7 +167,7 @@ watch(
           <h1 class="text-xl font-semibold">
             {{ group.name }}
           </h1>
-          <div class="flex items-center gap-2 text-muted">
+          <div class="text-muted flex items-center gap-2">
             <span>{{ (group.students ?? []).length }} студентов</span>
             <span>·</span>
             <span>{{ (group.subgroups ?? []).length }} подгрупп</span>
@@ -184,6 +178,7 @@ watch(
           label="Редактировать"
           icon="i-lucide-pencil"
           variant="outline"
+          color="neutral"
         />
         <UButton
           icon="i-lucide-trash-2"
@@ -207,9 +202,10 @@ watch(
               </UBadge>
             </div>
             <UButton
-              icon="i-lucide-user-plus"
-              label="Добавить"
+              icon="i-lucide-pencil"
+              label="Редактировать"
               variant="ghost"
+              color="neutral"
               :to="`/dashboard/groups/${groupId}/edit`"
             />
           </div>
@@ -242,8 +238,8 @@ watch(
           variant="naked"
           :actions="[
             {
-              label: 'Добавить студентов',
-              icon: 'i-lucide-user-plus',
+              label: 'Редактировать группу',
+              icon: 'i-lucide-pencil',
               to: `/dashboard/groups/${groupId}/edit`,
             },
           ]"

@@ -1,26 +1,31 @@
 import type { components } from '#open-fetch-schemas/backend'
+import type { MaybeRefOrGetter } from 'vue'
 
 type TeacherSubjectPermissionResponse = components['schemas']['TeacherSubjectPermissionResponse']
 
-export function usePermissions(subjectId: string, teacherId: string) {
-  const permissions = useState<TeacherSubjectPermissionResponse[]>(`subject-permissions-${subjectId}`, () => [])
+export function usePermissions(
+  subjectId: MaybeRefOrGetter<string>,
+  teacherId: MaybeRefOrGetter<string>,
+) {
+  const { data, pending, error, refresh } = useBackend('/api/teacher-subject-permissions', {
+    method: 'GET',
+    query: computed(() => ({
+      subjectId: toValue(subjectId),
+      teacherId: toValue(teacherId),
+    })),
+  })
 
-  const { $backend } = useNuxtApp()
+  const permissions = computed<TeacherSubjectPermissionResponse[]>(() => data.value ?? [])
 
-  async function fetchPermissions() {
-    if (permissions.value)
-      return
-    permissions.value = await $backend(`/api/teacher-subject-permissions`, {
-      method: 'GET',
-      query: {
-        subjectId,
-        teacherId,
-      },
-    })
+  function findById(id: string) {
+    return permissions.value.find(p => p.id === id)
   }
 
   return {
     permissions,
-    fetchPermissions,
+    pending,
+    error,
+    refresh,
+    findById,
   }
 }

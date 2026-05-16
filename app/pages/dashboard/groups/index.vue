@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { refDebounced } from '@vueuse/core'
 import { usePagable } from '~/composables/usePagable'
 
 const search = ref('')
-const debouncedSearch = refDebounced(search, 1000)
+const debouncedSearch = ref('')
 
 const { page, pageSize, request, toPageState } = usePagable({
   filter: () => ({
@@ -12,11 +11,13 @@ const { page, pageSize, request, toPageState } = usePagable({
 })
 
 function applySearch() {
+  debouncedSearch.value = search.value
   page.value = 1
 }
 
 function clearSearch() {
   search.value = ''
+  debouncedSearch.value = ''
   page.value = 1
 }
 
@@ -43,7 +44,7 @@ const { rows, totalElements } = toPageState(data)
           <UButton
             to="/dashboard/groups/create"
             label="Создать группу"
-            icon="i-lucide-users"
+            icon="i-lucide-plus"
           />
         </template>
       </UPageHeader>
@@ -87,9 +88,9 @@ const { rows, totalElements } = toPageState(data)
       </UPageGrid>
 
       <UEmpty
-        v-else-if="rows.length === 0"
+        v-else-if="rows.length === 0 && !pending"
         icon="i-lucide-users"
-        :title="debouncedSearch ? 'Группы не найдены' : 'Группы не найдены'"
+        :title="debouncedSearch ? 'Группы не найдены' : 'Нет групп'"
         :description="
           debouncedSearch
             ? 'Попробуйте изменить запрос поиска.'
