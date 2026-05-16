@@ -75,18 +75,12 @@
       "get": {
         "tags": ["Teacher Subject Permissions"],
         "summary": "Получить список прав преподавателей на предмет",
-        "operationId": "getPermissions",
+        "operationId": "getPermissionsBySubject",
         "parameters": [
           {
             "name": "subjectId",
             "in": "query",
-            "required": false,
-            "schema": { "type": "string", "format": "uuid" }
-          },
-          {
-            "name": "teacherId",
-            "in": "query",
-            "required": false,
+            "required": true,
             "schema": { "type": "string", "format": "uuid" }
           }
         ],
@@ -614,6 +608,39 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PagedModelTeacherResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/teacher-subject-permissions/single": {
+      "get": {
+        "tags": ["Teacher Subject Permissions"],
+        "summary": "Получить право преподавателя на предмет",
+        "operationId": "getPermission",
+        "parameters": [
+          {
+            "name": "subjectId",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "teacherId",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherSubjectPermissionResponse"
                 }
               }
             }
