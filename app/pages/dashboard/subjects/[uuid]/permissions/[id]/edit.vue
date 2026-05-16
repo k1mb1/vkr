@@ -21,78 +21,24 @@ const route = useRoute()
 const subjectId = String(route.params.uuid ?? '')
 const permissionId = String(route.params.id ?? '')
 
-// ── Seed from history state (passed by list page) or fetch fallback ────────
+// ── Seed from history state (passed by list page) ─────────
 
-const seedPermission = (history.state?.permission ?? null) as TeacherSubjectPermissionResponse | null
-
-const { data: allPermissions, pending: loadingFallback } = useBackend(
-  '/api/teacher-subject-permissions',
-  {
-    method: 'GET',
-    query: { subjectId },
-    immediate: !seedPermission,
-  },
-)
-
-const permission = computed<TeacherSubjectPermissionResponse | undefined>(() => {
-  if (seedPermission)
-    return seedPermission
-  return (allPermissions.value ?? []).find(p => p.id === permissionId)
-})
+const targetPermission = (history.state?.permission ?? null) as TeacherSubjectPermissionResponse | null
 
 // ── My scope ─────────────────────────────────────────────
 
-const { groupOptions, subgroupOptionsFor, lessonTypeOptionsFor, loadingScope } = useMyPermissionScope(subjectId)
+const { permission: myPermission, pending: loadingScope } = usePermissions()
+
+const subgroupLocked = computed(() => !!myPermission.value?.allowedSubgroupId)
+const lessonTypeLocked = computed(() => !!myPermission.value?.allowedLessonType)
 
 // ── Form state ────────────────────────────────────────────
 
 const state = reactive<Schema>({
-  teacherId: '',
-  groupId: '',
-  allowedSubgroupId: null,
-  allowedLessonType: null,
-})
-
-watch(
-  permission,
-  (p) => {
-    if (!p)
-      return
-    state.teacherId = p.teacherId ?? ''
-    state.groupId = p.groupId ?? ''
-    state.allowedSubgroupId = p.allowedSubgroupId ?? null
-    state.allowedLessonType = (p.allowedLessonType as LessonType | null | undefined) ?? null
-  },
-  { immediate: true },
-)
-
-// Reset downstream when group or subgroup changes (only for user-driven changes,
-// not when seeding from existing permission)
-const seeded = ref(false)
-watch(permission, (p) => {
-  if (p)
-    seeded.value = true
-}, { immediate: true })
-
-watch(() => state.groupId, () => {
-  if (!seeded.value)
-    return
-  state.allowedSubgroupId = null
-  state.allowedLessonType = null
-})
-watch(() => state.allowedSubgroupId, (_, old) => {
-  if (!seeded.value || old === null)
-    return
-  state.allowedLessonType = null
-})
-
-const subgroupOptions = computed(() => subgroupOptionsFor(state.groupId))
-const lessonTypeOptions = computed(() => lessonTypeOptionsFor(state.groupId, state.allowedSubgroupId))
-
-// USelect requires string | undefined, but state.allowedSubgroupId is string | null | undefined
-const restrictedSubgroupModel = computed({
-  get: () => state.allowedSubgroupId ?? undefined,
-  set: (val: string | undefined) => { state.allowedSubgroupId = val ?? null },
+  teacherId: targetPermission?.teacherId ?? '',
+  groupId: targetPermission?.groupId ?? '',
+  allowedSubgroupId: targetPermission?.allowedSubgroupId ?? null,
+  allowedLessonType: (targetPermission?.allowedLessonType as LessonType | null | undefined) ?? null,
 })
 
 // ── Submit ────────────────────────────────────────────────
@@ -132,7 +78,7 @@ async function handleUpdate() {
   }
 }
 
-const isReady = computed(() => !!permission.value)
+const isReady = !!targetPermission
 </script>
 
 <template>
@@ -149,19 +95,22 @@ const isReady = computed(() => !!permission.value)
       </template>
     </UPageHeader>
 
-    <div v-if="loadingFallback && !seedPermission" class="flex flex-col gap-4">
-      <USkeleton class="h-12" />
-      <USkeleton class="h-12" />
-      <USkeleton class="h-12" />
-    </div>
-
     <UAlert
-      v-else-if="!isReady"
+      v-if="!isReady"
       color="error"
       variant="soft"
       icon="i-lucide-circle-alert"
       title="Назначение не найдено"
-      description="Не удалось загрузить данные назначения."
+      description="Откройте назначение из списка."
+    />
+
+    <UAlert
+      v-else-if="!loadingScope && !myPermission"
+      color="warning"
+      variant="soft"
+      icon="i-lucide-circle-alert"
+      title="Нет назначения"
+      description="У вас нет назначения по данному предмету."
     />
 
     <UForm
@@ -172,44 +121,44 @@ const isReady = computed(() => !!permission.value)
       class="flex flex-col gap-4"
     >
       <UFormField label="Преподаватель" name="teacherId" required>
-        <TeacherSelectMenu
-          v-model="state.teacherId"
-          :initial-label="permission?.teacherName"
+        <UInput
+          :model-value="targetPermission?.teacherName ?? ''"
+          disabled
+          class="w-full"
         />
       </UFormField>
 
       <UFormField label="Группа" name="groupId" required>
-        <USelect
-          v-model="state.groupId"
-          :items="groupOptions"
-          :loading="loadingScope"
-          placeholder="Выберите группу..."
+        <UInput
+          :model-value="targetPermission?.groupName ?? ''"
+          disabled
           class="w-full"
         />
       </UFormField>
 
       <UFormField label="Подгруппа" name="allowedSubgroupId">
-        <!-- Full access: use normal SubgroupSelect -->
         <SubgroupSelect
-          v-if="subgroupOptions === null"
+          v-if="!subgroupLocked"
           v-model="state.allowedSubgroupId"
           :group-id="state.groupId"
         />
-        <!-- Restricted access: show only teacher's own subgroups -->
-        <USelect
+        <UInput
           v-else
-          v-model="restrictedSubgroupModel"
-          :items="subgroupOptions"
-          :disabled="!state.groupId"
+          :model-value="myPermission?.allowedSubgroupIndex != null ? `Подгруппа ${myPermission.allowedSubgroupIndex}` : ''"
+          disabled
           class="w-full"
         />
       </UFormField>
 
       <UFormField label="Тип занятия" name="allowedLessonType">
-        <USelect
+        <LessonTypeScopeSelect
+          v-if="!lessonTypeLocked"
           v-model="state.allowedLessonType"
-          :items="lessonTypeOptions"
-          :disabled="!state.groupId"
+        />
+        <UInput
+          v-else
+          :model-value="myPermission?.allowedLessonType === 'LECTURE' ? 'Лекция' : 'Практика'"
+          disabled
           class="w-full"
         />
       </UFormField>

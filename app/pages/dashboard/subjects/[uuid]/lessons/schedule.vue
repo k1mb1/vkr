@@ -40,7 +40,17 @@ const toast = useToast()
 
 // ── My scope ─────────────────────────────────────────────
 
-const { groupOptions, subgroupOptionsFor, lessonTypeOptionsFor, loadingScope } = useMyPermissionScope(subjectId)
+const { permission, pending: loadingScope } = usePermissions()
+
+const allowedLessonTypeOptions = computed<{ value: LessonType, label: string }[]>(() => {
+  const restricted = permission.value?.allowedLessonType
+  if (restricted)
+    return [{ value: restricted, label: restricted === 'LECTURE' ? 'Лекция' : 'Практика' }]
+  return [
+    { value: 'LECTURE', label: 'Лекция' },
+    { value: 'PRACTICE', label: 'Практика' },
+  ]
+})
 
 function makeEntry(defaultType: LessonType = 'LECTURE'): EntryState {
   return { type: defaultType, startDate: '', totalCount: 1, daysOfWeek: [[]] }
@@ -53,23 +63,15 @@ const state = reactive<Schema>({
   schedules: [makeEntry()],
 })
 
-// Auto-select the single group from the teacher's own permissions
-watch(groupOptions, (opts) => {
-  if (opts.length > 0 && !state.groupId)
-    state.groupId = opts[0]!.value
+// Seed groupId/subgroupId from the single permission.
+watch(permission, (p) => {
+  if (!p)
+    return
+  state.groupId = p.groupId ?? ''
+  state.subgroupId = p.allowedSubgroupId ?? null
 }, { immediate: true })
 
-watch(() => state.groupId, () => {
-  state.subgroupId = null
-})
-
-const subgroupOptions = computed(() => subgroupOptionsFor(state.groupId))
-
-const allowedLessonTypeOptions = computed<{ value: LessonType, label: string }[]>(() => {
-  const opts = lessonTypeOptionsFor(state.groupId, state.subgroupId)
-  return opts
-    .filter((o): o is { value: LessonType, label: string } => o.value !== null)
-})
+const subgroupLocked = computed(() => !!permission.value?.allowedSubgroupId)
 
 // Keep each entry's type within the allowed set
 watch(allowedLessonTypeOptions, (opts) => {
@@ -78,12 +80,6 @@ watch(allowedLessonTypeOptions, (opts) => {
     if (!allowed.has(entry.type) && opts.length > 0)
       entry.type = opts[0]!.value
   }
-})
-
-// USelect requires string | undefined, but state.subgroupId is string | null | undefined
-const restrictedSubgroupModel = computed({
-  get: () => state.subgroupId ?? undefined,
-  set: (val: string | undefined) => { state.subgroupId = val ?? null },
 })
 
 // ── Schedule entry management ──────────────────────────────
@@ -190,28 +186,25 @@ async function handleCreate() {
     </UPageHeader>
 
     <UAlert
-      v-if="!loadingScope && groupOptions.length === 0"
+      v-if="!loadingScope && !permission"
       color="warning"
       variant="soft"
       icon="i-lucide-circle-alert"
-      title="Нет назначений"
-      description="У вас нет назначений по данному предмету."
+      title="Нет назначения"
+      description="У вас нет назначения по данному предмету."
     />
 
     <div v-else class="flex flex-col gap-4">
       <UFormField label="Подгруппа">
-        <!-- Full access: use normal SubgroupSelect -->
         <SubgroupSelect
-          v-if="subgroupOptions === null"
+          v-if="!subgroupLocked"
           v-model="state.subgroupId"
           :group-id="state.groupId"
         />
-        <!-- Restricted access: show only teacher's own subgroups -->
-        <USelect
+        <UInput
           v-else
-          v-model="restrictedSubgroupModel"
-          :items="subgroupOptions"
-          :disabled="!state.groupId"
+          :model-value="permission?.allowedSubgroupIndex != null ? `Подгруппа ${permission.allowedSubgroupIndex}` : ''"
+          disabled
           class="w-full"
         />
       </UFormField>

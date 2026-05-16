@@ -1,31 +1,30 @@
+import type { User } from '#auth-utils'
 import type { components } from '#open-fetch-schemas/backend'
-import type { MaybeRefOrGetter } from 'vue'
 
 type TeacherSubjectPermissionResponse = components['schemas']['TeacherSubjectPermissionResponse']
 
-export function usePermissions(
-  subjectId: MaybeRefOrGetter<string>,
-  teacherId: MaybeRefOrGetter<string>,
-) {
-  const { data, pending, error, refresh } = useBackend('/api/teacher-subject-permissions', {
+export function usePermissions() {
+  const route = useRoute()
+  const { user } = useOidcAuth()
+
+  const subjectId = computed(() => String(route.params.uuid ?? ''))
+  const teacherId = computed(() => (user.value as User | null)?.sub ?? '')
+
+  const { data, pending, error, refresh } = useBackend('/api/teacher-subject-permissions/single', {
     method: 'GET',
+    key: computed(() => `my-permission:${subjectId.value}:${teacherId.value}`),
     query: computed(() => ({
-      subjectId: toValue(subjectId),
-      teacherId: toValue(teacherId),
+      subjectId: subjectId.value,
+      teacherId: teacherId.value,
     })),
   })
 
-  const permissions = computed<TeacherSubjectPermissionResponse[]>(() => data.value ?? [])
-
-  function findById(id: string) {
-    return permissions.value.find(p => p.id === id)
-  }
+  const permission = computed<TeacherSubjectPermissionResponse | null>(() => data.value ?? null)
 
   return {
-    permissions,
+    permission,
     pending,
     error,
     refresh,
-    findById,
   }
 }

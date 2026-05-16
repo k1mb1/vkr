@@ -6,7 +6,6 @@ import * as v from 'valibot'
 import { nonNegativeInteger, uuidV4 } from '~/utils/validation'
 
 type CreateLessonsByTypeRequest = components['schemas']['CreateLessonsByTypeRequest']
-type LessonType = NonNullable<components['schemas']['TeacherSubjectPermissionResponse']['allowedLessonType']>
 
 const CreateLessonsSchema = v.pipe(
   v.object({
@@ -32,9 +31,9 @@ const toast = useToast()
 
 // ── My scope ─────────────────────────────────────────────
 
-const { groupOptions, subgroupOptionsFor, lessonTypeOptionsFor, loadingScope } = useMyPermissionScope(subjectId)
+const { permission, pending: loadingScope } = usePermissions()
 
-const state = reactive<Omit<Schema, never>>({
+const state = reactive<Schema>({
   subjectId,
   groupId: '',
   subgroupId: null,
@@ -42,24 +41,17 @@ const state = reactive<Omit<Schema, never>>({
   practiceCount: 0,
 })
 
-// Auto-select the single group from the teacher's own permissions
-watch(groupOptions, (opts) => {
-  if (opts.length > 0 && !state.groupId)
-    state.groupId = opts[0]!.value
+// Seed from the single permission: groupId is fixed, subgroupId is fixed if restricted.
+watch(permission, (p) => {
+  if (!p)
+    return
+  state.groupId = p.groupId ?? ''
+  state.subgroupId = p.allowedSubgroupId ?? null
 }, { immediate: true })
 
-watch(() => state.groupId, () => {
-  state.subgroupId = null
-})
-
-const subgroupOptions = computed(() => subgroupOptionsFor(state.groupId))
-
-const allowedLessonTypes = computed<Set<LessonType>>(() => {
-  const opts = lessonTypeOptionsFor(state.groupId, state.subgroupId)
-  return new Set(opts.map(o => o.value).filter((v): v is LessonType => v !== null))
-})
-const canLecture = computed(() => allowedLessonTypes.value.has('LECTURE'))
-const canPractice = computed(() => allowedLessonTypes.value.has('PRACTICE'))
+const subgroupLocked = computed(() => !!permission.value?.allowedSubgroupId)
+const canLecture = computed(() => !permission.value?.allowedLessonType || permission.value.allowedLessonType === 'LECTURE')
+const canPractice = computed(() => !permission.value?.allowedLessonType || permission.value.allowedLessonType === 'PRACTICE')
 
 // Reset counts of types the teacher can't use
 watch([canLecture, canPractice], ([lec, prac]) => {
@@ -67,12 +59,6 @@ watch([canLecture, canPractice], ([lec, prac]) => {
     state.lectureCount = 0
   if (!prac)
     state.practiceCount = 0
-})
-
-// USelect requires string | undefined, but state.subgroupId is string | null | undefined
-const restrictedSubgroupModel = computed({
-  get: () => state.subgroupId ?? undefined,
-  set: (val: string | undefined) => { state.subgroupId = val ?? null },
 })
 
 const loading = ref(false)
@@ -123,13 +109,19 @@ async function handleCreate() {
       </template>
     </UPageHeader>
 
+    <div v-if="loadingScope" class="flex flex-col gap-4">
+      <USkeleton class="h-12" />
+      <USkeleton class="h-12" />
+      <USkeleton class="h-12" />
+    </div>
+
     <UAlert
-      v-if="!loadingScope && groupOptions.length === 0"
+      v-else-if="!permission"
       color="warning"
       variant="soft"
       icon="i-lucide-circle-alert"
-      title="Нет назначений"
-      description="У вас нет назначений по данному предмету."
+      title="Нет назначения"
+      description="У вас нет назначения по данному предмету."
     />
 
     <UForm
@@ -140,18 +132,15 @@ async function handleCreate() {
       class="flex flex-col gap-4"
     >
       <UFormField label="Подгруппа" name="subgroupId">
-        <!-- Full access: use normal SubgroupSelect -->
         <SubgroupSelect
-          v-if="subgroupOptions === null"
+          v-if="!subgroupLocked"
           v-model="state.subgroupId"
           :group-id="state.groupId"
         />
-        <!-- Restricted access: show only teacher's own subgroups -->
-        <USelect
+        <UInput
           v-else
-          v-model="restrictedSubgroupModel"
-          :items="subgroupOptions"
-          :disabled="!state.groupId"
+          :model-value="permission?.allowedSubgroupIndex != null ? `Подгруппа ${permission.allowedSubgroupIndex}` : ''"
+          disabled
           class="w-full"
         />
       </UFormField>
