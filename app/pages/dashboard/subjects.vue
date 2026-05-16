@@ -45,7 +45,11 @@ const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
       }
     }
     else if (route.path.includes('/lessons')) {
-      items.push({ label: 'Занятия' })
+      items.push({ label: 'Занятия', to: `/dashboard/subjects/${uuid.value}/lessons` })
+      if (route.path.endsWith('/create'))
+        items.push({ label: 'По количеству' })
+      else if (route.path.endsWith('/schedule'))
+        items.push({ label: 'По расписанию' })
     }
   }
 

@@ -130,6 +130,18 @@ function rowActions(row: LessonResponse): DropdownMenuItem[][] {
           :loading="pending"
           @click="refresh()"
         />
+        <UButton
+          icon="i-lucide-list-plus"
+          label="По количеству"
+          color="neutral"
+          variant="outline"
+          :to="`/dashboard/subjects/${subjectId}/lessons/create`"
+        />
+        <UButton
+          icon="i-lucide-calendar-plus"
+          label="По расписанию"
+          :to="`/dashboard/subjects/${subjectId}/lessons/schedule`"
+        />
       </template>
     </UPageHeader>
 
