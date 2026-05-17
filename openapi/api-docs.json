@@ -72,6 +72,66 @@
         }
       }
     },
+    "/api/attendances": {
+      "get": {
+        "tags": ["Attendances"],
+        "summary": "Получить таблицу посещаемости по permissionId (студенты × занятия)",
+        "operationId": "getAttendanceTable",
+        "parameters": [
+          {
+            "name": "permissionId",
+            "in": "query",
+            "description": "ID права преподавателя на предмет",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "ID права преподавателя на предмет"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttendanceTableResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["Attendances"],
+        "summary": "Проставить или обновить отметку для пары (студент, занятие)",
+        "operationId": "upsert",
+        "requestBody": {
+          "description": "Ячейка посещаемости",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpsertAttendanceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttendanceCellResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/teacher-subject-permissions": {
       "get": {
         "tags": ["Teacher Subject Permissions"],
@@ -710,39 +770,6 @@
           }
         }
       }
-    },
-    "/api/attendances": {
-      "get": {
-        "tags": ["Attendances"],
-        "summary": "Получить таблицу посещений по permissionId преподавателя",
-        "operationId": "getAttendances",
-        "parameters": [
-          {
-            "name": "permissionId",
-            "in": "query",
-            "description": "ID права преподавателя на предмет",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "ID права преподавателя на предмет"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": { "$ref": "#/components/schemas/AttendanceResponse" }
-                }
-              }
-            }
-          }
-        }
-      }
     }
   },
   "components": {
@@ -810,6 +837,56 @@
             "format": "date-time",
             "description": "Дата последнего обновления"
           }
+        }
+      },
+      "UpsertAttendanceRequest": {
+        "type": "object",
+        "description": "Создание или обновление одной ячейки посещаемости",
+        "properties": {
+          "studentId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID студента"
+          },
+          "lessonId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID занятия"
+          },
+          "status": {
+            "type": "string",
+            "description": "Статус",
+            "enum": ["PRESENT", "ABSENT", "LATE", "EXCUSED"]
+          },
+          "comment": { "type": "string", "description": "Комментарий" }
+        },
+        "required": ["lessonId", "status", "studentId"]
+      },
+      "AttendanceCellResponse": {
+        "type": "object",
+        "description": "Ячейка таблицы посещаемости (одна отметка)",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID записи"
+          },
+          "studentId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID студента"
+          },
+          "lessonId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID занятия"
+          },
+          "status": {
+            "type": "string",
+            "description": "Статус",
+            "enum": ["PRESENT", "ABSENT", "LATE", "EXCUSED"]
+          },
+          "comment": { "type": "string", "description": "Комментарий" }
         }
       },
       "CreateTeacherSubjectPermissionRequest": {
@@ -1443,49 +1520,63 @@
           "page": { "$ref": "#/components/schemas/PageMetadata" }
         }
       },
-      "AttendanceResponse": {
+      "AttendanceTableLesson": {
         "type": "object",
-        "description": "Запись о посещаемости",
+        "description": "Занятие в таблице посещаемости",
         "properties": {
           "id": {
             "type": "string",
             "format": "uuid",
-            "description": "ID записи"
+            "description": "ID занятия"
           },
-          "studentId": {
+          "startedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Время начала"
+          },
+          "type": {
+            "type": "string",
+            "description": "Тип занятия",
+            "enum": ["LECTURE", "PRACTICE"]
+          },
+          "topic": { "type": "string", "description": "Тема" }
+        }
+      },
+      "AttendanceTableResponse": {
+        "type": "object",
+        "description": "Таблица посещаемости: студенты × занятия с существующими ячейками",
+        "properties": {
+          "students": {
+            "type": "array",
+            "description": "Строки таблицы — студенты",
+            "items": { "$ref": "#/components/schemas/AttendanceTableStudent" }
+          },
+          "lessons": {
+            "type": "array",
+            "description": "Колонки таблицы — занятия",
+            "items": { "$ref": "#/components/schemas/AttendanceTableLesson" }
+          },
+          "attendances": {
+            "type": "array",
+            "description": "Проставленные ячейки; если ячейки нет — отметка ещё не проставлена",
+            "items": { "$ref": "#/components/schemas/AttendanceCellResponse" }
+          }
+        }
+      },
+      "AttendanceTableStudent": {
+        "type": "object",
+        "description": "Студент в таблице посещаемости",
+        "properties": {
+          "id": {
             "type": "string",
             "format": "uuid",
             "description": "ID студента"
           },
-          "studentUsername": {
-            "type": "string",
-            "description": "Имя студента"
-          },
-          "lessonId": {
+          "username": { "type": "string", "description": "Имя студента" },
+          "subgroupId": {
             "type": "string",
             "format": "uuid",
-            "description": "ID занятия"
-          },
-          "lessonStartedAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Время начала занятия"
-          },
-          "status": {
-            "type": "string",
-            "description": "Статус посещения",
-            "enum": ["PRESENT", "ABSENT", "LATE", "EXCUSED"]
-          },
-          "comment": { "type": "string", "description": "Комментарий" },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Дата создания"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Дата последнего обновления"
+            "description": "ID подгруппы (null = без подгруппы)"
           }
         }
       }

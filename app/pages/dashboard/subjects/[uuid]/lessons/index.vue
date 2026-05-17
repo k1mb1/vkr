@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import type { User } from '#auth-utils'
 import type { components } from '#open-fetch-schemas/backend'
 import type { DropdownMenuItem, TableColumn } from '@nuxt/ui'
 import type { FetchError } from 'ofetch'
@@ -9,16 +8,21 @@ type LessonResponse = components['schemas']['LessonResponse']
 const route = useRoute()
 const subjectId = computed(() => String(route.params.uuid ?? ''))
 
-const { user } = useOidcAuth()
-const { sub: teacherId } = user.value as User
+const { permission, pending: permissionPending } = usePermissions()
+const permissionId = computed(() => permission.value?.id ?? '')
 
-const { data, pending, error, refresh } = useBackend('/api/lessons', {
+const { data, pending: lessonsPending, error, refresh } = useBackend('/api/lessons', {
   method: 'GET',
-  query: computed(() => ({
-    subjectId: subjectId.value,
-    teacherId: teacherId!,
-  })),
+  query: computed(() => ({ permissionId: permissionId.value })),
+  immediate: false,
 })
+
+watch(permissionId, (id) => {
+  if (id)
+    refresh()
+}, { immediate: true })
+
+const pending = computed(() => permissionPending.value || lessonsPending.value)
 
 const rows = computed<LessonResponse[]>(() => data.value ?? [])
 
