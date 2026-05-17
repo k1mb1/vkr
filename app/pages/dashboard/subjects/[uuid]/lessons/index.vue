@@ -23,7 +23,6 @@ watch(permissionId, (id) => {
 }, { immediate: true })
 
 const pending = computed(() => permissionPending.value || lessonsPending.value)
-
 const rows = computed<LessonResponse[]>(() => data.value ?? [])
 
 const lessonTypeLabel: Record<string, string> = {
@@ -43,28 +42,26 @@ function formatDate(dt: string | undefined): string {
 
 const columns: TableColumn<LessonResponse>[] = [
   {
+    accessorKey: 'topic',
+    header: 'Тема',
+  },
+  {
     accessorKey: 'type',
     header: 'Тип',
-    cell: ({ row }) => lessonTypeLabel[row.original.type ?? ''] ?? row.original.type ?? '—',
   },
   {
     accessorKey: 'subgroupIndex',
     header: 'Подгруппа',
-    cell: ({ row }) => row.original.subgroupIndex === null
-      ? 'все'
-      : `подгруппа ${row.original.subgroupIndex}`,
-  },
-  {
-    accessorKey: 'topic',
-    header: 'Тема',
-    cell: ({ row }) => row.original.topic ?? '—',
   },
   {
     accessorKey: 'startedAt',
     header: 'Дата',
     cell: ({ row }) => formatDate(row.original.startedAt),
   },
-  { id: 'actions', header: '' },
+  {
+    id: 'actions',
+    meta: { class: { td: 'w-10' } },
+  },
 ]
 
 // ── Delete ────────────────────────────────────────────────
@@ -138,13 +135,24 @@ function rowActions(row: LessonResponse): DropdownMenuItem[][] {
 </script>
 
 <template>
-  <div class="flex flex-col gap-6">
-    <UPageHeader title="Занятия">
-      <template #links>
+  <div class="flex flex-col gap-8">
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="text-xs font-medium text-muted uppercase tracking-widest mb-1">
+          Предмет
+        </p>
+        <h1 class="text-2xl font-semibold text-highlighted">
+          Занятия
+        </h1>
+      </div>
+
+      <div class="flex items-center gap-2">
         <UButton
           icon="i-lucide-refresh-cw"
           color="neutral"
           variant="ghost"
+          size="sm"
           :loading="pending"
           @click="refresh()"
         />
@@ -153,76 +161,133 @@ function rowActions(row: LessonResponse): DropdownMenuItem[][] {
           label="По количеству"
           color="neutral"
           variant="outline"
+          size="sm"
           :to="`/dashboard/subjects/${subjectId}/lessons/create`"
         />
         <UButton
           icon="i-lucide-calendar-plus"
           label="По расписанию"
+          size="sm"
           :to="`/dashboard/subjects/${subjectId}/lessons/schedule`"
         />
-      </template>
-    </UPageHeader>
+      </div>
+    </div>
 
+    <!-- Error -->
     <UAlert
       v-if="error"
       color="error"
       variant="soft"
+      icon="i-lucide-circle-alert"
       title="Ошибка загрузки"
       :description="error.message"
     />
 
-    <UTable
-      v-else
-      :data="rows"
-      :columns="columns"
-      :loading="pending && rows.length === 0"
-      sticky
+    <!-- Table -->
+    <div
+      v-if="!error"
+      class="border border-default rounded-xl overflow-hidden"
     >
-      <template #type-cell="{ row }">
-        <UBadge
-          variant="soft"
-          :color="row.original.type === 'LECTURE' ? 'primary' : 'secondary'"
-          :label="lessonTypeLabel[row.original.type ?? ''] ?? row.original.type ?? '—'"
-        />
-      </template>
+      <UTable
+        :data="rows"
+        :columns="columns"
+        :loading="pending && rows.length === 0"
+        loading-color="primary"
+        sticky
+        class="max-h-[calc(100vh-16rem)]"
+      >
+        <!-- Тема -->
+        <template #topic-cell="{ row }">
+          <UTooltip
+            :text="row.original.topic ?? '—'"
+            :disabled="!row.original.topic"
+            :delay-duration="300"
+          >
+            <span class="block truncate max-w-[240px] font-medium text-highlighted">
+              {{ row.original.topic ?? '—' }}
+            </span>
+          </UTooltip>
+        </template>
 
-      <template #subgroupIndex-cell="{ row }">
-        <UBadge
-          variant="soft"
-          color="neutral"
-          :label="row.original.subgroupIndex === null ? 'все' : `подгруппа ${row.original.subgroupIndex}`"
-        />
-      </template>
-
-      <template #actions-cell="{ row }">
-        <UDropdownMenu
-          :items="rowActions(row.original)"
-          :ui="{ content: 'w-36' }"
-          class="flex justify-end"
-        >
-          <UButton
-            icon="i-lucide-ellipsis-vertical"
-            color="neutral"
-            variant="ghost"
+        <!-- Тип -->
+        <template #type-cell="{ row }">
+          <UBadge
+            :color="row.original.type === 'LECTURE' ? 'primary' : 'secondary'"
+            variant="subtle"
+            size="sm"
+            :label="lessonTypeLabel[row.original.type ?? ''] ?? row.original.type ?? '—'"
           />
-        </UDropdownMenu>
-      </template>
+        </template>
 
-      <template #empty>
-        <UEmpty
-          icon="i-lucide-calendar-off"
-          title="Занятия не найдены"
-          description="По данному предмету занятий пока нет."
-          variant="naked"
-          class="py-6"
-        />
-      </template>
-    </UTable>
+        <!-- Подгруппа -->
+        <template #subgroupIndex-cell="{ row }">
+          <span class="text-muted text-sm">
+            {{ row.original.subgroupIndex === null ? 'Все' : `Подгруппа ${row.original.subgroupIndex}` }}
+          </span>
+        </template>
 
+        <!-- Дата -->
+        <template #startedAt-cell="{ row }">
+          <span class="text-muted tabular-nums">
+            {{ formatDate(row.original.startedAt) }}
+          </span>
+        </template>
+
+        <!-- Действия -->
+        <template #actions-cell="{ row }">
+          <UDropdownMenu
+            :items="rowActions(row.original)"
+            :ui="{ content: 'w-36' }"
+          >
+            <UButton
+              icon="i-lucide-ellipsis"
+              color="neutral"
+              variant="ghost"
+              size="xs"
+            />
+          </UDropdownMenu>
+        </template>
+
+        <!-- Пусто -->
+        <template #empty>
+          <div class="flex flex-col items-center gap-4 py-16 px-6 text-center">
+            <div class="p-3 rounded-full bg-elevated">
+              <UIcon name="i-lucide-calendar-off" class="size-6 text-muted" />
+            </div>
+            <div>
+              <p class="font-medium text-highlighted">
+                Занятий пока нет
+              </p>
+              <p class="text-sm text-muted mt-1">
+                Добавьте занятия по количеству или расписанию
+              </p>
+            </div>
+            <div class="flex gap-2 mt-1">
+              <UButton
+                icon="i-lucide-list-plus"
+                label="По количеству"
+                color="neutral"
+                variant="outline"
+                size="sm"
+                :to="`/dashboard/subjects/${subjectId}/lessons/create`"
+              />
+              <UButton
+                icon="i-lucide-calendar-plus"
+                label="По расписанию"
+                size="sm"
+                :to="`/dashboard/subjects/${subjectId}/lessons/schedule`"
+              />
+            </div>
+          </div>
+        </template>
+      </UTable>
+    </div>
+
+    <!-- Delete modal -->
     <ConfirmModal
       :open="deleteModal"
       title="Удалить занятие"
-      :description="`Занятие «${deleteTarget?.topic ?? 'без темы'}» будет удалено.`"
+      :description="`Занятие «${deleteTarget?.topic ?? 'без темы'}» будет удалено безвозвратно.`"
       confirm-label="Удалить"
       confirm-color="error"
       confirm-icon="i-lucide-trash-2"
