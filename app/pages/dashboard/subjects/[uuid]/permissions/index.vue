@@ -119,7 +119,7 @@ function rowActions(row: TeacherSubjectPermissionResponse): DropdownMenuItem[][]
 </script>
 
 <template>
-  <div class="flex h-full flex-col gap-6">
+  <div class="flex flex-col gap-6">
     <UPageHeader title="Назначения преподавателей">
       <template #links>
         <UButton
@@ -153,18 +153,17 @@ function rowActions(row: TeacherSubjectPermissionResponse): DropdownMenuItem[][]
       sticky
     >
       <template #actions-cell="{ row }">
-        <div class="flex justify-end">
-          <UDropdownMenu
-            :items="rowActions(row.original)"
-            :ui="{ content: 'w-36' }"
-          >
-            <UButton
-              icon="i-lucide-ellipsis-vertical"
-              color="neutral"
-              variant="ghost"
-            />
-          </UDropdownMenu>
-        </div>
+        <UDropdownMenu
+          :items="rowActions(row.original)"
+          :ui="{ content: 'w-36' }"
+          class="flex justify-end"
+        >
+          <UButton
+            icon="i-lucide-ellipsis-vertical"
+            color="neutral"
+            variant="ghost"
+          />
+        </UDropdownMenu>
       </template>
 
       <template #empty>

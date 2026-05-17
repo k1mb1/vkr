@@ -28,41 +28,39 @@ const target = computed(() => {
       title="You are logged out"
       description="Local session has been cleared."
     >
-      <UCard>
-        <div class="space-y-4">
-          <UAlert
-            color="success"
-            variant="soft"
-            icon="i-lucide-check-circle-2"
-            title="Logout complete"
-            description="You can sign in again or return to the home page."
-          />
+      <UCard :ui="{ body: 'flex flex-col gap-4' }">
+        <UAlert
+          color="success"
+          variant="soft"
+          icon="i-lucide-check-circle-2"
+          title="Logout complete"
+          description="You can sign in again or return to the home page."
+        />
 
-          <div class="flex gap-3 flex-wrap">
-            <UButton
-              to="/auth/login"
-              icon="i-lucide-log-in"
-            >
-              Sign in again
-            </UButton>
-            <UButton
-              to="/"
-              color="neutral"
-              variant="outline"
-            >
-              Home
-            </UButton>
-            <UButton
-              v-if="canFederatedLogout"
-              :to="target"
-              external
-              color="neutral"
-              variant="soft"
-              icon="i-lucide-external-link"
-            >
-              Provider logout
-            </UButton>
-          </div>
+        <div class="flex gap-3 flex-wrap">
+          <UButton
+            to="/auth/login"
+            icon="i-lucide-log-in"
+          >
+            Sign in again
+          </UButton>
+          <UButton
+            to="/"
+            color="neutral"
+            variant="outline"
+          >
+            Home
+          </UButton>
+          <UButton
+            v-if="canFederatedLogout"
+            :to="target"
+            external
+            color="neutral"
+            variant="soft"
+            icon="i-lucide-external-link"
+          >
+            Provider logout
+          </UButton>
         </div>
       </UCard>
     </UPageSection>

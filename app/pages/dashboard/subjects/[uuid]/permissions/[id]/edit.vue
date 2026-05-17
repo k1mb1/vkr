@@ -41,6 +41,13 @@ const state = reactive<Schema>({
   allowedLessonType: (targetPermission?.allowedLessonType as LessonType | null | undefined) ?? null,
 })
 
+const original = ref({
+  teacherId: targetPermission?.teacherId ?? '',
+  groupId: targetPermission?.groupId ?? '',
+  allowedSubgroupId: targetPermission?.allowedSubgroupId ?? null,
+  allowedLessonType: targetPermission?.allowedLessonType ?? null,
+})
+
 // ── Submit ────────────────────────────────────────────────
 
 const { $backend } = useNuxtApp()
@@ -57,15 +64,22 @@ async function handleUpdate() {
 
   loading.value = true
   try {
+    const body: UpdateTeacherSubjectPermissionRequest = {}
+    if (data.teacherId !== original.value.teacherId)
+      body.teacherId = data.teacherId
+    if (data.groupId !== original.value.groupId)
+      body.groupId = data.groupId
+    if ((data.allowedSubgroupId ?? null) !== original.value.allowedSubgroupId) {
+      body.allowedSubgroupId = data.allowedSubgroupId ?? undefined
+    }
+    if ((data.allowedLessonType ?? null) !== original.value.allowedLessonType) {
+      body.allowedLessonType = data.allowedLessonType ?? undefined
+    }
+
     await $backend('/api/teacher-subject-permissions/{id}', {
       method: 'PATCH',
       path: { id: permissionId },
-      body: {
-        teacherId: data.teacherId,
-        groupId: data.groupId,
-        allowedSubgroupId: data.allowedSubgroupId ?? undefined,
-        allowedLessonType: data.allowedLessonType ?? undefined,
-      },
+      body,
     })
     toast.add({ title: 'Назначение обновлено', color: 'success', icon: 'i-lucide-check' })
     await navigateTo(`/dashboard/subjects/${subjectId}/permissions`)

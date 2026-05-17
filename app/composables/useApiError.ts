@@ -5,7 +5,7 @@ type BackendErrorResponse = components['schemas']['ErrorDto']
 
 function extractMessage(error: FetchError): string {
   const data = error.data as BackendErrorResponse | undefined
-  return data?.message || data?.details || error.message || 'Что-то пошло не так'
+  return data?.message || error.message || 'Что-то пошло не так'
 }
 
 export function useApiError() {

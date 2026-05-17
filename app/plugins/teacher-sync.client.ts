@@ -10,7 +10,7 @@ function isDashboardPath(path: string): boolean {
 
 function extractErrorMessage(error: unknown): string {
   const fetchError = error as FetchError<BackendErrorResponse>
-  return fetchError.data?.message || fetchError.data?.details || fetchError.statusMessage || fetchError.message || 'Teacher sync failed'
+  return fetchError.data?.message || fetchError.statusMessage || fetchError.message || 'Teacher sync failed'
 }
 
 export default defineNuxtPlugin(() => {

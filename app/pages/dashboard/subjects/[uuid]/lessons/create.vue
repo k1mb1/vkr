@@ -96,7 +96,7 @@ async function handleCreate() {
 </script>
 
 <template>
-  <div class="flex flex-col gap-4">
+  <div class="flex flex-col gap-6">
     <UPageHeader title="Создать занятия по количеству">
       <template #links>
         <UButton
@@ -110,9 +110,7 @@ async function handleCreate() {
     </UPageHeader>
 
     <div v-if="loadingScope" class="flex flex-col gap-4">
-      <USkeleton class="h-12" />
-      <USkeleton class="h-12" />
-      <USkeleton class="h-12" />
+      <USkeleton v-for="i in 3" :key="i" class="h-12" />
     </div>
 
     <UAlert
@@ -169,23 +167,15 @@ async function handleCreate() {
         </UFormField>
       </div>
 
-      <div class="flex justify-end gap-2">
-        <UButton
-          :to="`/dashboard/subjects/${subjectId}/lessons`"
-          color="neutral"
-          variant="ghost"
-        >
-          Отмена
-        </UButton>
-        <UButton
-          icon="i-lucide-check"
-          :loading="loading"
-          :disabled="!state.groupId || (!canLecture && !canPractice)"
-          @click="handleCreate"
-        >
-          Создать занятия
-        </UButton>
-      </div>
+      <UButton
+        icon="i-lucide-check"
+        :loading="loading"
+        :disabled="!state.groupId || (!canLecture && !canPractice)"
+        class="ml-auto"
+        @click="handleCreate"
+      >
+        Создать занятия
+      </UButton>
     </UForm>
   </div>
 </template>

@@ -801,15 +801,54 @@
             "format": "int32",
             "description": "HTTP статус код"
           },
-          "message": { "type": "string", "description": "Сообщение об ошибке" },
+          "code": {
+            "type": "string",
+            "description": "Машинно-читаемый код ошибки",
+            "enum": [
+              "NOT_FOUND",
+              "VALIDATION_FAILED",
+              "MALFORMED_BODY",
+              "INVALID_PARAM",
+              "ACCESS_DENIED",
+              "ILLEGAL_ARGUMENT",
+              "ILLEGAL_STATE",
+              "CONFLICT",
+              "INTERNAL_ERROR"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "description": "Человекочитаемое сообщение об ошибке"
+          },
           "timestamp": {
             "type": "string",
             "format": "date-time",
             "description": "Время возникновения ошибки"
           },
-          "details": {
+          "fieldErrors": {
+            "type": "array",
+            "description": "Список ошибок по полям запроса (только для VALIDATION_FAILED / INVALID_PARAM)",
+            "items": { "$ref": "#/components/schemas/FieldError" }
+          }
+        }
+      },
+      "FieldError": {
+        "type": "object",
+        "description": "Ошибка валидации конкретного поля запроса",
+        "properties": {
+          "field": {
             "type": "string",
-            "description": "Дополнительные детали ошибки (например, список валидационных ошибок)"
+            "description": "Путь к полю",
+            "example": "students[0].username"
+          },
+          "code": {
+            "type": "string",
+            "description": "Имя нарушенного ограничения",
+            "example": "NotBlank"
+          },
+          "message": {
+            "type": "string",
+            "description": "Человекочитаемое сообщение"
           }
         }
       },
@@ -1059,35 +1098,35 @@
             "format": "uuid",
             "description": "ID предмета"
           },
+          "subjectName": {
+            "type": "string",
+            "description": "Название предмета"
+          },
           "groupId": {
             "type": "string",
             "format": "uuid",
             "description": "ID группы"
           },
+          "groupName": { "type": "string", "description": "Название группы" },
           "subgroupId": {
             "type": "string",
             "format": "uuid",
             "description": "ID подгруппы (null для всей группы)"
+          },
+          "subgroupIndex": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Индекс подгруппы (null для всей группы)"
           },
           "type": {
             "type": "string",
             "description": "Тип занятия",
             "enum": ["LECTURE", "PRACTICE"]
           },
-          "teacherId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID преподавателя"
-          },
           "startedAt": {
             "type": "string",
-            "format": "date-time",
-            "description": "Время начала занятия"
-          },
-          "endedAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Время окончания занятия"
+            "format": "date",
+            "description": "Дата занятия"
           },
           "topic": { "type": "string", "description": "Тема занятия" },
           "createdAt": {
@@ -1178,7 +1217,7 @@
         "type": "object",
         "description": "Запрос на создание группы со списком студентов",
         "properties": {
-          "groupName": {
+          "name": {
             "type": "string",
             "description": "Название группы",
             "minLength": 1
@@ -1192,7 +1231,7 @@
             "minItems": 1
           }
         },
-        "required": ["groupName", "students"]
+        "required": ["name", "students"]
       },
       "StudentGroupMemberRequest": {
         "type": "object",
@@ -1307,33 +1346,33 @@
       },
       "UpdateTeacherSubjectPermissionRequest": {
         "type": "object",
-        "description": "Запрос на обновление права преподавателя на предмет",
+        "description": "Запрос на частичное обновление права преподавателя на предмет (PATCH).\nСемантика: поле = null или отсутствует — значение не изменяется.\nОчистка существующих значений (например, отвязать подгруппу или сбросить тип занятия) через этот эндпоинт не поддерживается.\n",
         "properties": {
           "teacherId": {
             "type": "string",
             "format": "uuid",
-            "description": "ID преподавателя"
+            "description": "ID преподавателя (null — не менять)"
           },
           "groupId": {
             "type": "string",
             "format": "uuid",
-            "description": "ID группы"
+            "description": "ID группы (null — не менять)"
           },
           "allowedSubgroupId": {
             "type": "string",
             "format": "uuid",
-            "description": "ID разрешённой подгруппы (null = вся группа)"
+            "description": "ID разрешённой подгруппы (null — не менять; очистить через этот эндпоинт нельзя)"
           },
           "allowedLessonType": {
             "type": "string",
-            "description": "Разрешённый тип занятия (null = все типы)",
+            "description": "Разрешённый тип занятия (null — не менять; очистить через этот эндпоинт нельзя)",
             "enum": ["LECTURE", "PRACTICE"]
           }
         }
       },
       "UpdateSubjectRequest": {
         "type": "object",
-        "description": "Запрос на частичное обновление предмета",
+        "description": "Запрос на частичное обновление предмета (PATCH).\nСемантика: поле = null или отсутствует — значение не изменяется.\nИсключение: name обязателен (валидируется как @NotBlank).\n",
         "properties": {
           "name": {
             "type": "string",
@@ -1342,54 +1381,47 @@
           },
           "description": {
             "type": "string",
-            "description": "Описание предмета"
+            "description": "Описание предмета (null — не менять)"
           },
           "archived": {
             "type": "boolean",
-            "description": "Флаг архивации предмета"
+            "description": "Флаг архивации: true — архивировать, false — разархивировать, null — не менять"
           }
         },
         "required": ["name"]
       },
       "UpdateLessonRequest": {
         "type": "object",
-        "description": "Запрос на частичное обновление занятия",
+        "description": "Запрос на частичное обновление занятия (PATCH).\nСемантика: поле = null или отсутствует — значение не изменяется.\nОчистка существующих значений (например, \"отвязать подгруппу\") через этот эндпоинт не поддерживается.\n",
         "properties": {
           "subjectId": {
             "type": "string",
             "format": "uuid",
-            "description": "ID предмета"
+            "description": "ID предмета (null — не менять)"
           },
           "groupId": {
             "type": "string",
             "format": "uuid",
-            "description": "ID группы"
+            "description": "ID группы (null — не менять)"
           },
           "type": {
             "type": "string",
-            "description": "Тип занятия",
+            "description": "Тип занятия (null — не менять)",
             "enum": ["LECTURE", "PRACTICE"]
           },
           "startedAt": {
             "type": "string",
-            "format": "date-time",
-            "description": "Время начала занятия"
+            "format": "date",
+            "description": "Дата занятия (null — не менять)"
           },
-          "endedAt": {
+          "topic": {
             "type": "string",
-            "format": "date-time",
-            "description": "Время окончания занятия"
-          },
-          "topic": { "type": "string", "description": "Тема занятия" },
-          "teacherId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID преподавателя"
+            "description": "Тема занятия (null — не менять)"
           },
           "subgroupId": {
             "type": "string",
             "format": "uuid",
-            "description": "ID подгруппы (null для всей группы)"
+            "description": "ID подгруппы (null — не менять; очистить через этот эндпоинт нельзя)"
           }
         }
       },
@@ -1417,21 +1449,18 @@
       },
       "UpdateGroupRequest": {
         "type": "object",
-        "description": "Запрос на частичное обновление группы",
+        "description": "Запрос на частичное обновление группы (PATCH).\nСемантика: поле = null или отсутствует — значение не изменяется.\nОсобый случай: students = [] трактуется как \"архивировать всех существующих\".\n",
         "properties": {
-          "groupName": {
+          "name": {
             "type": "string",
-            "description": "Новое название группы",
-            "minLength": 1
+            "description": "Новое название группы (null — не менять)"
           },
           "students": {
             "type": "array",
-            "description": "Список студентов группы (полное обновление состава)",
-            "items": { "$ref": "#/components/schemas/StudentPatchRequest" },
-            "minItems": 1
+            "description": "Полный новый состав студентов. null — не трогать состав, []  — архивировать всех существующих",
+            "items": { "$ref": "#/components/schemas/StudentPatchRequest" }
           }
-        },
-        "required": ["groupName", "students"]
+        }
       },
       "PageMetadata": {
         "type": "object",
@@ -1531,8 +1560,8 @@
           },
           "startedAt": {
             "type": "string",
-            "format": "date-time",
-            "description": "Время начала"
+            "format": "date",
+            "description": "Дата занятия"
           },
           "type": {
             "type": "string",

@@ -10,8 +10,17 @@ import { arrayMinLength, string, uuidV4 } from '~/utils/validation'
 type GroupResponse = components['schemas']['GroupResponse']
 type UpdateGroupRequest = components['schemas']['UpdateGroupRequest']
 
-const UpdateGroupRequestSchema: SchemaFor<UpdateGroupRequest> = v.object({
-  groupName: string('Введите название группы'),
+interface FormSchema {
+  name: string
+  students: {
+    id?: string
+    username: string
+    subgroupId?: string
+  }[]
+}
+
+const UpdateGroupRequestSchema: SchemaFor<FormSchema> = v.object({
+  name: string('Введите название группы'),
 
   students: arrayMinLength(
     v.object({
@@ -40,9 +49,12 @@ const { data, pending, error, refresh } = useBackend('/api/groups/{id}', {
 const group = computed<GroupResponse | null>(() => data.value ?? null)
 
 const state = reactive<Schema>({
-  groupName: '',
+  name: '',
   students: [],
 })
+
+const originalName = ref('')
+const originalStudents = ref<FormSchema['students']>([])
 
 const loading = ref(false)
 const formRef = useTemplateRef<Form<typeof UpdateGroupRequestSchema>>('form')
@@ -52,15 +64,29 @@ watch(
   (g) => {
     if (!g)
       return
-    state.groupName = g.name ?? ''
+    state.name = g.name ?? ''
     state.students = (g.students ?? []).map(s => ({
       id: s.id,
       username: s.username ?? '',
       subgroupId: s.subgroupId ?? undefined,
     }))
+    originalName.value = state.name
+    originalStudents.value = state.students.map(s => ({ ...s }))
   },
   { immediate: true },
 )
+
+function isStudentsChanged(a: FormSchema['students'], b: FormSchema['students']): boolean {
+  if (a.length !== b.length)
+    return true
+  for (let i = 0; i < a.length; i++) {
+    const sa = a[i]!
+    const sb = b[i]!
+    if (sa.username !== sb.username || sa.subgroupId !== sb.subgroupId || sa.id !== sb.id)
+      return true
+  }
+  return false
+}
 
 const subgroupOptions = computed(() => {
   return (group.value?.subgroups ?? []).map((sg, idx) => ({
@@ -183,10 +209,16 @@ async function handleSave() {
 
   loading.value = true
   try {
+    const body: UpdateGroupRequest = {}
+    if (data.name !== originalName.value)
+      body.name = data.name
+    if (isStudentsChanged(data.students, originalStudents.value))
+      body.students = data.students
+
     await $backend('/api/groups/{id}', {
       method: 'PATCH',
       path: { id: groupId.value },
-      body: data,
+      body,
     })
     toast.add({
       title: 'Группа обновлена',
@@ -233,35 +265,25 @@ function handleCancel() {
     />
 
     <template v-else-if="group">
-      <div class="flex items-center gap-4">
-        <UAvatar
-          icon="i-lucide-users"
-          size="xl"
-          class="rounded-xl bg-secondary/10 text-secondary"
-        />
-        <div class="flex-1">
-          <UInput
-            v-model="state.groupName"
-            placeholder="Название группы"
-            class="w-full sm:w-96"
-          />
-        </div>
-        <UButton
-          color="neutral"
-          variant="ghost"
-          @click="handleCancel"
-        >
-          Отмена
-        </UButton>
-        <UButton
-          icon="i-lucide-check"
-          :loading="loading"
-          :disabled="!state.groupName.trim()"
-          @click="handleSave"
-        >
-          Сохранить
-        </UButton>
-      </div>
+      <UPageHeader :title="state.name || 'Редактирование'">
+        <template #links>
+          <UButton
+            color="neutral"
+            variant="ghost"
+            @click="handleCancel"
+          >
+            Отмена
+          </UButton>
+          <UButton
+            icon="i-lucide-check"
+            :loading="loading"
+            :disabled="!state.name.trim()"
+            @click="handleSave"
+          >
+            Сохранить
+          </UButton>
+        </template>
+      </UPageHeader>
 
       <UForm
         ref="form"
@@ -269,30 +291,30 @@ function handleCancel() {
         :state="state"
         class="flex flex-col gap-4"
       >
+        <UFormField name="name">
+          <UInput
+            v-model="state.name"
+            placeholder="Название группы"
+            class="w-full sm:w-96"
+          />
+        </UFormField>
         <UTabs v-if="groupTabs.length" v-model="activeTab" :items="groupTabs" />
 
         <UCard v-if="groupTabs.length && activeTabData">
           <template #header>
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <h3 class="text-lg font-semibold">
-                  {{ activeTabData.title }}
-                </h3>
-                <UBadge color="neutral" variant="soft">
-                  {{ activeTabRows.length }}
-                </UBadge>
-              </div>
+            <div class="flex items-center gap-2">
+              <h3 class="text-lg font-semibold">
+                {{ activeTabData.title }}
+              </h3>
             </div>
           </template>
 
-          <div class="mb-4">
-            <UInput
-              v-model="studentSearch"
-              icon="i-lucide-search"
-              placeholder="Поиск по имени..."
-              class="w-full sm:w-72"
-            />
-          </div>
+          <UInput
+            v-model="studentSearch"
+            icon="i-lucide-search"
+            placeholder="Поиск по имени..."
+            class="w-full sm:w-72 mb-4"
+          />
 
           <div class="flex flex-col gap-2">
             <div
@@ -323,9 +345,9 @@ function handleCancel() {
               />
             </div>
 
-            <div v-if="filteredTabRows.length === 0" class="text-muted py-4">
+            <p v-if="filteredTabRows.length === 0" class="text-muted py-4">
               {{ activeTabData.emptyDescription }}
-            </div>
+            </p>
 
             <UInput
               v-model="newStudentsInput"

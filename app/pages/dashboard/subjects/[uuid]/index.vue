@@ -44,46 +44,38 @@ const lessonTypeLabel: Record<string, string> = {
       :description="error.message"
     />
 
-    <div v-else>
-      <p class="text-muted mb-4 text-sm">
-        Ваше назначение по этому предмету:
-      </p>
+    <USkeleton v-else-if="pending" class="h-20" />
 
-      <USkeleton v-if="pending" class="h-20" />
+    <UEmpty
+      v-else-if="!permission"
+      icon="i-lucide-shield-off"
+      title="Назначения нет"
+      description="У вас нет назначения по данному предмету."
+      variant="naked"
+      class="py-8"
+    />
 
-      <UEmpty
-        v-else-if="!permission"
-        icon="i-lucide-shield-off"
-        title="Назначения нет"
-        description="У вас нет назначения по данному предмету."
-        variant="naked"
-        class="py-8"
-      />
-
-      <UCard v-else :ui="{ body: 'p-4' }">
-        <div class="flex items-start gap-3">
-          <UIcon name="i-lucide-users" class="text-(--ui-primary) mt-0.5 size-5 shrink-0" />
-          <div class="min-w-0 flex-1">
-            <p class="font-medium">
-              {{ permission.groupName ?? '—' }}
-            </p>
-            <div class="text-muted mt-1 flex flex-wrap gap-2 text-sm">
-              <UBadge
-                variant="soft"
-                color="neutral"
-                :label="permission.allowedLessonType ? lessonTypeLabel[permission.allowedLessonType] : 'Все типы'"
-                icon="i-lucide-book"
-              />
-              <UBadge
-                variant="soft"
-                color="neutral"
-                :label="permission.allowedSubgroupIndex != null ? `Подгруппа ${permission.allowedSubgroupIndex}` : 'Все подгруппы'"
-                icon="i-lucide-layers"
-              />
-            </div>
-          </div>
+    <UCard v-else>
+      <template #header>
+        <div class="flex items-center gap-3">
+          <UIcon name="i-lucide-users" class="text-primary size-5" />
+          <span class="font-medium">{{ permission.groupName ?? '—' }}</span>
         </div>
-      </UCard>
-    </div>
+      </template>
+      <div class="flex flex-wrap gap-2">
+        <UBadge
+          variant="soft"
+          color="neutral"
+          :label="permission.allowedLessonType ? lessonTypeLabel[permission.allowedLessonType] : 'Все типы'"
+          icon="i-lucide-book"
+        />
+        <UBadge
+          variant="soft"
+          color="neutral"
+          :label="permission.allowedSubgroupIndex != null ? `Подгруппа ${permission.allowedSubgroupIndex}` : 'Все подгруппы'"
+          icon="i-lucide-layers"
+        />
+      </div>
+    </UCard>
   </div>
 </template>

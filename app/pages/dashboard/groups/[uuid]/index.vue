@@ -157,36 +157,26 @@ watch(
     />
 
     <template v-else-if="group">
-      <div class="flex items-center gap-4">
-        <UAvatar
-          icon="i-lucide-users"
-          size="xl"
-          class="rounded-xl bg-secondary/10 text-secondary"
-        />
-        <div class="flex-1">
-          <h1 class="text-xl font-semibold">
-            {{ group.name }}
-          </h1>
-          <div class="text-muted flex items-center gap-2">
-            <span>{{ (group.students ?? []).length }} студентов</span>
-            <span>·</span>
-            <span>{{ (group.subgroups ?? []).length }} подгрупп</span>
-          </div>
-        </div>
-        <UButton
-          :to="`/dashboard/groups/${groupId}/edit`"
-          label="Редактировать"
-          icon="i-lucide-pencil"
-          variant="outline"
-          color="neutral"
-        />
-        <UButton
-          icon="i-lucide-trash-2"
-          color="error"
-          variant="ghost"
-          @click="deletingGroup = true"
-        />
-      </div>
+      <UPageHeader :title="group.name ?? ''">
+        <template #description>
+          {{ (group.students ?? []).length }} студентов · {{ (group.subgroups ?? []).length }} подгрупп
+        </template>
+        <template #links>
+          <UButton
+            :to="`/dashboard/groups/${groupId}/edit`"
+            label="Редактировать"
+            icon="i-lucide-pencil"
+            variant="outline"
+            color="neutral"
+          />
+          <UButton
+            icon="i-lucide-trash-2"
+            color="error"
+            variant="ghost"
+            @click="deletingGroup = true"
+          />
+        </template>
+      </UPageHeader>
 
       <UTabs v-if="groupTabs.length" v-model="activeTab" :items="groupTabs" />
 
@@ -197,9 +187,6 @@ watch(
               <h3 class="text-lg font-semibold">
                 {{ activeTabData.title }}
               </h3>
-              <UBadge color="neutral" variant="soft">
-                {{ activeTabRows.length }}
-              </UBadge>
             </div>
             <UButton
               icon="i-lucide-pencil"
@@ -211,14 +198,12 @@ watch(
           </div>
         </template>
 
-        <div class="mb-4">
-          <UInput
-            v-model="studentSearch"
-            icon="i-lucide-search"
-            placeholder="Поиск по имени..."
-            class="w-full sm:w-72"
-          />
-        </div>
+        <UInput
+          v-model="studentSearch"
+          icon="i-lucide-search"
+          placeholder="Поиск по имени..."
+          class="w-full sm:w-72 mb-4"
+        />
 
         <GroupsStudentsTable
           :rows="filteredTabRows"

@@ -172,7 +172,7 @@ async function handleCreate() {
 </script>
 
 <template>
-  <div class="flex flex-col gap-4">
+  <div class="flex flex-col gap-6">
     <UPageHeader title="Создать занятия по расписанию">
       <template #links>
         <UButton
@@ -211,15 +211,14 @@ async function handleCreate() {
 
       <USeparator />
 
-      <div v-if="errors.length" class="flex flex-col gap-1">
-        <UAlert
-          color="error"
-          variant="soft"
-          icon="i-lucide-circle-alert"
-          title="Исправьте ошибки"
-          :description="errors.join(' · ')"
-        />
-      </div>
+      <UAlert
+        v-if="errors.length"
+        color="error"
+        variant="soft"
+        icon="i-lucide-circle-alert"
+        title="Исправьте ошибки"
+        :description="errors.join(' · ')"
+      />
 
       <div class="flex flex-col gap-6">
         <UCard
@@ -328,23 +327,15 @@ async function handleCreate() {
         @click="addEntry"
       />
 
-      <div class="flex justify-end gap-2">
-        <UButton
-          :to="`/dashboard/subjects/${subjectId}/lessons`"
-          color="neutral"
-          variant="ghost"
-        >
-          Отмена
-        </UButton>
-        <UButton
-          icon="i-lucide-check"
-          :loading="loading"
-          :disabled="!state.groupId || allowedLessonTypeOptions.length === 0"
-          @click="handleCreate"
-        >
-          Создать занятия
-        </UButton>
-      </div>
+      <UButton
+        icon="i-lucide-check"
+        :loading="loading"
+        :disabled="!state.groupId || allowedLessonTypeOptions.length === 0"
+        class="ml-auto"
+        @click="handleCreate"
+      >
+        Создать занятия
+      </UButton>
     </div>
   </div>
 </template>

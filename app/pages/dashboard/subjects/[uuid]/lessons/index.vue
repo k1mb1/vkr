@@ -31,15 +31,13 @@ const lessonTypeLabel: Record<string, string> = {
   PRACTICE: 'Практика',
 }
 
-function formatDateTime(dt: string | undefined): string {
+function formatDate(dt: string | undefined): string {
   if (!dt)
     return '—'
   return new Intl.DateTimeFormat('ru', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
   }).format(new Date(dt))
 }
 
@@ -50,19 +48,21 @@ const columns: TableColumn<LessonResponse>[] = [
     cell: ({ row }) => lessonTypeLabel[row.original.type ?? ''] ?? row.original.type ?? '—',
   },
   {
+    accessorKey: 'subgroupIndex',
+    header: 'Подгруппа',
+    cell: ({ row }) => row.original.subgroupIndex === null
+      ? 'все'
+      : `подгруппа ${row.original.subgroupIndex}`,
+  },
+  {
     accessorKey: 'topic',
     header: 'Тема',
     cell: ({ row }) => row.original.topic ?? '—',
   },
   {
     accessorKey: 'startedAt',
-    header: 'Начало',
-    cell: ({ row }) => formatDateTime(row.original.startedAt),
-  },
-  {
-    accessorKey: 'endedAt',
-    header: 'Конец',
-    cell: ({ row }) => formatDateTime(row.original.endedAt),
+    header: 'Дата',
+    cell: ({ row }) => formatDate(row.original.startedAt),
   },
   { id: 'actions', header: '' },
 ]
@@ -76,6 +76,13 @@ const deleting = ref(false)
 const { $backend } = useNuxtApp()
 const { toastError } = useApiError()
 const toast = useToast()
+
+function goToEdit(row: LessonResponse) {
+  navigateTo({
+    path: `/dashboard/subjects/${subjectId.value}/lessons/${row.id}/edit`,
+    state: { lesson: JSON.parse(JSON.stringify(row)) },
+  })
+}
 
 function openDeleteModal(row: LessonResponse) {
   deleteTarget.value = row
@@ -113,6 +120,13 @@ function rowActions(row: LessonResponse): DropdownMenuItem[][] {
   return [
     [
       {
+        label: 'Изменить',
+        icon: 'i-lucide-pencil',
+        onSelect: () => goToEdit(row),
+      },
+    ],
+    [
+      {
         label: 'Удалить',
         icon: 'i-lucide-trash-2',
         color: 'error',
@@ -124,7 +138,7 @@ function rowActions(row: LessonResponse): DropdownMenuItem[][] {
 </script>
 
 <template>
-  <div class="flex h-full flex-col gap-6">
+  <div class="flex flex-col gap-6">
     <UPageHeader title="Занятия">
       <template #links>
         <UButton
@@ -172,19 +186,26 @@ function rowActions(row: LessonResponse): DropdownMenuItem[][] {
         />
       </template>
 
+      <template #subgroupIndex-cell="{ row }">
+        <UBadge
+          variant="soft"
+          color="neutral"
+          :label="row.original.subgroupIndex === null ? 'все' : `подгруппа ${row.original.subgroupIndex}`"
+        />
+      </template>
+
       <template #actions-cell="{ row }">
-        <div class="flex justify-end">
-          <UDropdownMenu
-            :items="rowActions(row.original)"
-            :ui="{ content: 'w-36' }"
-          >
-            <UButton
-              icon="i-lucide-ellipsis-vertical"
-              color="neutral"
-              variant="ghost"
-            />
-          </UDropdownMenu>
-        </div>
+        <UDropdownMenu
+          :items="rowActions(row.original)"
+          :ui="{ content: 'w-36' }"
+          class="flex justify-end"
+        >
+          <UButton
+            icon="i-lucide-ellipsis-vertical"
+            color="neutral"
+            variant="ghost"
+          />
+        </UDropdownMenu>
       </template>
 
       <template #empty>

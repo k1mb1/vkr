@@ -148,8 +148,6 @@ function formatLessonHeader(lesson: AttendanceTableLesson): string {
   return new Intl.DateTimeFormat('ru', {
     day: '2-digit',
     month: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
   }).format(new Date(lesson.startedAt))
 }
 
@@ -255,14 +253,13 @@ async function saveCell() {
     <div v-else class="flex flex-col gap-3">
       <div class="text-muted flex flex-wrap items-center gap-3 text-sm">
         <span>Легенда:</span>
-        <span
+        <UBadge
           v-for="s in STATUSES"
           :key="s"
-          class="flex items-center gap-1"
-        >
-          <UBadge variant="soft" :color="statusColor[s]" :label="statusShort[s]" />
-          <span>{{ statusLabel[s] }}</span>
-        </span>
+          variant="soft"
+          :color="statusColor[s]"
+          :label="`${statusShort[s]} · ${statusLabel[s]}`"
+        />
       </div>
 
       <UCard v-if="pending && students.length === 0" :ui="{ body: 'p-6' }">
@@ -316,16 +313,12 @@ async function saveCell() {
                         :color="lesson.type === 'LECTURE' ? 'primary' : 'secondary'"
                         :label="lesson.type ? lessonTypeLabel[lesson.type] : '—'"
                       />
-                      <span class="text-muted whitespace-nowrap text-xs">
-                        {{ formatLessonHeader(lesson) }}
-                      </span>
+                      <span class="text-muted text-xs">{{ formatLessonHeader(lesson) }}</span>
                       <span
                         v-if="lesson.topic"
-                        class="text-default line-clamp-1 max-w-[140px] text-xs"
+                        class="line-clamp-1 max-w-[140px] text-xs"
                         :title="lesson.topic"
-                      >
-                        {{ lesson.topic }}
-                      </span>
+                      >{{ lesson.topic }}</span>
                     </div>
                   </th>
                 </tr>
@@ -337,12 +330,8 @@ async function saveCell() {
                   :key="student.id"
                   class="hover:bg-elevated/50"
                 >
-                  <th
-                    class="bg-default ring-default sticky left-0 z-10 px-3 py-2 text-left font-normal ring-1"
-                  >
-                    <span class="line-clamp-1" :title="student.username ?? ''">
-                      {{ student.username ?? '—' }}
-                    </span>
+                  <th class="bg-default ring-default sticky left-0 z-10 px-3 py-2 text-left font-normal ring-1">
+                    <span class="line-clamp-1" :title="student.username ?? ''">{{ student.username ?? '—' }}</span>
                   </th>
 
                   <td
@@ -389,16 +378,14 @@ async function saveCell() {
     >
       <template #body="{ close }">
         <div class="flex flex-col gap-4">
-          <div class="text-muted flex flex-col gap-1 text-sm">
-            <div>
-              <span class="text-default font-medium">{{ editStudent?.username ?? '—' }}</span>
-            </div>
-            <div v-if="editLesson">
-              {{ editLesson.type ? lessonTypeLabel[editLesson.type] : '' }}
-              · {{ formatLessonHeader(editLesson) }}
-              <span v-if="editLesson.topic">· {{ editLesson.topic }}</span>
-            </div>
-          </div>
+          <p class="text-sm font-medium">
+            {{ editStudent?.username ?? '—' }}
+          </p>
+          <p v-if="editLesson" class="text-muted text-sm">
+            {{ editLesson.type ? lessonTypeLabel[editLesson.type] : '' }}
+            · {{ formatLessonHeader(editLesson) }}
+            <span v-if="editLesson.topic">· {{ editLesson.topic }}</span>
+          </p>
 
           <URadioGroup
             v-model="editStatus"

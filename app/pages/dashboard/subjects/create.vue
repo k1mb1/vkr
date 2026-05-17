@@ -57,16 +57,10 @@ async function handleCreate() {
     loading.value = false
   }
 }
-
-function resetForm() {
-  state.name = ''
-  state.description = undefined
-  state.groupId = ''
-}
 </script>
 
 <template>
-  <div class="flex flex-col gap-4 w-full mx-auto">
+  <div class="flex flex-col gap-6">
     <UPageHeader title="Создать предмет">
       <template #links>
         <UButton
@@ -107,24 +101,15 @@ function resetForm() {
         <GroupSelectMenu v-model="state.groupId" />
       </UFormField>
 
-      <div class="flex justify-end gap-2">
-        <UButton
-          color="neutral"
-          variant="ghost"
-          type="button"
-          @click="resetForm"
-        >
-          Очистить
-        </UButton>
-        <UButton
-          type="button"
-          icon="i-lucide-check"
-          :loading="loading"
-          @click="handleCreate"
-        >
-          Создать предмет
-        </UButton>
-      </div>
+      <UButton
+        type="button"
+        icon="i-lucide-check"
+        :loading="loading"
+        class="ml-auto"
+        @click="handleCreate"
+      >
+        Создать предмет
+      </UButton>
     </UForm>
   </div>
 </template>

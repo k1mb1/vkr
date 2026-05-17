@@ -96,7 +96,7 @@ async function handleCreate() {
 </script>
 
 <template>
-  <div class="flex flex-col gap-4">
+  <div class="flex flex-col gap-6">
     <UPageHeader title="Новое назначение">
       <template #links>
         <UButton
@@ -110,9 +110,7 @@ async function handleCreate() {
     </UPageHeader>
 
     <div v-if="loadingScope" class="flex flex-col gap-4">
-      <USkeleton class="h-12" />
-      <USkeleton class="h-12" />
-      <USkeleton class="h-12" />
+      <USkeleton v-for="i in 3" :key="i" class="h-12" />
     </div>
 
     <UAlert
@@ -170,24 +168,15 @@ async function handleCreate() {
         />
       </UFormField>
 
-      <div class="flex justify-end gap-2">
-        <UButton
-          :to="`/dashboard/subjects/${subjectId}/permissions`"
-          color="neutral"
-          variant="ghost"
-          type="button"
-        >
-          Отмена
-        </UButton>
-        <UButton
-          type="button"
-          icon="i-lucide-check"
-          :loading="loading"
-          @click="handleCreate"
-        >
-          Создать назначение
-        </UButton>
-      </div>
+      <UButton
+        type="button"
+        icon="i-lucide-check"
+        :loading="loading"
+        class="ml-auto"
+        @click="handleCreate"
+      >
+        Создать назначение
+      </UButton>
     </UForm>
   </div>
 </template>
