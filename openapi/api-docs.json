@@ -83,18 +83,18 @@
     "/api/attendances": {
       "get": {
         "tags": ["Attendances"],
-        "summary": "Получить таблицу посещаемости по permissionId (студенты × занятия)",
+        "summary": "Получить таблицу посещаемости по scopeId (студенты × занятия)",
         "operationId": "getAttendanceTable",
         "parameters": [
           {
-            "name": "permissionId",
+            "name": "scopeId",
             "in": "query",
-            "description": "ID права преподавателя на предмет",
+            "description": "ID scope'а права преподавателя (группа + опц. подгруппа + опц. тип занятия)",
             "required": true,
             "schema": {
               "type": "string",
               "format": "uuid",
-              "description": "ID права преподавателя на предмет"
+              "description": "ID scope'а права преподавателя (группа + опц. подгруппа + опц. тип занятия)"
             }
           }
         ],
@@ -424,11 +424,11 @@
     "/api/check-in-sessions": {
       "get": {
         "tags": ["Check-in sessions"],
-        "summary": "Список check-in сессий по permissionId",
+        "summary": "Список check-in сессий по scopeId",
         "operationId": "list",
         "parameters": [
           {
-            "name": "permissionId",
+            "name": "scopeId",
             "in": "query",
             "required": true,
             "schema": { "type": "string", "format": "uuid" }
@@ -835,11 +835,11 @@
         }
       }
     },
-    "/api/teacher-subject-permissions/by-teacher": {
+    "/api/teacher-subject-permissions/single": {
       "get": {
         "tags": ["Teacher Subject Permissions"],
-        "summary": "Получить права преподавателя на предмет (одна запись на каждую группу/подгруппу/тип занятия)",
-        "operationId": "getPermissionsBySubjectAndTeacher",
+        "summary": "Получить право преподавателя на предмет",
+        "operationId": "getPermission",
         "parameters": [
           {
             "name": "subjectId",
@@ -860,10 +860,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/TeacherSubjectPermissionResponse"
-                  }
+                  "$ref": "#/components/schemas/TeacherSubjectPermissionResponse"
                 }
               }
             }
@@ -903,18 +900,18 @@
     "/api/lessons": {
       "get": {
         "tags": ["Lessons"],
-        "summary": "Получить список занятий по permissionId преподавателя",
+        "summary": "Получить список занятий по scopeId преподавателя",
         "operationId": "getLessons",
         "parameters": [
           {
-            "name": "permissionId",
+            "name": "scopeId",
             "in": "query",
-            "description": "ID права преподавателя на предмет",
+            "description": "ID scope'а права преподавателя (группа + опц. подгруппа + опц. тип занятия)",
             "required": true,
             "schema": {
               "type": "string",
               "format": "uuid",
-              "description": "ID права преподавателя на предмет"
+              "description": "ID scope'а права преподавателя (группа + опц. подгруппа + опц. тип занятия)"
             }
           }
         ],
@@ -1173,7 +1170,7 @@
       },
       "CreateTeacherSubjectPermissionRequest": {
         "type": "object",
-        "description": "Запрос на создание права преподавателя на предмет",
+        "description": "Запрос на создание права преподавателя на предмет (со списком scopes)",
         "properties": {
           "teacherId": {
             "type": "string",
@@ -1185,6 +1182,19 @@
             "format": "uuid",
             "description": "ID предмета"
           },
+          "scopes": {
+            "type": "array",
+            "description": "Список scope'ов: для каждой группы/подгруппы/типа занятия — отдельная запись",
+            "items": { "$ref": "#/components/schemas/PermissionScopeRequest" },
+            "minItems": 1
+          }
+        },
+        "required": ["scopes", "subjectId", "teacherId"]
+      },
+      "PermissionScopeRequest": {
+        "type": "object",
+        "description": "Один scope права: группа + опциональная подгруппа + опциональный тип занятия",
+        "properties": {
           "groupId": {
             "type": "string",
             "format": "uuid",
@@ -1201,30 +1211,16 @@
             "enum": ["LECTURE", "PRACTICE"]
           }
         },
-        "required": ["groupId", "subjectId", "teacherId"]
+        "required": ["groupId"]
       },
-      "TeacherSubjectPermissionResponse": {
+      "PermissionScopeResponse": {
         "type": "object",
-        "description": "Право преподавателя на предмет",
+        "description": "Scope права преподавателя на предмет (одна группа / опц. подгруппа / опц. тип занятия)",
         "properties": {
           "id": {
             "type": "string",
             "format": "uuid",
-            "description": "ID права"
-          },
-          "teacherId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID преподавателя"
-          },
-          "teacherName": {
-            "type": "string",
-            "description": "Имя преподавателя"
-          },
-          "subjectId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID предмета"
+            "description": "ID scope"
           },
           "groupId": {
             "type": "string",
@@ -1246,6 +1242,36 @@
             "type": "string",
             "description": "Разрешённый тип занятия",
             "enum": ["LECTURE", "PRACTICE"]
+          }
+        }
+      },
+      "TeacherSubjectPermissionResponse": {
+        "type": "object",
+        "description": "Право преподавателя на предмет: пара (teacher, subject) + список scope'ов",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID права"
+          },
+          "teacherId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID преподавателя"
+          },
+          "teacherName": {
+            "type": "string",
+            "description": "Имя преподавателя"
+          },
+          "subjectId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID предмета"
+          },
+          "scopes": {
+            "type": "array",
+            "description": "Список scope'ов",
+            "items": { "$ref": "#/components/schemas/PermissionScopeResponse" }
           },
           "createdAt": {
             "type": "string",
@@ -1608,10 +1634,10 @@
         "type": "object",
         "description": "Запуск опроса по посещаемости",
         "properties": {
-          "permissionId": {
+          "scopeId": {
             "type": "string",
             "format": "uuid",
-            "description": "ID права преподавателя на предмет"
+            "description": "ID scope'а права преподавателя (группа + опц. подгруппа + опц. тип занятия)"
           },
           "lessonId": {
             "type": "string",
@@ -1632,7 +1658,7 @@
             "example": 600
           }
         },
-        "required": ["lateSeconds", "lessonId", "onTimeSeconds", "permissionId"]
+        "required": ["lateSeconds", "lessonId", "onTimeSeconds", "scopeId"]
       },
       "CheckInSessionResponse": {
         "type": "object",
@@ -1648,10 +1674,10 @@
             "format": "uuid",
             "description": "ID занятия"
           },
-          "permissionId": {
+          "scopeId": {
             "type": "string",
             "format": "uuid",
-            "description": "ID права преподавателя на предмет"
+            "description": "ID scope'а права преподавателя (группа + опц. подгруппа + опц. тип занятия)"
           },
           "startedAt": {
             "type": "string",
@@ -1775,27 +1801,17 @@
       },
       "UpdateTeacherSubjectPermissionRequest": {
         "type": "object",
-        "description": "Запрос на частичное обновление права преподавателя на предмет (PATCH).\nСемантика: поле = null или отсутствует — значение не изменяется.\nОчистка существующих значений (например, отвязать подгруппу или сбросить тип занятия) через этот эндпоинт не поддерживается.\n",
+        "description": "Запрос на обновление права преподавателя на предмет (PATCH).\nСемантика: поле = null или отсутствует — значение не изменяется.\nscopes (если указан) полностью заменяет текущий набор scope'ов: старые архивируются,\nновые создаются (либо переиспользуются совпадающие активные).\n",
         "properties": {
           "teacherId": {
             "type": "string",
             "format": "uuid",
             "description": "ID преподавателя (null — не менять)"
           },
-          "groupId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID группы (null — не менять)"
-          },
-          "allowedSubgroupId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID разрешённой подгруппы (null — не менять; очистить через этот эндпоинт нельзя)"
-          },
-          "allowedLessonType": {
-            "type": "string",
-            "description": "Разрешённый тип занятия (null — не менять; очистить через этот эндпоинт нельзя)",
-            "enum": ["LECTURE", "PRACTICE"]
+          "scopes": {
+            "type": "array",
+            "description": "Новый список scope'ов (null — не менять). Если задан — должен быть непустым.",
+            "items": { "$ref": "#/components/schemas/PermissionScopeRequest" }
           }
         }
       },
