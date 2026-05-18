@@ -51,6 +51,14 @@ const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
       else if (route.path.endsWith('/schedule'))
         items.push({ label: 'По расписанию' })
     }
+    else if (route.path.includes('/check-ins')) {
+      items.push({ label: 'Check-in', to: `/dashboard/subjects/${uuid.value}/check-ins` })
+      if (route.path.endsWith('/create'))
+        items.push({ label: 'Запуск' })
+    }
+    else if (route.path.includes('/attendances')) {
+      items.push({ label: 'Посещаемость', to: `/dashboard/subjects/${uuid.value}/attendances` })
+    }
   }
 
   return items
@@ -75,6 +83,18 @@ const toolbarItems = computed<NavigationMenuItem[][]>(() => uuid.value
         icon: 'i-lucide-calendar',
         to: `/dashboard/subjects/${uuid.value}/lessons`,
         active: route.path.startsWith(`/dashboard/subjects/${uuid.value}/lessons`),
+      },
+      {
+        label: 'Check-in',
+        icon: 'i-lucide-clipboard-list',
+        to: `/dashboard/subjects/${uuid.value}/check-ins`,
+        active: route.path.startsWith(`/dashboard/subjects/${uuid.value}/check-ins`),
+      },
+      {
+        label: 'Посещаемость',
+        icon: 'i-lucide-clipboard-check',
+        to: `/dashboard/subjects/${uuid.value}/attendances`,
+        active: route.path.startsWith(`/dashboard/subjects/${uuid.value}/attendances`),
       },
     ]]
   : [])

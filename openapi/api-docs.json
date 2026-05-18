@@ -19,6 +19,14 @@
       "name": "Teacher Subject Permissions",
       "description": "Права преподавателей на предметы"
     },
+    {
+      "name": "Check-in sessions (public)",
+      "description": "Публичная страница опроса по UUID сессии (QR-код)"
+    },
+    {
+      "name": "Check-in sessions",
+      "description": "Опросы по посещаемости (преподавательская сторона)"
+    },
     { "name": "Subgroups", "description": "Управление подгруппами" },
     { "name": "Groups", "description": "Управление группами и их составом" },
     { "name": "Subjects", "description": "Управление предметами" },
@@ -413,6 +421,157 @@
         }
       }
     },
+    "/api/check-in-sessions": {
+      "get": {
+        "tags": ["Check-in sessions"],
+        "summary": "Список check-in сессий по permissionId",
+        "operationId": "list",
+        "parameters": [
+          {
+            "name": "permissionId",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CheckInSessionResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Check-in sessions"],
+        "summary": "Запустить опрос по посещаемости на занятии",
+        "operationId": "start",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/StartCheckInRequest" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckInSessionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/check-in-sessions/{id}/confirm": {
+      "post": {
+        "tags": ["Check-in sessions"],
+        "summary": "Подтвердить и перенести результаты в основную посещаемость",
+        "operationId": "confirm",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ConfirmCheckInRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckInSessionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/check-in-sessions/{id}/cancel": {
+      "post": {
+        "tags": ["Check-in sessions"],
+        "summary": "Отменить check-in сессию (без переноса в посещаемость)",
+        "operationId": "cancel",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckInSessionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/check-in-sessions/public/{id}/check-in": {
+      "post": {
+        "tags": ["Check-in sessions (public)"],
+        "summary": "Отметиться студенту",
+        "operationId": "checkIn",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/StudentCheckInRequest" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckInRecordResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/teacher-subject-permissions/{id}": {
       "delete": {
         "tags": ["Teacher Subject Permissions"],
@@ -764,6 +923,87 @@
                 "schema": {
                   "type": "array",
                   "items": { "$ref": "#/components/schemas/LessonResponse" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/check-in-sessions/{id}": {
+      "get": {
+        "tags": ["Check-in sessions"],
+        "summary": "Получить состояние одной check-in сессии",
+        "operationId": "get",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckInSessionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/check-in-sessions/{id}/preview": {
+      "get": {
+        "tags": ["Check-in sessions"],
+        "summary": "Сверочный пред-просмотр (что попадёт в основную посещаемость)",
+        "operationId": "preview",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckInPreviewResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/check-in-sessions/public/{id}": {
+      "get": {
+        "tags": ["Check-in sessions (public)"],
+        "summary": "Получить состояние сессии и список студентов",
+        "operationId": "get_1",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicCheckInSessionResponse"
                 }
               }
             }
@@ -1344,6 +1584,175 @@
           }
         }
       },
+      "StartCheckInRequest": {
+        "type": "object",
+        "description": "Запуск опроса по посещаемости",
+        "properties": {
+          "permissionId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID права преподавателя на предмет"
+          },
+          "lessonId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID занятия"
+          },
+          "onTimeSeconds": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Длительность основного окна (секунды). Студенты, отметившиеся здесь, получат статус PRESENT",
+            "example": 600,
+            "minimum": 1
+          },
+          "lateSeconds": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Дополнительное окно для опоздавших (секунды). Отметившиеся здесь получат статус LATE",
+            "example": 600
+          }
+        },
+        "required": ["lateSeconds", "lessonId", "onTimeSeconds", "permissionId"]
+      },
+      "CheckInSessionResponse": {
+        "type": "object",
+        "description": "Состояние check-in сессии для преподавателя",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID сессии"
+          },
+          "lessonId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID занятия"
+          },
+          "permissionId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID права преподавателя на предмет"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Момент запуска"
+          },
+          "onTimeSeconds": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Длительность основного окна (с)"
+          },
+          "lateSeconds": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Длительность окна для опоздавших (с)"
+          },
+          "onTimeEndsAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Момент окончания основного окна"
+          },
+          "lateEndsAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Момент окончания окна для опоздавших"
+          },
+          "confirmedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Момент подтверждения (если уже подтверждена)"
+          },
+          "cancelledAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Момент отмены (если отменена)"
+          },
+          "state": {
+            "type": "string",
+            "description": "Текущее состояние сессии",
+            "enum": [
+              "OPEN",
+              "LATE_WINDOW",
+              "AWAITING_CONFIRMATION",
+              "CONFIRMED",
+              "CANCELLED"
+            ]
+          }
+        }
+      },
+      "ConfirmCheckInRequest": {
+        "type": "object",
+        "description": "Подтверждение результатов check-in. Записи без отметки трактуются как ABSENT. В overrides можно изменить статус или добавить комментарий перед переносом в основную посещаемость.",
+        "properties": {
+          "overrides": {
+            "type": "array",
+            "description": "Ручные изменения статуса / комментариев для отдельных студентов",
+            "items": { "$ref": "#/components/schemas/Override" }
+          }
+        }
+      },
+      "Override": {
+        "type": "object",
+        "description": "Ручное переопределение статуса студента",
+        "properties": {
+          "studentId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID студента"
+          },
+          "status": {
+            "type": "string",
+            "description": "Финальный статус посещаемости",
+            "enum": ["PRESENT", "ABSENT", "LATE", "EXCUSED"]
+          },
+          "comment": { "type": "string", "description": "Комментарий" }
+        },
+        "required": ["status", "studentId"]
+      },
+      "StudentCheckInRequest": {
+        "type": "object",
+        "description": "Отметка студента в check-in сессии",
+        "properties": {
+          "studentId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID студента"
+          }
+        },
+        "required": ["studentId"]
+      },
+      "CheckInRecordResponse": {
+        "type": "object",
+        "description": "Запись о check-in одного студента",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID записи"
+          },
+          "sessionId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID сессии"
+          },
+          "studentId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID студента"
+          },
+          "status": {
+            "type": "string",
+            "description": "Статус",
+            "enum": ["PRESENT", "LATE"]
+          },
+          "checkedInAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Момент отметки"
+          }
+        }
+      },
       "UpdateTeacherSubjectPermissionRequest": {
         "type": "object",
         "description": "Запрос на частичное обновление права преподавателя на предмет (PATCH).\nСемантика: поле = null или отсутствует — значение не изменяется.\nОчистка существующих значений (например, отвязать подгруппу или сбросить тип занятия) через этот эндпоинт не поддерживается.\n",
@@ -1547,6 +1956,113 @@
             "items": { "$ref": "#/components/schemas/GroupPageResponse" }
           },
           "page": { "$ref": "#/components/schemas/PageMetadata" }
+        }
+      },
+      "CheckInPreviewResponse": {
+        "type": "object",
+        "description": "Сверочный пред-просмотр результатов check-in. Преподаватель видит, что попадёт в основную посещаемость после подтверждения.",
+        "properties": {
+          "session": {
+            "$ref": "#/components/schemas/CheckInSessionResponse",
+            "description": "Состояние сессии"
+          },
+          "rows": {
+            "type": "array",
+            "description": "Строки сверки: одна на каждого студента",
+            "items": { "$ref": "#/components/schemas/Row" }
+          }
+        }
+      },
+      "Row": {
+        "type": "object",
+        "description": "Строка сверки",
+        "properties": {
+          "studentId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID студента"
+          },
+          "username": { "type": "string", "description": "Имя студента" },
+          "checkInStatus": {
+            "type": "string",
+            "description": "Статус из check-in (если был)",
+            "enum": ["PRESENT", "LATE"]
+          },
+          "checkedInAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Момент отметки (если был)"
+          },
+          "proposedStatus": {
+            "type": "string",
+            "description": "Какой статус посещаемости будет проставлен по умолчанию",
+            "enum": ["PRESENT", "ABSENT", "LATE", "EXCUSED"]
+          }
+        }
+      },
+      "PublicCheckInSessionResponse": {
+        "type": "object",
+        "description": "Публичное состояние check-in сессии (для страницы студентов)",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID сессии"
+          },
+          "lessonTopic": { "type": "string", "description": "Тема занятия" },
+          "state": {
+            "type": "string",
+            "description": "Текущее состояние сессии",
+            "enum": [
+              "OPEN",
+              "LATE_WINDOW",
+              "AWAITING_CONFIRMATION",
+              "CONFIRMED",
+              "CANCELLED"
+            ]
+          },
+          "onTimeEndsAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Момент окончания основного окна"
+          },
+          "lateEndsAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Момент окончания окна для опоздавших"
+          },
+          "serverNow": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Текущий момент сервера (UTC)"
+          },
+          "students": {
+            "type": "array",
+            "description": "Список студентов для таблицы check-in",
+            "items": { "$ref": "#/components/schemas/Student" }
+          }
+        }
+      },
+      "Student": {
+        "type": "object",
+        "description": "Строка таблицы студентов",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID студента"
+          },
+          "username": { "type": "string", "description": "Имя студента" },
+          "checkedInStatus": {
+            "type": "string",
+            "description": "Уже отметившийся статус, либо null если ещё не отмечен",
+            "enum": ["PRESENT", "LATE"]
+          },
+          "checkedInAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Момент отметки, если есть"
+          }
         }
       },
       "AttendanceTableLesson": {

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { components } from '#open-fetch-schemas/backend'
+import type { TableColumn } from '@nuxt/ui'
 import type { FetchError } from 'ofetch'
+import { useLocalStorage } from '@vueuse/core'
 
 type AttendanceTableStudent = components['schemas']['AttendanceTableStudent']
 type AttendanceTableLesson = components['schemas']['AttendanceTableLesson']
@@ -151,6 +153,153 @@ function formatLessonHeader(lesson: AttendanceTableLesson): string {
   }).format(new Date(lesson.startedAt))
 }
 
+// ── Settings (persisted) ─────────────────────────────────
+
+interface AttendanceSettings {
+  summaryCount: boolean
+  summaryPercent: boolean
+  footerCount: boolean
+  footerPercent: boolean
+  lateWeight: number
+  excusedWeight: number
+}
+
+const settings = useLocalStorage<AttendanceSettings>('attendance:settings', {
+  summaryCount: true,
+  summaryPercent: true,
+  footerCount: true,
+  footerPercent: false,
+  lateWeight: 0.5,
+  excusedWeight: 1,
+}, { mergeDefaults: true })
+
+const showFooter = computed(() => settings.value.footerCount || settings.value.footerPercent)
+
+function statusWeight(status: AttendanceStatus | undefined): number {
+  if (status === 'PRESENT')
+    return 1
+  if (status === 'LATE')
+    return settings.value.lateWeight
+  if (status === 'EXCUSED')
+    return settings.value.excusedWeight
+  return 0
+}
+
+interface Stats { sum: number, total: number, percent: number }
+
+function studentStats(studentId: string | undefined): Stats {
+  if (!studentId)
+    return { sum: 0, total: 0, percent: 0 }
+  let sum = 0
+  for (const lesson of lessons.value) {
+    if (!lesson.id)
+      continue
+    const cell = getCell(studentId, lesson.id)
+    sum += statusWeight(cell?.status as AttendanceStatus | undefined)
+  }
+  const total = lessons.value.length
+  return { sum, total, percent: total ? (sum / total) * 100 : 0 }
+}
+
+function lessonStats(lessonId: string | undefined, list: AttendanceTableStudent[]): Stats {
+  if (!lessonId)
+    return { sum: 0, total: 0, percent: 0 }
+  let sum = 0
+  for (const s of list) {
+    if (!s.id)
+      continue
+    const cell = getCell(s.id, lessonId)
+    sum += statusWeight(cell?.status as AttendanceStatus | undefined)
+  }
+  const total = list.length
+  return { sum, total, percent: total ? (sum / total) * 100 : 0 }
+}
+
+function groupStats(list: AttendanceTableStudent[]): Stats {
+  let sum = 0
+  let total = 0
+  for (const s of list) {
+    if (!s.id)
+      continue
+    const st = studentStats(s.id)
+    sum += st.sum
+    total += st.total
+  }
+  return { sum, total, percent: total ? (sum / total) * 100 : 0 }
+}
+
+function formatCount(n: number): string {
+  return Number.isInteger(n) ? `${n}` : n.toFixed(1)
+}
+
+function formatPercent(n: number): string {
+  return `${Math.round(n)}%`
+}
+
+const columns = computed<TableColumn<AttendanceTableStudent>[]>(() => {
+  const withFooter = showFooter.value
+  const base = withFooter ? { footer: '' } : {}
+
+  const cols: TableColumn<AttendanceTableStudent>[] = [
+    {
+      accessorKey: 'username',
+      header: 'Студент',
+      meta: {
+        class: {
+          th: 'min-w-[220px]',
+          td: 'min-w-[220px]',
+        },
+      },
+      ...base,
+    },
+  ]
+
+  for (const lesson of lessons.value) {
+    if (!lesson.id)
+      continue
+    cols.push({
+      id: lesson.id,
+      meta: {
+        class: {
+          th: 'min-w-[120px] text-center',
+          td: 'min-w-[120px] text-center p-1',
+        },
+      },
+      ...base,
+    })
+  }
+
+  if (settings.value.summaryCount) {
+    cols.push({
+      id: 'summaryCount',
+      header: 'Кол-во',
+      meta: {
+        class: {
+          th: 'min-w-[80px] text-center bg-elevated/50',
+          td: 'min-w-[80px] text-center tabular-nums font-medium bg-elevated/30',
+        },
+      },
+      ...base,
+    })
+  }
+
+  if (settings.value.summaryPercent) {
+    cols.push({
+      id: 'summaryPercent',
+      header: '%',
+      meta: {
+        class: {
+          th: 'min-w-[80px] text-center bg-elevated/50',
+          td: 'min-w-[80px] text-center tabular-nums font-medium bg-elevated/30',
+        },
+      },
+      ...base,
+    })
+  }
+
+  return cols
+})
+
 // ── Edit cell ────────────────────────────────────────────
 
 const editOpen = ref(false)
@@ -216,6 +365,63 @@ async function saveCell() {
   <div class="flex h-full flex-col gap-6">
     <UPageHeader title="Посещаемость">
       <template #links>
+        <UPopover :ui="{ content: 'w-72' }">
+          <UButton
+            icon="i-lucide-settings-2"
+            color="neutral"
+            variant="outline"
+            label="Настройки"
+          />
+          <template #content>
+            <div class="p-4 flex flex-col gap-4">
+              <div class="flex flex-col gap-2">
+                <span class="text-xs uppercase tracking-wide text-muted font-medium">
+                  Итог по студенту
+                </span>
+                <UCheckbox v-model="settings.summaryCount" label="Кол-во" />
+                <UCheckbox v-model="settings.summaryPercent" label="Процент" />
+              </div>
+              <USeparator />
+              <div class="flex flex-col gap-2">
+                <span class="text-xs uppercase tracking-wide text-muted font-medium">
+                  Итог по занятию (низ таблицы)
+                </span>
+                <UCheckbox v-model="settings.footerCount" label="Кол-во" />
+                <UCheckbox v-model="settings.footerPercent" label="Процент" />
+              </div>
+              <USeparator />
+              <div class="flex flex-col gap-2">
+                <span class="text-xs uppercase tracking-wide text-muted font-medium">
+                  Веса статусов
+                </span>
+                <p class="text-muted text-xs">
+                  Присутствовал = 1, Отсутствовал = 0.
+                </p>
+                <UFormField label="Опоздал">
+                  <UInput
+                    v-model.number="settings.lateWeight"
+                    type="number"
+                    :min="0"
+                    :max="1"
+                    :step="0.1"
+                    class="w-full"
+                  />
+                </UFormField>
+                <UFormField label="Уваж. причина">
+                  <UInput
+                    v-model.number="settings.excusedWeight"
+                    type="number"
+                    :min="0"
+                    :max="1"
+                    :step="0.1"
+                    class="w-full"
+                  />
+                </UFormField>
+              </div>
+            </div>
+          </template>
+        </UPopover>
+
         <UButton
           icon="i-lucide-refresh-cw"
           color="neutral"
@@ -262,12 +468,8 @@ async function saveCell() {
         />
       </div>
 
-      <UCard v-if="pending && students.length === 0" :ui="{ body: 'p-6' }">
-        <USkeleton class="h-40 w-full" />
-      </UCard>
-
       <UEmpty
-        v-else-if="students.length === 0 || lessons.length === 0"
+        v-if="!pending && (students.length === 0 || lessons.length === 0)"
         icon="i-lucide-clipboard-x"
         title="Нет данных"
         description="Для отображения посещаемости нужны и студенты, и занятия."
@@ -292,81 +494,119 @@ async function saveCell() {
             />
           </div>
 
-          <div class="bg-default ring-default relative overflow-auto rounded-lg ring">
-            <table class="w-full border-separate border-spacing-0 text-sm">
-              <thead>
-                <tr>
-                  <th
-                    class="bg-elevated ring-default sticky left-0 top-0 z-30 min-w-[220px] px-3 py-2 text-left font-medium ring-1"
-                  >
-                    Студент
-                  </th>
-                  <th
-                    v-for="lesson in lessons"
-                    :key="lesson.id"
-                    class="bg-elevated ring-default sticky top-0 z-20 min-w-[120px] px-2 py-2 text-center font-medium ring-1"
-                  >
-                    <div class="flex flex-col items-center gap-1">
-                      <UBadge
-                        variant="soft"
-                        size="sm"
-                        :color="lesson.type === 'LECTURE' ? 'primary' : 'secondary'"
-                        :label="lesson.type ? lessonTypeLabel[lesson.type] : '—'"
-                      />
-                      <span class="text-muted text-xs">{{ formatLessonHeader(lesson) }}</span>
-                      <span
-                        v-if="lesson.topic"
-                        class="line-clamp-1 max-w-[140px] text-xs"
-                        :title="lesson.topic"
-                      >{{ lesson.topic }}</span>
-                    </div>
-                  </th>
-                </tr>
-              </thead>
+          <UTable
+            :data="group.students"
+            :columns="columns"
+            :loading="pending && group.students.length === 0"
+            loading-color="primary"
+            sticky
+            class="max-h-[calc(100vh-18rem)]"
+          >
+            <template #username-cell="{ row }">
+              <span :title="row.original.username ?? ''" class="line-clamp-1">
+                {{ row.original.username ?? '—' }}
+              </span>
+            </template>
 
-              <tbody>
-                <tr
-                  v-for="student in group.students"
-                  :key="student.id"
-                  class="hover:bg-elevated/50"
+            <template
+              v-for="lesson in lessons"
+              :key="`${lesson.id}-header`"
+              #[`${lesson.id}-header`]
+            >
+              <div class="flex flex-col items-center gap-1">
+                <UBadge
+                  variant="soft"
+                  :color="lesson.type === 'LECTURE' ? 'primary' : 'secondary'"
+                  :label="lesson.type ? lessonTypeLabel[lesson.type] : '—'"
+                />
+                <span class="text-muted text-xs">{{ formatLessonHeader(lesson) }}</span>
+                <span
+                  v-if="lesson.topic"
+                  class="line-clamp-1 max-w-[140px] text-xs"
+                  :title="lesson.topic"
                 >
-                  <th class="bg-default ring-default sticky left-0 z-10 px-3 py-2 text-left font-normal ring-1">
-                    <span class="line-clamp-1" :title="student.username ?? ''">{{ student.username ?? '—' }}</span>
-                  </th>
+                  {{ lesson.topic }}
+                </span>
+              </div>
+            </template>
 
-                  <td
-                    v-for="lesson in lessons"
-                    :key="lesson.id"
-                    class="ring-default p-1 text-center ring-1"
-                  >
-                    <UTooltip
-                      :text="getCell(student.id, lesson.id)?.comment || ''"
-                      :disabled="!getCell(student.id, lesson.id)?.comment"
-                    >
-                      <UButton
-                        v-if="getCell(student.id, lesson.id)?.status"
-                        block
-                        size="xs"
-                        variant="soft"
-                        :color="statusColor[getCell(student.id, lesson.id)!.status as AttendanceStatus]"
-                        :label="statusShort[getCell(student.id, lesson.id)!.status as AttendanceStatus]"
-                        @click="openCell(student, lesson)"
-                      />
-                      <UButton
-                        v-else
-                        block
-                        size="xs"
-                        variant="ghost"
-                        color="neutral"
-                        label="—"
-                        @click="openCell(student, lesson)"
-                      />
-                    </UTooltip>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+            <template
+              v-for="lesson in lessons"
+              :key="`${lesson.id}-cell`"
+              #[`${lesson.id}-cell`]="{ row }"
+            >
+              <UTooltip
+                :text="getCell(row.original.id, lesson.id)?.comment || ''"
+                :disabled="!getCell(row.original.id, lesson.id)?.comment"
+              >
+                <UButton
+                  v-if="getCell(row.original.id, lesson.id)?.status"
+                  block
+                  variant="soft"
+                  :color="statusColor[getCell(row.original.id, lesson.id)!.status as AttendanceStatus]"
+                  :label="statusShort[getCell(row.original.id, lesson.id)!.status as AttendanceStatus]"
+                  @click="openCell(row.original, lesson)"
+                />
+                <UButton
+                  v-else
+                  block
+                  variant="ghost"
+                  color="neutral"
+                  label="—"
+                  @click="openCell(row.original, lesson)"
+                />
+              </UTooltip>
+            </template>
+
+            <!-- Summary columns (per student) -->
+            <template #summaryCount-cell="{ row }">
+              {{ formatCount(studentStats(row.original.id).sum) }}
+              <span class="text-muted text-xs">
+                / {{ studentStats(row.original.id).total }}
+              </span>
+            </template>
+
+            <template #summaryPercent-cell="{ row }">
+              {{ formatPercent(studentStats(row.original.id).percent) }}
+            </template>
+
+            <!-- Footer cells -->
+            <template v-if="showFooter" #username-footer>
+              <span class="text-muted text-xs font-medium uppercase tracking-wide">
+                Итого
+              </span>
+            </template>
+
+            <template
+              v-for="lesson in lessons"
+              :key="`${lesson.id}-footer`"
+              #[`${lesson.id}-footer`]
+            >
+              <div class="flex flex-col items-center gap-0.5 text-xs tabular-nums">
+                <span v-if="settings.footerCount">
+                  {{ formatCount(lessonStats(lesson.id, group.students).sum) }}
+                  <span class="text-muted">
+                    / {{ lessonStats(lesson.id, group.students).total }}
+                  </span>
+                </span>
+                <span v-if="settings.footerPercent" class="text-muted">
+                  {{ formatPercent(lessonStats(lesson.id, group.students).percent) }}
+                </span>
+              </div>
+            </template>
+
+            <template v-if="settings.summaryCount" #summaryCount-footer>
+              <span class="tabular-nums font-medium">
+                {{ formatCount(groupStats(group.students).sum) }}
+              </span>
+            </template>
+
+            <template v-if="settings.summaryPercent" #summaryPercent-footer>
+              <span class="tabular-nums font-medium">
+                {{ formatPercent(groupStats(group.students).percent) }}
+              </span>
+            </template>
+          </UTable>
         </section>
       </div>
     </div>

@@ -29,6 +29,13 @@ const lessonTypeLabel: Record<string, string> = {
           label="Занятия"
         />
         <UButton
+          :to="`/dashboard/subjects/${subjectId}/check-ins`"
+          icon="i-lucide-clipboard-list"
+          color="neutral"
+          variant="outline"
+          label="Check-in"
+        />
+        <UButton
           :to="`/dashboard/subjects/${subjectId}/attendances`"
           icon="i-lucide-clipboard-check"
           label="Посещаемость"

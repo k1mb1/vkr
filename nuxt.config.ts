@@ -38,6 +38,7 @@ export default defineNuxtConfig({
       include: [
         'valibot',
         '@internationalized/date',
+        '@vueuse/integrations/useQRCode',
       ],
     },
   },

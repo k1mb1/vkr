@@ -23,7 +23,14 @@ watch(permissionId, (id) => {
 }, { immediate: true })
 
 const pending = computed(() => permissionPending.value || lessonsPending.value)
-const rows = computed<LessonResponse[]>(() => data.value ?? [])
+const rows = computed<LessonResponse[]>(() => {
+  const list = data.value ?? []
+  return [...list].sort((a, b) => {
+    const da = a.startedAt ?? ''
+    const db = b.startedAt ?? ''
+    return da.localeCompare(db)
+  })
+})
 
 const lessonTypeLabel: Record<string, string> = {
   LECTURE: 'Лекция',
@@ -152,7 +159,6 @@ function rowActions(row: LessonResponse): DropdownMenuItem[][] {
           icon="i-lucide-refresh-cw"
           color="neutral"
           variant="ghost"
-          size="sm"
           :loading="pending"
           @click="refresh()"
         />
@@ -161,13 +167,11 @@ function rowActions(row: LessonResponse): DropdownMenuItem[][] {
           label="По количеству"
           color="neutral"
           variant="outline"
-          size="sm"
           :to="`/dashboard/subjects/${subjectId}/lessons/create`"
         />
         <UButton
           icon="i-lucide-calendar-plus"
           label="По расписанию"
-          size="sm"
           :to="`/dashboard/subjects/${subjectId}/lessons/schedule`"
         />
       </div>
@@ -186,15 +190,12 @@ function rowActions(row: LessonResponse): DropdownMenuItem[][] {
     <!-- Table -->
     <div
       v-if="!error"
-      class="border border-default rounded-xl overflow-hidden"
     >
       <UTable
         :data="rows"
         :columns="columns"
         :loading="pending && rows.length === 0"
-        loading-color="primary"
         sticky
-        class="max-h-[calc(100vh-16rem)]"
       >
         <!-- Тема -->
         <template #topic-cell="{ row }">
@@ -214,7 +215,6 @@ function rowActions(row: LessonResponse): DropdownMenuItem[][] {
           <UBadge
             :color="row.original.type === 'LECTURE' ? 'primary' : 'secondary'"
             variant="subtle"
-            size="sm"
             :label="lessonTypeLabel[row.original.type ?? ''] ?? row.original.type ?? '—'"
           />
         </template>
@@ -243,7 +243,6 @@ function rowActions(row: LessonResponse): DropdownMenuItem[][] {
               icon="i-lucide-ellipsis"
               color="neutral"
               variant="ghost"
-              size="xs"
             />
           </UDropdownMenu>
         </template>
@@ -268,13 +267,11 @@ function rowActions(row: LessonResponse): DropdownMenuItem[][] {
                 label="По количеству"
                 color="neutral"
                 variant="outline"
-                size="sm"
                 :to="`/dashboard/subjects/${subjectId}/lessons/create`"
               />
               <UButton
                 icon="i-lucide-calendar-plus"
                 label="По расписанию"
-                size="sm"
                 :to="`/dashboard/subjects/${subjectId}/lessons/schedule`"
               />
             </div>

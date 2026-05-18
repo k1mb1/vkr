@@ -3,92 +3,179 @@ const { t } = useI18n({
   messages: {
     en: {
       hero: {
-        title: 'Your digital grade book',
-        description: 'A simple and powerful tool for teachers to track grades, attendance, and student progress — all in one place.',
+        title: 'Self-service attendance for university classes',
+        description: 'Students check themselves in by scanning a QR code or opening a link — you just review and confirm. Subjects, lessons and attendance in one teacher dashboard.',
         signin: 'Sign in',
-        dashboard: 'Open journal',
+        how: 'How it works',
       },
       features: {
-        title: 'Everything a teacher needs',
-        description: 'Designed for educators who want to focus on teaching, not paperwork.',
+        title: 'Built around real lessons',
+        description: 'Subjects, groups, lessons and attendance — plus the live check-in flow tying it all together.',
         items: {
-          grades: {
-            title: 'Grade management',
-            description: 'Log grades for any subject, assignment type, or grading scale. Edit and review the full history at any time.',
+          subjects: {
+            title: 'Subjects & groups',
+            description: 'Manage subjects, student groups and subgroups. Track who studies what at a glance.',
+          },
+          lessons: {
+            title: 'Lessons',
+            description: 'Generate lessons by count (lectures + practices) or paste a weekly schedule — recurring patterns supported.',
+          },
+          checkin: {
+            title: 'Live check-in',
+            description: 'Start a session, students mark themselves in within the on-time and late windows from their phones.',
           },
           attendance: {
-            title: 'Attendance tracking',
-            description: 'Mark presence, absence, or tardiness per lesson. Get instant attendance summaries for each student.',
+            title: 'Attendance grid',
+            description: 'A single sortable table of students × lessons. Override any cell, leave a comment, see subgroup splits.',
           },
-          subjects: {
-            title: 'Subjects & classes',
-            description: 'Organize students by class and subject. Manage multiple groups without losing track.',
+          permissions: {
+            title: 'Flexible assignments',
+            description: 'Assign a teacher to a subject for a specific group, subgroup or lesson type. Permissions stay scoped.',
           },
-          progress: {
-            title: 'Student progress',
-            description: 'See each student\'s performance over time with clear averages and trend indicators.',
+          auth: {
+            title: 'Institutional sign-in',
+            description: 'Single sign-on via OIDC. Each teacher sees only the subjects they were granted access to.',
           },
-          reports: {
-            title: 'Reports & export',
-            description: 'Generate summary reports for a class or individual student — ready to share with administration.',
+        },
+      },
+      how: {
+        title: 'How check-in works',
+        description: 'Three steps replace the roll call. No app installs, no accounts for students.',
+        steps: {
+          start: {
+            title: 'Start the session',
+            description: 'Pick the lesson and set on-time / late windows in minutes. The link and QR code appear instantly.',
           },
-          access: {
-            title: 'Secure access',
-            description: 'Each teacher sees only their own classes. Student data stays private and protected.',
+          mark: {
+            title: 'Students check in',
+            description: 'They open the QR or link, find themselves in the list and tap «I\'m here». One device — one check-in.',
+          },
+          confirm: {
+            title: 'Confirm the results',
+            description: 'Review who came on time, who was late, change statuses or add a comment, then move it to the main attendance table.',
           },
         },
       },
       cta: {
-        title: 'Start managing your journal today',
-        description: 'Sign in with your institution account and open your first class in minutes.',
-        action: 'Go to journal',
+        title: 'Stop calling out names',
+        description: 'Sign in with your institution account and run your first session in minutes.',
+        action: 'Sign in',
       },
     },
     ru: {
       hero: {
-        title: 'Ваш цифровой классный журнал',
-        description: 'Простой и удобный инструмент для преподавателей — ставьте оценки, отмечайте посещаемость и следите за успеваемостью учеников в одном месте.',
+        title: 'Самостоятельная отметка студентов на занятии',
+        description: 'Студенты отмечаются сами — по QR-коду или ссылке. Вы только проверяете и подтверждаете. Предметы, занятия и посещаемость — в одном кабинете преподавателя.',
         signin: 'Войти',
-        dashboard: 'Открыть журнал',
+        how: 'Как это работает',
       },
       features: {
-        title: 'Всё необходимое для преподавателя',
-        description: 'Создано для тех, кто хочет заниматься обучением, а не бумажной работой.',
+        title: 'Заточено под реальные занятия',
+        description: 'Предметы, группы, занятия и посещаемость — плюс живой check-in, который связывает всё вместе.',
         items: {
-          grades: {
-            title: 'Управление оценками',
-            description: 'Выставляйте оценки по любым предметам и типам работ. История оценок всегда под рукой.',
+          subjects: {
+            title: 'Предметы и группы',
+            description: 'Управляйте предметами, группами студентов и подгруппами. Понятно, кто что изучает.',
+          },
+          lessons: {
+            title: 'Занятия',
+            description: 'Создавайте занятия по количеству (лекции + практики) или по недельному расписанию — поддерживаются повторяющиеся шаблоны.',
+          },
+          checkin: {
+            title: 'Live check-in',
+            description: 'Запустите сессию — студенты сами отметятся со своих телефонов в основном окне или окне для опоздавших.',
           },
           attendance: {
-            title: 'Учёт посещаемости',
-            description: 'Отмечайте присутствие, отсутствие или опоздание на каждом занятии. Сводка посещаемости формируется автоматически.',
+            title: 'Таблица посещаемости',
+            description: 'Студенты × занятия в одной таблице. Можно переопределить любую ячейку, оставить комментарий, видеть разбивку по подгруппам.',
           },
-          subjects: {
-            title: 'Предметы и классы',
-            description: 'Организуйте учеников по классам и предметам. Ведите несколько групп без путаницы.',
+          permissions: {
+            title: 'Гибкие назначения',
+            description: 'Преподаватель привязывается к предмету и группе — с уточнением подгруппы или типа занятий, если нужно.',
           },
-          progress: {
-            title: 'Успеваемость учеников',
-            description: 'Следите за динамикой каждого ученика — средний балл и тренд видны с первого взгляда.',
+          auth: {
+            title: 'Институциональный вход',
+            description: 'Single Sign-On через OIDC. Каждый видит только те предметы, к которым у него есть доступ.',
           },
-          reports: {
-            title: 'Отчёты и экспорт',
-            description: 'Формируйте сводные отчёты по классу или отдельному ученику и передавайте их в администрацию.',
+        },
+      },
+      how: {
+        title: 'Как работает check-in',
+        description: 'Три шага вместо переклички. Студентам не нужно ставить приложение или регистрироваться.',
+        steps: {
+          start: {
+            title: 'Запустить сессию',
+            description: 'Выберите занятие и задайте окна «вовремя» и «для опоздавших» в минутах. QR-код и ссылка появляются сразу.',
           },
-          access: {
-            title: 'Безопасный доступ',
-            description: 'Каждый преподаватель видит только свои классы. Данные учеников надёжно защищены.',
+          mark: {
+            title: 'Студенты отмечаются',
+            description: 'Открывают QR с проектора или ссылку, ищут себя и жмут «Я здесь». Одно устройство — одна отметка.',
+          },
+          confirm: {
+            title: 'Подтвердить результаты',
+            description: 'Видно, кто пришёл вовремя, кто опоздал. При желании поменяйте статус или оставьте комментарий и перенесите в основную посещаемость.',
           },
         },
       },
       cta: {
-        title: 'Начните вести журнал уже сегодня',
-        description: 'Войдите через аккаунт учебного заведения и откройте свой первый класс за несколько минут.',
-        action: 'Перейти в журнал',
+        title: 'Перестаньте делать перекличку',
+        description: 'Войдите через институциональный аккаунт и запустите первую сессию за пару минут.',
+        action: 'Войти',
       },
     },
   },
 })
+
+const features = computed(() => [
+  {
+    icon: 'i-lucide-book-open',
+    title: t('features.items.subjects.title'),
+    description: t('features.items.subjects.description'),
+  },
+  {
+    icon: 'i-lucide-calendar',
+    title: t('features.items.lessons.title'),
+    description: t('features.items.lessons.description'),
+  },
+  {
+    icon: 'i-lucide-clipboard-list',
+    title: t('features.items.checkin.title'),
+    description: t('features.items.checkin.description'),
+  },
+  {
+    icon: 'i-lucide-clipboard-check',
+    title: t('features.items.attendance.title'),
+    description: t('features.items.attendance.description'),
+  },
+  {
+    icon: 'i-lucide-shield-check',
+    title: t('features.items.permissions.title'),
+    description: t('features.items.permissions.description'),
+  },
+  {
+    icon: 'i-lucide-lock',
+    title: t('features.items.auth.title'),
+    description: t('features.items.auth.description'),
+  },
+])
+
+const steps = computed(() => [
+  {
+    icon: 'i-lucide-play',
+    title: t('how.steps.start.title'),
+    description: t('how.steps.start.description'),
+  },
+  {
+    icon: 'i-lucide-hand',
+    title: t('how.steps.mark.title'),
+    description: t('how.steps.mark.description'),
+  },
+  {
+    icon: 'i-lucide-clipboard-check',
+    title: t('how.steps.confirm.title'),
+    description: t('how.steps.confirm.description'),
+  },
+])
 </script>
 
 <template>
@@ -102,9 +189,9 @@ const { t } = useI18n({
         icon: 'i-lucide-log-in',
         size: 'xl',
       }, {
-        label: t('hero.dashboard'),
-        to: '/dashboard',
-        icon: 'i-lucide-notebook-pen',
+        label: t('hero.how'),
+        to: '#how',
+        icon: 'i-lucide-circle-help',
         size: 'xl',
         color: 'neutral',
         variant: 'subtle',
@@ -115,32 +202,24 @@ const { t } = useI18n({
       id="features"
       :title="t('features.title')"
       :description="t('features.description')"
-      :features="[{
-        icon: 'i-lucide-star',
-        title: t('features.items.grades.title'),
-        description: t('features.items.grades.description'),
-      }, {
-        icon: 'i-lucide-calendar-check',
-        title: t('features.items.attendance.title'),
-        description: t('features.items.attendance.description'),
-      }, {
-        icon: 'i-lucide-users',
-        title: t('features.items.subjects.title'),
-        description: t('features.items.subjects.description'),
-      }, {
-        icon: 'i-lucide-trending-up',
-        title: t('features.items.progress.title'),
-        description: t('features.items.progress.description'),
-      }, {
-        icon: 'i-lucide-file-bar-chart',
-        title: t('features.items.reports.title'),
-        description: t('features.items.reports.description'),
-      }, {
-        icon: 'i-lucide-shield-check',
-        title: t('features.items.access.title'),
-        description: t('features.items.access.description'),
-      }]"
+      :features="features"
     />
+
+    <UPageSection
+      id="how"
+      :title="t('how.title')"
+      :description="t('how.description')"
+    >
+      <UPageGrid>
+        <UPageCard
+          v-for="(step, i) in steps"
+          :key="i"
+          :icon="step.icon"
+          :title="`${i + 1}. ${step.title}`"
+          :description="step.description"
+        />
+      </UPageGrid>
+    </UPageSection>
 
     <UPageSection>
       <UPageCTA
@@ -150,7 +229,7 @@ const { t } = useI18n({
         :links="[{
           label: t('cta.action'),
           to: '/auth/login',
-          icon: 'i-lucide-notebook-pen',
+          icon: 'i-lucide-log-in',
           color: 'neutral',
           trailingIcon: 'i-lucide-arrow-right',
         }]"

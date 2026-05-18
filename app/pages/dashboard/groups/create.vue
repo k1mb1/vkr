@@ -33,7 +33,7 @@ const loading = ref(false)
 const formRef = useTemplateRef<Form<typeof CreateGroupRequestSchema>>('form')
 
 const { subgroups, cards, cardLabel, addCard, removeCard, resetCards } = useSubgroupCards()
-const { addStudents, handlePaste: handleStudentPaste } = useStudentInput<Student>({ separator: /\s+/ })
+const { addStudents, handlePaste: handleStudentPaste } = useStudentInput<Student>({ separator: /\n+/ })
 
 function getStudents(index: SubgroupId) {
   return state.students.filter(s => s.subgroupIndex === index)
@@ -194,7 +194,6 @@ async function handleCreate() {
                   icon="i-lucide-x"
                   color="neutral"
                   variant="ghost"
-                  size="xs"
                   class="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
                   :aria-label="`Удалить ${student.username}`"
                   @click="removeStudent(student.username, student.subgroupIndex)"

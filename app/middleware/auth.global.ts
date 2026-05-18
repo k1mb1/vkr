@@ -2,7 +2,8 @@ const PUBLIC_PATHS = ['/', '/auth/login', '/auth/callback', '/logout']
 
 export default defineNuxtRouteMiddleware((to) => {
   const isPublicAuthArea = to.path.startsWith('/auth/')
-  const isPublic = isPublicAuthArea || PUBLIC_PATHS.includes(to.path)
+  const isPublicCheckIn = to.path.startsWith('/check-in/')
+  const isPublic = isPublicAuthArea || isPublicCheckIn || PUBLIC_PATHS.includes(to.path)
 
   if (isPublic) {
     return

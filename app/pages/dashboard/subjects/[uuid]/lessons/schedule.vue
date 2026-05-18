@@ -234,7 +234,6 @@ async function handleCreate() {
                 icon="i-lucide-x"
                 color="neutral"
                 variant="ghost"
-                size="sm"
                 @click="removeEntry(i)"
               />
             </div>
@@ -287,7 +286,6 @@ async function handleCreate() {
                   v-for="day in DAYS"
                   :key="day.value"
                   :label="day.label"
-                  size="sm"
                   :variant="isDaySelected(entry, wi, day.value) ? 'solid' : 'outline'"
                   :color="isDaySelected(entry, wi, day.value) ? 'primary' : 'neutral'"
                   class="w-10"
@@ -299,7 +297,6 @@ async function handleCreate() {
                 icon="i-lucide-x"
                 color="neutral"
                 variant="ghost"
-                size="sm"
                 @click="removeWeek(entry, wi)"
               />
             </div>
@@ -309,7 +306,6 @@ async function handleCreate() {
               label="Добавить неделю"
               color="neutral"
               variant="ghost"
-              size="sm"
               class="self-start"
               @click="addWeek(entry)"
             />
