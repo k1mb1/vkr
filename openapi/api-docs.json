@@ -835,11 +835,11 @@
         }
       }
     },
-    "/api/teacher-subject-permissions/single": {
+    "/api/teacher-subject-permissions/by-teacher": {
       "get": {
         "tags": ["Teacher Subject Permissions"],
-        "summary": "Получить право преподавателя на предмет",
-        "operationId": "getPermission",
+        "summary": "Получить права преподавателя на предмет (одна запись на каждую группу/подгруппу/тип занятия)",
+        "operationId": "getPermissionsBySubjectAndTeacher",
         "parameters": [
           {
             "name": "subjectId",
@@ -860,7 +860,10 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TeacherSubjectPermissionResponse"
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TeacherSubjectPermissionResponse"
+                  }
                 }
               }
             }
@@ -1258,13 +1261,30 @@
       },
       "CreateSubjectRequest": {
         "type": "object",
+        "description": "Запрос на создание предмета",
         "properties": {
-          "name": { "type": "string", "minLength": 1 },
-          "description": { "type": "string" },
-          "groupId": { "type": "string", "format": "uuid" },
-          "teacherId": { "type": "string", "format": "uuid" }
+          "name": {
+            "type": "string",
+            "description": "Название предмета",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string",
+            "description": "Описание предмета"
+          },
+          "groupIds": {
+            "type": "array",
+            "description": "Список ID групп, к которым привязывается предмет (минимум одна группа)",
+            "items": { "type": "string", "format": "uuid" },
+            "minItems": 1
+          },
+          "teacherId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID преподавателя"
+          }
         },
-        "required": ["groupId", "name", "teacherId"]
+        "required": ["groupIds", "name", "teacherId"]
       },
       "SubjectResponse": {
         "type": "object",
