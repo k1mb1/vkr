@@ -2,12 +2,7 @@
 const route = useRoute()
 const subjectId = computed(() => String(route.params.uuid ?? ''))
 
-const { permission, pending, error } = usePermissions()
-
-const lessonTypeLabel: Record<string, string> = {
-  LECTURE: 'Лекция',
-  PRACTICE: 'Практика',
-}
+const { permission, scopes, pending, error } = usePermissions()
 </script>
 
 <template>
@@ -62,27 +57,26 @@ const lessonTypeLabel: Record<string, string> = {
       class="py-8"
     />
 
-    <UCard v-else>
-      <template #header>
-        <div class="flex items-center gap-3">
-          <UIcon name="i-lucide-users" class="text-primary size-5" />
-          <span class="font-medium">{{ permission.groupName ?? '—' }}</span>
+    <div v-else class="flex flex-col gap-3">
+      <UCard
+        v-for="s in scopes"
+        :key="s.id"
+      >
+        <template #header>
+          <div class="flex items-center gap-3">
+            <UIcon name="i-lucide-users" class="text-primary size-5" />
+            <span class="font-medium">{{ s.group?.name ?? '—' }}</span>
+          </div>
+        </template>
+        <div class="flex flex-wrap gap-2">
+          <UBadge
+            variant="soft"
+            color="neutral"
+            :label="s.allowedSubgroup?.index != null ? `Подгруппа ${s.allowedSubgroup.index}` : 'Все подгруппы'"
+            icon="i-lucide-layers"
+          />
         </div>
-      </template>
-      <div class="flex flex-wrap gap-2">
-        <UBadge
-          variant="soft"
-          color="neutral"
-          :label="permission.allowedLessonType ? lessonTypeLabel[permission.allowedLessonType] : 'Все типы'"
-          icon="i-lucide-book"
-        />
-        <UBadge
-          variant="soft"
-          color="neutral"
-          :label="permission.allowedSubgroupIndex != null ? `Подгруппа ${permission.allowedSubgroupIndex}` : 'Все подгруппы'"
-          icon="i-lucide-layers"
-        />
-      </div>
-    </UCard>
+      </UCard>
+    </div>
   </div>
 </template>

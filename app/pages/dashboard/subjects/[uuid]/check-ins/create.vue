@@ -12,8 +12,7 @@ const { $backend } = useNuxtApp()
 const { toastError } = useApiError()
 const toast = useToast()
 
-const { permission, pending: permissionPending } = usePermissions()
-const permissionId = computed(() => permission.value?.id ?? '')
+const { permission, permissionId, pending: permissionPending } = usePermissions()
 
 const { data: lessonsData, pending: lessonsPending, refresh } = useBackend('/api/lessons', {
   method: 'GET',
@@ -21,8 +20,8 @@ const { data: lessonsData, pending: lessonsPending, refresh } = useBackend('/api
   immediate: false,
 })
 
-watch(permissionId, (id) => {
-  if (id)
+watch(permissionId, (pid) => {
+  if (pid)
     refresh()
 }, { immediate: true })
 
@@ -36,6 +35,18 @@ const lessons = computed<LessonResponse[]>(() => {
   return arr
 })
 
+function formatAudience(l: LessonResponse): string {
+  if (l.allGroups)
+    return 'Все группы'
+  const list = (l.scopes ?? []).map((s) => {
+    const parts: string[] = [s.groupName ?? '—']
+    if (s.allowedSubgroupIndex != null)
+      parts.push(`Подгруппа ${s.allowedSubgroupIndex}`)
+    return parts.join(' · ')
+  })
+  return list.join(', ') || '—'
+}
+
 function formatLesson(l: LessonResponse): string {
   const parts: string[] = []
   if (l.startedAt) {
@@ -46,22 +57,32 @@ function formatLesson(l: LessonResponse): string {
     }).format(new Date(l.startedAt)))
   }
   parts.push(l.type === 'LECTURE' ? 'Лекция' : 'Практика')
-  if (l.subgroupIndex != null)
-    parts.push(`Подгруппа ${l.subgroupIndex}`)
+  parts.push(formatAudience(l))
   if (l.topic)
     parts.push(l.topic)
   return parts.join(' · ')
 }
-
-const lessonOptions = computed(() =>
-  lessons.value.map(l => ({ value: l.id!, label: formatLesson(l) })),
-)
 
 const state = reactive({
   lessonId: '' as string,
   onTimeMinutes: 5,
   lateMinutes: 5,
 })
+
+const lessonOptions = computed(() =>
+  lessons.value.map(l => ({ value: l.id!, label: formatLesson(l) })),
+)
+
+const selectedLessonOption = computed({
+  get: () => lessonOptions.value.find(o => o.value === state.lessonId),
+  set: (val) => {
+    state.lessonId = val?.value ?? ''
+  },
+})
+
+const selectedLesson = computed<LessonResponse | undefined>(() =>
+  lessons.value.find(l => l.id === state.lessonId),
+)
 
 const loading = ref(false)
 
@@ -79,13 +100,12 @@ function validate(): boolean {
 }
 
 async function handleStart() {
-  if (!validate() || !permissionId.value)
+  if (!validate())
     return
 
   loading.value = true
   try {
     const body: StartCheckInRequest = {
-      permissionId: permissionId.value,
       lessonId: state.lessonId,
       onTimeSeconds: state.onTimeMinutes * 60,
       lateSeconds: state.lateMinutes * 60,
@@ -141,14 +161,25 @@ async function handleStart() {
       />
 
       <UFormField label="Занятие" required>
-        <USelect
-          v-model="state.lessonId"
+        <USelectMenu
+          v-model="selectedLessonOption"
           :items="lessonOptions"
           :loading="lessonsPending"
           :disabled="lessonsPending || lessonOptions.length === 0"
           placeholder="Выберите занятие..."
           class="w-full"
         />
+      </UFormField>
+
+      <UFormField v-if="selectedLesson" label="Аудитория">
+        <UInput
+          :model-value="formatAudience(selectedLesson)"
+          disabled
+          class="w-full"
+        />
+        <template #help>
+          Аудитория опроса берётся из занятия
+        </template>
       </UFormField>
 
       <div class="grid gap-4 sm:grid-cols-2">

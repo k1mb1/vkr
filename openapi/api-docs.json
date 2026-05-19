@@ -83,18 +83,18 @@
     "/api/attendances": {
       "get": {
         "tags": ["Attendances"],
-        "summary": "Получить таблицу посещаемости по scopeId (студенты × занятия)",
+        "summary": "Получить таблицу посещаемости по permissionId",
         "operationId": "getAttendanceTable",
         "parameters": [
           {
-            "name": "scopeId",
+            "name": "permissionId",
             "in": "query",
-            "description": "ID scope'а права преподавателя (группа + опц. подгруппа + опц. тип занятия)",
+            "description": "ID разрешения преподавателя. Вернёт таблицу по предмету разрешения: студенты — объединение по scopes разрешения, занятия — те, у которых allGroups=true или есть scope, пересекающийся хотя бы с одним scope разрешения.",
             "required": true,
             "schema": {
               "type": "string",
               "format": "uuid",
-              "description": "ID scope'а права преподавателя (группа + опц. подгруппа + опц. тип занятия)"
+              "description": "ID разрешения преподавателя. Вернёт таблицу по предмету разрешения: студенты — объединение по scopes разрешения, занятия — те, у которых allGroups=true или есть scope, пересекающийся хотя бы с одним scope разрешения."
             }
           }
         ],
@@ -424,11 +424,11 @@
     "/api/check-in-sessions": {
       "get": {
         "tags": ["Check-in sessions"],
-        "summary": "Список check-in сессий по scopeId",
+        "summary": "Список check-in сессий по permissionId (по предмету разрешения)",
         "operationId": "list",
         "parameters": [
           {
-            "name": "scopeId",
+            "name": "permissionId",
             "in": "query",
             "required": true,
             "schema": { "type": "string", "format": "uuid" }
@@ -900,18 +900,18 @@
     "/api/lessons": {
       "get": {
         "tags": ["Lessons"],
-        "summary": "Получить список занятий по scopeId преподавателя",
+        "summary": "Получить список занятий по permissionId",
         "operationId": "getLessons",
         "parameters": [
           {
-            "name": "scopeId",
+            "name": "permissionId",
             "in": "query",
-            "description": "ID scope'а права преподавателя (группа + опц. подгруппа + опц. тип занятия)",
+            "description": "ID разрешения преподавателя. Вернёт занятия по предмету, у которых либо allGroups=true, либо есть scope, попадающий хотя бы в один scope разрешения.",
             "required": true,
             "schema": {
               "type": "string",
               "format": "uuid",
-              "description": "ID scope'а права преподавателя (группа + опц. подгруппа + опц. тип занятия)"
+              "description": "ID разрешения преподавателя. Вернёт занятия по предмету, у которых либо allGroups=true, либо есть scope, попадающий хотя бы в один scope разрешения."
             }
           }
         ],
@@ -1170,7 +1170,7 @@
       },
       "CreateTeacherSubjectPermissionRequest": {
         "type": "object",
-        "description": "Запрос на создание права преподавателя на предмет (со списком scopes)",
+        "description": "Запрос на создание права преподавателя на предмет",
         "properties": {
           "teacherId": {
             "type": "string",
@@ -1182,14 +1182,17 @@
             "format": "uuid",
             "description": "ID предмета"
           },
+          "allPermissions": {
+            "type": "boolean",
+            "description": "true = полный доступ ко всем группам предмета; false = только перечисленные в scopes"
+          },
           "scopes": {
             "type": "array",
-            "description": "Список scope'ов: для каждой группы/подгруппы/типа занятия — отдельная запись",
-            "items": { "$ref": "#/components/schemas/PermissionScopeRequest" },
-            "minItems": 1
+            "description": "Список scopes (group + опц. подгруппа + опц. тип занятия). Обязателен и должен быть непустым при allPermissions=false. При allPermissions=true игнорируется.",
+            "items": { "$ref": "#/components/schemas/PermissionScopeRequest" }
           }
         },
-        "required": ["scopes", "subjectId", "teacherId"]
+        "required": ["allPermissions", "subjectId", "teacherId"]
       },
       "PermissionScopeRequest": {
         "type": "object",
@@ -1213,41 +1216,68 @@
         },
         "required": ["groupId"]
       },
-      "PermissionScopeResponse": {
+      "PermissionScopeGroupResponse": {
         "type": "object",
-        "description": "Scope права преподавателя на предмет (одна группа / опц. подгруппа / опц. тип занятия)",
+        "description": "Группа в составе scope с полным списком её подгрупп",
         "properties": {
           "id": {
             "type": "string",
             "format": "uuid",
-            "description": "ID scope"
-          },
-          "groupId": {
-            "type": "string",
-            "format": "uuid",
             "description": "ID группы"
           },
-          "groupName": { "type": "string", "description": "Название группы" },
-          "allowedSubgroupId": {
+          "name": { "type": "string", "description": "Название группы" },
+          "subgroups": {
+            "type": "array",
+            "description": "Все подгруппы этой группы",
+            "items": {
+              "$ref": "#/components/schemas/PermissionScopeSubgroupResponse"
+            }
+          }
+        }
+      },
+      "PermissionScopeResponse": {
+        "type": "object",
+        "description": "Scope права преподавателя — группа (с полным списком подгрупп) + опц. разрешённая подгруппа + опц. тип занятия",
+        "properties": {
+          "id": {
             "type": "string",
             "format": "uuid",
-            "description": "ID разрешённой подгруппы"
+            "description": "ID scope (null для синтетических scope при allPermissions=true)"
           },
-          "allowedSubgroupIndex": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Индекс разрешённой подгруппы"
+          "group": {
+            "$ref": "#/components/schemas/PermissionScopeGroupResponse",
+            "description": "Группа с полным списком её подгрупп"
+          },
+          "allowedSubgroup": {
+            "$ref": "#/components/schemas/PermissionScopeSubgroupResponse",
+            "description": "Разрешённая подгруппа (null = все подгруппы группы)"
           },
           "allowedLessonType": {
             "type": "string",
-            "description": "Разрешённый тип занятия",
+            "description": "Разрешённый тип занятия (null = все типы)",
             "enum": ["LECTURE", "PRACTICE"]
+          }
+        }
+      },
+      "PermissionScopeSubgroupResponse": {
+        "type": "object",
+        "description": "Краткая информация о подгруппе в составе scope",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID подгруппы"
+          },
+          "index": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Индекс подгруппы"
           }
         }
       },
       "TeacherSubjectPermissionResponse": {
         "type": "object",
-        "description": "Право преподавателя на предмет: пара (teacher, subject) + список scope'ов",
+        "description": "Право преподавателя на предмет",
         "properties": {
           "id": {
             "type": "string",
@@ -1268,9 +1298,13 @@
             "format": "uuid",
             "description": "ID предмета"
           },
+          "allPermissions": {
+            "type": "boolean",
+            "description": "true = преподаватель имеет доступ ко всем группам предмета"
+          },
           "scopes": {
             "type": "array",
-            "description": "Список scope'ов",
+            "description": "Список scope'ов (группа с полным списком подгрупп + опц. разрешённая подгруппа + опц. тип занятия). При allPermissions=true scope'ы синтезируются из групп предмета (по одному на группу, без ограничений по подгруппе и типу).",
             "items": { "$ref": "#/components/schemas/PermissionScopeResponse" }
           },
           "createdAt": {
@@ -1347,15 +1381,14 @@
             "format": "uuid",
             "description": "ID предмета"
           },
-          "groupId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID группы"
+          "allGroups": {
+            "type": "boolean",
+            "description": "true = занятия охватывают все группы предмета; false = только перечисленные в scopes"
           },
-          "subgroupId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID подгруппы"
+          "scopes": {
+            "type": "array",
+            "description": "Список scopes (group + опц. подгруппа). Обязателен и должен быть непустым при allGroups=false. При allGroups=true игнорируется.",
+            "items": { "$ref": "#/components/schemas/LessonScopeRequest" }
           },
           "lectureCount": {
             "type": "integer",
@@ -1368,7 +1401,24 @@
             "description": "Количество практик"
           }
         },
-        "required": ["groupId", "lectureCount", "practiceCount", "subjectId"]
+        "required": ["allGroups", "lectureCount", "practiceCount", "subjectId"]
+      },
+      "LessonScopeRequest": {
+        "type": "object",
+        "description": "Scope занятия: группа + опциональная подгруппа",
+        "properties": {
+          "groupId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID группы"
+          },
+          "allowedSubgroupId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID разрешённой подгруппы (null = вся группа)"
+          }
+        },
+        "required": ["groupId"]
       },
       "LessonResponse": {
         "type": "object",
@@ -1388,22 +1438,6 @@
             "type": "string",
             "description": "Название предмета"
           },
-          "groupId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID группы"
-          },
-          "groupName": { "type": "string", "description": "Название группы" },
-          "subgroupId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID подгруппы (null для всей группы)"
-          },
-          "subgroupIndex": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Индекс подгруппы (null для всей группы)"
-          },
           "type": {
             "type": "string",
             "description": "Тип занятия",
@@ -1415,6 +1449,15 @@
             "description": "Дата занятия"
           },
           "topic": { "type": "string", "description": "Тема занятия" },
+          "allGroups": {
+            "type": "boolean",
+            "description": "true = занятие охватывает все группы предмета"
+          },
+          "scopes": {
+            "type": "array",
+            "description": "Список scopes занятия (группа + опц. подгруппа)",
+            "items": { "$ref": "#/components/schemas/LessonScopeResponse" }
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time",
@@ -1427,6 +1470,33 @@
           }
         }
       },
+      "LessonScopeResponse": {
+        "type": "object",
+        "description": "Scope занятия — группа + опц. подгруппа",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID scope"
+          },
+          "groupId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID группы"
+          },
+          "groupName": { "type": "string", "description": "Название группы" },
+          "allowedSubgroupId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID разрешённой подгруппы"
+          },
+          "allowedSubgroupIndex": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Индекс разрешённой подгруппы"
+          }
+        }
+      },
       "BulkScheduleRequest": {
         "type": "object",
         "description": "Запрос на массовое создание занятий по недельному шаблону",
@@ -1436,15 +1506,14 @@
             "format": "uuid",
             "description": "ID предмета"
           },
-          "groupId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID группы"
+          "allGroups": {
+            "type": "boolean",
+            "description": "true = занятия охватывают все группы предмета; false = только перечисленные в scopes"
           },
-          "subgroupId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID подгруппы"
+          "scopes": {
+            "type": "array",
+            "description": "Список scopes (group + опц. подгруппа). Обязателен и должен быть непустым при allGroups=false. При allGroups=true игнорируется.",
+            "items": { "$ref": "#/components/schemas/LessonScopeRequest" }
           },
           "schedules": {
             "type": "array",
@@ -1453,7 +1522,7 @@
             "minItems": 1
           }
         },
-        "required": ["groupId", "schedules", "subjectId"]
+        "required": ["allGroups", "schedules", "subjectId"]
       },
       "Entry": {
         "type": "object",
@@ -1634,15 +1703,10 @@
         "type": "object",
         "description": "Запуск опроса по посещаемости",
         "properties": {
-          "scopeId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID scope'а права преподавателя (группа + опц. подгруппа + опц. тип занятия)"
-          },
           "lessonId": {
             "type": "string",
             "format": "uuid",
-            "description": "ID занятия"
+            "description": "ID занятия. Аудитория опроса совпадает с аудиторией занятия (все группы и подгруппы, заданные в lesson scopes; либо все группы предмета при allGroups=true)."
           },
           "onTimeSeconds": {
             "type": "integer",
@@ -1658,7 +1722,29 @@
             "example": 600
           }
         },
-        "required": ["lateSeconds", "lessonId", "onTimeSeconds", "scopeId"]
+        "required": ["lateSeconds", "lessonId", "onTimeSeconds"]
+      },
+      "CheckInAudienceScope": {
+        "type": "object",
+        "description": "Одна аудиторная единица опроса — группа и опционально подгруппа",
+        "properties": {
+          "groupId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID группы"
+          },
+          "groupName": { "type": "string", "description": "Название группы" },
+          "allowedSubgroupId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID подгруппы (null = вся группа)"
+          },
+          "allowedSubgroupIndex": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Индекс подгруппы (null = вся группа)"
+          }
+        }
       },
       "CheckInSessionResponse": {
         "type": "object",
@@ -1674,10 +1760,14 @@
             "format": "uuid",
             "description": "ID занятия"
           },
-          "scopeId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID scope'а права преподавателя (группа + опц. подгруппа + опц. тип занятия)"
+          "allGroups": {
+            "type": "boolean",
+            "description": "Признак, что занятие охватывает все группы предмета. Дублирует lesson.allGroups для удобства клиента."
+          },
+          "audience": {
+            "type": "array",
+            "description": "Аудитория опроса — копия lesson scopes (группа + опц. подгруппа). Если allGroups=true, содержит по одной записи на каждую группу предмета.",
+            "items": { "$ref": "#/components/schemas/CheckInAudienceScope" }
           },
           "startedAt": {
             "type": "string",
@@ -1801,16 +1891,20 @@
       },
       "UpdateTeacherSubjectPermissionRequest": {
         "type": "object",
-        "description": "Запрос на обновление права преподавателя на предмет (PATCH).\nСемантика: поле = null или отсутствует — значение не изменяется.\nscopes (если указан) полностью заменяет текущий набор scope'ов: старые архивируются,\nновые создаются (либо переиспользуются совпадающие активные).\n",
+        "description": "Запрос на частичное обновление права преподавателя на предмет (PATCH).\nПоле = null → значение не изменяется.\nscopes (если указан) полностью заменяет текущий набор scope'ов.\n",
         "properties": {
           "teacherId": {
             "type": "string",
             "format": "uuid",
             "description": "ID преподавателя (null — не менять)"
           },
+          "allPermissions": {
+            "type": "boolean",
+            "description": "true/false — изменить флаг allPermissions (null — не менять)"
+          },
           "scopes": {
             "type": "array",
-            "description": "Новый список scope'ов (null — не менять). Если задан — должен быть непустым.",
+            "description": "Новый список scopes (null — не менять). Если задан — должен быть непустым.",
             "items": { "$ref": "#/components/schemas/PermissionScopeRequest" }
           }
         }
@@ -1837,17 +1931,12 @@
       },
       "UpdateLessonRequest": {
         "type": "object",
-        "description": "Запрос на частичное обновление занятия (PATCH).\nСемантика: поле = null или отсутствует — значение не изменяется.\nОчистка существующих значений (например, \"отвязать подгруппу\") через этот эндпоинт не поддерживается.\n",
+        "description": "Запрос на частичное обновление занятия (PATCH).\nСемантика: поле = null или отсутствует — значение не изменяется.\nЕсли передан allGroups=false, то scopes должен быть непустым.\n",
         "properties": {
           "subjectId": {
             "type": "string",
             "format": "uuid",
             "description": "ID предмета (null — не менять)"
-          },
-          "groupId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID группы (null — не менять)"
           },
           "type": {
             "type": "string",
@@ -1863,10 +1952,14 @@
             "type": "string",
             "description": "Тема занятия (null — не менять)"
           },
-          "subgroupId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID подгруппы (null — не менять; очистить через этот эндпоинт нельзя)"
+          "allGroups": {
+            "type": "boolean",
+            "description": "true = все группы предмета (null — не менять)"
+          },
+          "scopes": {
+            "type": "array",
+            "description": "Список scopes (null — не менять). Если задан вместе с allGroups=false, должен быть непустым.",
+            "items": { "$ref": "#/components/schemas/LessonScopeRequest" }
           }
         }
       },
@@ -2046,6 +2139,11 @@
             "description": "ID сессии"
           },
           "lessonTopic": { "type": "string", "description": "Тема занятия" },
+          "audience": {
+            "type": "array",
+            "description": "Аудитория опроса — копия lesson scopes (группа + опц. подгруппа). Если allGroups=true, содержит по одной записи на каждую группу предмета.",
+            "items": { "$ref": "#/components/schemas/CheckInAudienceScope" }
+          },
           "state": {
             "type": "string",
             "description": "Текущее состояние сессии",
@@ -2101,6 +2199,28 @@
           }
         }
       },
+      "AttendanceAudienceScope": {
+        "type": "object",
+        "description": "Аудитория таблицы — одна запись на (группа, опц. подгруппа). Один scope разрешения = одна запись; при allPermissions=true — по одной записи на каждую группу предмета.",
+        "properties": {
+          "groupId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID группы"
+          },
+          "groupName": { "type": "string", "description": "Название группы" },
+          "allowedSubgroupId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID разрешённой подгруппы (null = вся группа)"
+          },
+          "allowedSubgroupIndex": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Индекс разрешённой подгруппы (null = вся группа)"
+          }
+        }
+      },
       "AttendanceTableLesson": {
         "type": "object",
         "description": "Занятие в таблице посещаемости",
@@ -2127,6 +2247,11 @@
         "type": "object",
         "description": "Таблица посещаемости: студенты × занятия с существующими ячейками",
         "properties": {
+          "audience": {
+            "type": "array",
+            "description": "Аудитория таблицы — группы и подгруппы, покрываемые разрешением (для построения заголовка таблицы).",
+            "items": { "$ref": "#/components/schemas/AttendanceAudienceScope" }
+          },
           "students": {
             "type": "array",
             "description": "Строки таблицы — студенты",
@@ -2154,10 +2279,24 @@
             "description": "ID студента"
           },
           "username": { "type": "string", "description": "Имя студента" },
+          "groupId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID группы студента"
+          },
+          "groupName": {
+            "type": "string",
+            "description": "Название группы студента"
+          },
           "subgroupId": {
             "type": "string",
             "format": "uuid",
             "description": "ID подгруппы (null = без подгруппы)"
+          },
+          "subgroupIndex": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Индекс подгруппы (null = без подгруппы)"
           }
         }
       }

@@ -636,53 +636,55 @@ async function handleConfirm() {
           </div>
         </template>
 
-        <UTable
-          :data="liveStudents"
-          :columns="liveColumns"
-          :loading="publicPending && liveStudents.length === 0"
-        >
-          <template #username-cell="{ row }">
-            {{ row.original.username ?? '—' }}
-          </template>
+        <ClientOnly>
+          <UTable
+            :data="liveStudents"
+            :columns="liveColumns"
+            :loading="publicPending && liveStudents.length === 0"
+          >
+            <template #username-cell="{ row }">
+              {{ row.original.username ?? '—' }}
+            </template>
 
-          <template #checkedInStatus-cell="{ row }">
-            <UBadge
-              v-if="row.original.checkedInStatus === 'PRESENT'"
-              color="success"
-              variant="soft"
-              icon="i-lucide-check"
-              label="Присутствует"
-            />
-            <UBadge
-              v-else-if="row.original.checkedInStatus === 'LATE'"
-              color="warning"
-              variant="soft"
-              icon="i-lucide-clock"
-              label="Опоздал"
-            />
-            <UBadge
-              v-else
-              color="neutral"
-              variant="soft"
-              label="Не отметился"
-            />
-          </template>
+            <template #checkedInStatus-cell="{ row }">
+              <UBadge
+                v-if="row.original.checkedInStatus === 'PRESENT'"
+                color="success"
+                variant="soft"
+                icon="i-lucide-check"
+                label="Присутствует"
+              />
+              <UBadge
+                v-else-if="row.original.checkedInStatus === 'LATE'"
+                color="warning"
+                variant="soft"
+                icon="i-lucide-clock"
+                label="Опоздал"
+              />
+              <UBadge
+                v-else
+                color="neutral"
+                variant="soft"
+                label="Не отметился"
+              />
+            </template>
 
-          <template #checkedInAt-cell="{ row }">
-            <span>
-              {{ row.original.checkedInAt ? formatDateTime(row.original.checkedInAt) : '—' }}
-            </span>
-          </template>
+            <template #checkedInAt-cell="{ row }">
+              <span>
+                {{ row.original.checkedInAt ? formatDateTime(row.original.checkedInAt) : '—' }}
+              </span>
+            </template>
 
-          <template #empty>
-            <div class="flex flex-col items-center gap-2 py-8 text-center">
-              <UIcon name="i-lucide-users" class="size-6 text-muted" />
-              <p class="text-muted text-sm">
-                Нет студентов
-              </p>
-            </div>
-          </template>
-        </UTable>
+            <template #empty>
+              <div class="flex flex-col items-center gap-2 py-8 text-center">
+                <UIcon name="i-lucide-users" class="size-6 text-muted" />
+                <p class="text-muted text-sm">
+                  Нет студентов
+                </p>
+              </div>
+            </template>
+          </UTable>
+        </ClientOnly>
       </UCard>
 
       <UCard v-if="isAwaiting">
@@ -727,46 +729,48 @@ async function handleConfirm() {
             Проверьте предлагаемые статусы и при необходимости измените их перед переносом в основную посещаемость.
           </p>
 
-          <UTable
-            :data="previewRows"
-            :columns="previewColumns"
-          >
-            <template #username-cell="{ row }">
-              {{ row.original.username ?? '—' }}
-            </template>
+          <ClientOnly>
+            <UTable
+              :data="previewRows"
+              :columns="previewColumns"
+            >
+              <template #username-cell="{ row }">
+                {{ row.original.username ?? '—' }}
+              </template>
 
-            <template #checkInStatus-cell="{ row }">
-              <div v-if="row.original.checkInStatus" class="flex flex-col gap-1">
-                <UBadge
-                  variant="soft"
-                  :color="row.original.checkInStatus === 'PRESENT' ? 'success' : 'warning'"
-                  :label="row.original.checkInStatus === 'PRESENT' ? 'Присутствовал' : 'Опоздал'"
+              <template #checkInStatus-cell="{ row }">
+                <div v-if="row.original.checkInStatus" class="flex flex-col gap-1">
+                  <UBadge
+                    variant="soft"
+                    :color="row.original.checkInStatus === 'PRESENT' ? 'success' : 'warning'"
+                    :label="row.original.checkInStatus === 'PRESENT' ? 'Присутствовал' : 'Опоздал'"
+                  />
+                  <span class="text-muted text-xs tabular-nums">
+                    {{ formatDateTime(row.original.checkedInAt) }}
+                  </span>
+                </div>
+                <span v-else class="text-muted text-xs">Не отметился</span>
+              </template>
+
+              <template #proposedStatus-cell="{ row }">
+                <USelect
+                  v-if="row.original.studentId && overrides[row.original.studentId]"
+                  v-model="overrides[row.original.studentId]!.status"
+                  :items="statusItems"
+                  class="w-full"
                 />
-                <span class="text-muted text-xs tabular-nums">
-                  {{ formatDateTime(row.original.checkedInAt) }}
-                </span>
-              </div>
-              <span v-else class="text-muted text-xs">Не отметился</span>
-            </template>
+              </template>
 
-            <template #proposedStatus-cell="{ row }">
-              <USelect
-                v-if="row.original.studentId && overrides[row.original.studentId]"
-                v-model="overrides[row.original.studentId]!.status"
-                :items="statusItems"
-                class="w-full"
-              />
-            </template>
-
-            <template #comment-cell="{ row }">
-              <UInput
-                v-if="row.original.studentId && overrides[row.original.studentId]"
-                v-model="overrides[row.original.studentId]!.comment"
-                placeholder="—"
-                class="w-full"
-              />
-            </template>
-          </UTable>
+              <template #comment-cell="{ row }">
+                <UInput
+                  v-if="row.original.studentId && overrides[row.original.studentId]"
+                  v-model="overrides[row.original.studentId]!.comment"
+                  placeholder="—"
+                  class="w-full"
+                />
+              </template>
+            </UTable>
+          </ClientOnly>
 
           <div class="flex justify-end gap-2">
             <UButton

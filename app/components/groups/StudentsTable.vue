@@ -38,33 +38,35 @@ const tableColumns: TableColumn<StudentTableRow>[] = [
 </script>
 
 <template>
-  <UTable
-    :data="rows"
-    :columns="tableColumns"
-    :loading="loading"
-    sticky="header"
-  >
-    <template #username-header>
-      <UButton
-        color="neutral"
-        variant="ghost"
-        class="justify-start px-0"
-        :icon="sortDirection === 'asc' ? 'i-lucide-arrow-up-narrow-wide' : 'i-lucide-arrow-down-wide-narrow'"
-        :aria-label="`Сортировать по имени (${sortDirectionLabel})`"
-        @click="emit('toggleSort')"
-      >
-        Имя
-      </UButton>
-    </template>
+  <ClientOnly>
+    <UTable
+      :data="rows"
+      :columns="tableColumns"
+      :loading="loading"
+      sticky="header"
+    >
+      <template #username-header>
+        <UButton
+          color="neutral"
+          variant="ghost"
+          class="justify-start px-0"
+          :icon="sortDirection === 'asc' ? 'i-lucide-arrow-up-narrow-wide' : 'i-lucide-arrow-down-wide-narrow'"
+          :aria-label="`Сортировать по имени (${sortDirectionLabel})`"
+          @click="emit('toggleSort')"
+        >
+          Имя
+        </UButton>
+      </template>
 
-    <template #empty>
-      <UEmpty
-        icon="i-lucide-users-round"
-        :title="emptyTitle"
-        :description="emptyDescription"
-        variant="naked"
-        class="py-6"
-      />
-    </template>
-  </UTable>
+      <template #empty>
+        <UEmpty
+          icon="i-lucide-users-round"
+          :title="emptyTitle"
+          :description="emptyDescription"
+          variant="naked"
+          class="py-6"
+        />
+      </template>
+    </UTable>
+  </ClientOnly>
 </template>

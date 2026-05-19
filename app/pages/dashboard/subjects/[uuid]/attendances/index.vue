@@ -14,9 +14,7 @@ type LessonType = NonNullable<AttendanceTableLesson['type']>
 const route = useRoute()
 const subjectId = computed(() => String(route.params.uuid ?? ''))
 
-const { permission, pending: permissionPending } = usePermissions()
-const permissionId = computed(() => permission.value?.id ?? '')
-const groupId = computed(() => permission.value?.groupId ?? '')
+const { permission, scopes, permissionId, pending: permissionPending } = usePermissions()
 
 const { data, pending: tablePending, error, refresh } = useBackend('/api/attendances', {
   method: 'GET',
@@ -24,30 +22,10 @@ const { data, pending: tablePending, error, refresh } = useBackend('/api/attenda
   immediate: false,
 })
 
-watch(permissionId, (id) => {
-  if (id)
+watch(permissionId, (pid) => {
+  if (pid)
     refresh()
 }, { immediate: true })
-
-const { data: subgroupsData, refresh: refreshSubgroups } = useBackend('/api/subgroups', {
-  method: 'GET',
-  query: computed(() => ({ groupId: groupId.value })),
-  immediate: false,
-})
-
-watch(groupId, (id) => {
-  if (id)
-    refreshSubgroups()
-}, { immediate: true })
-
-const subgroupIndexById = computed(() => {
-  const map = new Map<string, number>()
-  for (const s of subgroupsData.value ?? []) {
-    if (s.id != null && s.index != null)
-      map.set(s.id, s.index)
-  }
-  return map
-})
 
 const pending = computed(() => permissionPending.value || tablePending.value)
 
@@ -89,9 +67,11 @@ interface StudentGroup {
 }
 
 const studentGroups = computed<StudentGroup[]>(() => {
+  const hasMultipleGroups = new Set(students.value.map(s => s.groupId)).size > 1
+
   const grouped = new Map<string, AttendanceTableStudent[]>()
   for (const s of students.value) {
-    const key = s.subgroupId ?? '__none__'
+    const key = `${s.groupId ?? '__none__'}:${s.subgroupId ?? '__none__'}`
     const bucket = grouped.get(key) ?? []
     bucket.push(s)
     grouped.set(key, bucket)
@@ -99,20 +79,37 @@ const studentGroups = computed<StudentGroup[]>(() => {
 
   const result: StudentGroup[] = []
   for (const [key, list] of grouped) {
-    let label = 'Без подгруппы'
-    if (key !== '__none__') {
-      const idx = subgroupIndexById.value.get(key)
-      label = idx != null ? `Подгруппа ${idx}` : 'Подгруппа'
+    const [, subgroupId] = key.split(':')
+    const first = list[0]
+    let label = ''
+
+    if (hasMultipleGroups && first?.groupName) {
+      label = first.groupName
     }
+
+    if (subgroupId !== '__none__') {
+      const idx = first?.subgroupIndex
+      const subgroupLabel = idx != null ? `Подгруппа ${idx}` : 'Подгруппа'
+      label = label ? `${label} · ${subgroupLabel}` : subgroupLabel
+    }
+
+    if (!label) {
+      label = 'Без подгруппы'
+    }
+
     result.push({ key, label, students: list })
   }
+
   result.sort((a, b) => {
-    if (a.key === '__none__')
+    const aNoSubgroup = a.key.endsWith('__none__')
+    const bNoSubgroup = b.key.endsWith('__none__')
+    if (aNoSubgroup && !bNoSubgroup)
       return -1
-    if (b.key === '__none__')
+    if (!aNoSubgroup && bNoSubgroup)
       return 1
     return a.label.localeCompare(b.label, 'ru')
   })
+
   return result
 })
 
@@ -448,7 +445,7 @@ async function saveCell() {
     />
 
     <UAlert
-      v-else-if="!permissionPending && !permission"
+      v-else-if="!permissionPending && (!permission || scopes.length === 0)"
       color="warning"
       variant="soft"
       icon="i-lucide-circle-alert"
@@ -457,6 +454,10 @@ async function saveCell() {
     />
 
     <div v-else class="flex flex-col gap-3">
+      <UFormField label="Доступ">
+        <PermissionsScopeSelect />
+      </UFormField>
+
       <div class="text-muted flex flex-wrap items-center gap-3 text-sm">
         <span>Легенда:</span>
         <UBadge
@@ -494,119 +495,121 @@ async function saveCell() {
             />
           </div>
 
-          <UTable
-            :data="group.students"
-            :columns="columns"
-            :loading="pending && group.students.length === 0"
-            loading-color="primary"
-            sticky
-            class="max-h-[calc(100vh-18rem)]"
-          >
-            <template #username-cell="{ row }">
-              <span :title="row.original.username ?? ''" class="line-clamp-1">
-                {{ row.original.username ?? '—' }}
-              </span>
-            </template>
-
-            <template
-              v-for="lesson in lessons"
-              :key="`${lesson.id}-header`"
-              #[`${lesson.id}-header`]
+          <ClientOnly>
+            <UTable
+              :data="group.students"
+              :columns="columns"
+              :loading="pending && group.students.length === 0"
+              loading-color="primary"
+              sticky
+              class="max-h-[calc(100vh-18rem)]"
             >
-              <div class="flex flex-col items-center gap-1">
-                <UBadge
-                  variant="soft"
-                  :color="lesson.type === 'LECTURE' ? 'primary' : 'secondary'"
-                  :label="lesson.type ? lessonTypeLabel[lesson.type] : '—'"
-                />
-                <span class="text-muted text-xs">{{ formatLessonHeader(lesson) }}</span>
-                <span
-                  v-if="lesson.topic"
-                  class="line-clamp-1 max-w-[140px] text-xs"
-                  :title="lesson.topic"
-                >
-                  {{ lesson.topic }}
+              <template #username-cell="{ row }">
+                <span :title="row.original.username ?? ''" class="line-clamp-1">
+                  {{ row.original.username ?? '—' }}
                 </span>
-              </div>
-            </template>
+              </template>
 
-            <template
-              v-for="lesson in lessons"
-              :key="`${lesson.id}-cell`"
-              #[`${lesson.id}-cell`]="{ row }"
-            >
-              <UTooltip
-                :text="getCell(row.original.id, lesson.id)?.comment || ''"
-                :disabled="!getCell(row.original.id, lesson.id)?.comment"
+              <template
+                v-for="lesson in lessons"
+                :key="`${lesson.id}-header`"
+                #[`${lesson.id}-header`]
               >
-                <UButton
-                  v-if="getCell(row.original.id, lesson.id)?.status"
-                  block
-                  variant="soft"
-                  :color="statusColor[getCell(row.original.id, lesson.id)!.status as AttendanceStatus]"
-                  :label="statusShort[getCell(row.original.id, lesson.id)!.status as AttendanceStatus]"
-                  @click="openCell(row.original, lesson)"
-                />
-                <UButton
-                  v-else
-                  block
-                  variant="ghost"
-                  color="neutral"
-                  label="—"
-                  @click="openCell(row.original, lesson)"
-                />
-              </UTooltip>
-            </template>
-
-            <!-- Summary columns (per student) -->
-            <template #summaryCount-cell="{ row }">
-              {{ formatCount(studentStats(row.original.id).sum) }}
-              <span class="text-muted text-xs">
-                / {{ studentStats(row.original.id).total }}
-              </span>
-            </template>
-
-            <template #summaryPercent-cell="{ row }">
-              {{ formatPercent(studentStats(row.original.id).percent) }}
-            </template>
-
-            <!-- Footer cells -->
-            <template v-if="showFooter" #username-footer>
-              <span class="text-muted text-xs font-medium uppercase tracking-wide">
-                Итого
-              </span>
-            </template>
-
-            <template
-              v-for="lesson in lessons"
-              :key="`${lesson.id}-footer`"
-              #[`${lesson.id}-footer`]
-            >
-              <div class="flex flex-col items-center gap-0.5 text-xs tabular-nums">
-                <span v-if="settings.footerCount">
-                  {{ formatCount(lessonStats(lesson.id, group.students).sum) }}
-                  <span class="text-muted">
-                    / {{ lessonStats(lesson.id, group.students).total }}
+                <div class="flex flex-col items-center gap-1">
+                  <UBadge
+                    variant="soft"
+                    :color="lesson.type === 'LECTURE' ? 'primary' : 'secondary'"
+                    :label="lesson.type ? lessonTypeLabel[lesson.type] : '—'"
+                  />
+                  <span class="text-muted text-xs">{{ formatLessonHeader(lesson) }}</span>
+                  <span
+                    v-if="lesson.topic"
+                    class="line-clamp-1 max-w-[140px] text-xs"
+                    :title="lesson.topic"
+                  >
+                    {{ lesson.topic }}
                   </span>
-                </span>
-                <span v-if="settings.footerPercent" class="text-muted">
-                  {{ formatPercent(lessonStats(lesson.id, group.students).percent) }}
-                </span>
-              </div>
-            </template>
+                </div>
+              </template>
 
-            <template v-if="settings.summaryCount" #summaryCount-footer>
-              <span class="tabular-nums font-medium">
-                {{ formatCount(groupStats(group.students).sum) }}
-              </span>
-            </template>
+              <template
+                v-for="lesson in lessons"
+                :key="`${lesson.id}-cell`"
+                #[`${lesson.id}-cell`]="{ row }"
+              >
+                <UTooltip
+                  :text="getCell(row.original.id, lesson.id)?.comment || ''"
+                  :disabled="!getCell(row.original.id, lesson.id)?.comment"
+                >
+                  <UButton
+                    v-if="getCell(row.original.id, lesson.id)?.status"
+                    block
+                    variant="soft"
+                    :color="statusColor[getCell(row.original.id, lesson.id)!.status as AttendanceStatus]"
+                    :label="statusShort[getCell(row.original.id, lesson.id)!.status as AttendanceStatus]"
+                    @click="openCell(row.original, lesson)"
+                  />
+                  <UButton
+                    v-else
+                    block
+                    variant="ghost"
+                    color="neutral"
+                    label="—"
+                    @click="openCell(row.original, lesson)"
+                  />
+                </UTooltip>
+              </template>
 
-            <template v-if="settings.summaryPercent" #summaryPercent-footer>
-              <span class="tabular-nums font-medium">
-                {{ formatPercent(groupStats(group.students).percent) }}
-              </span>
-            </template>
-          </UTable>
+              <!-- Summary columns (per student) -->
+              <template #summaryCount-cell="{ row }">
+                {{ formatCount(studentStats(row.original.id).sum) }}
+                <span class="text-muted text-xs">
+                  / {{ studentStats(row.original.id).total }}
+                </span>
+              </template>
+
+              <template #summaryPercent-cell="{ row }">
+                {{ formatPercent(studentStats(row.original.id).percent) }}
+              </template>
+
+              <!-- Footer cells -->
+              <template v-if="showFooter" #username-footer>
+                <span class="text-muted text-xs font-medium uppercase tracking-wide">
+                  Итого
+                </span>
+              </template>
+
+              <template
+                v-for="lesson in lessons"
+                :key="`${lesson.id}-footer`"
+                #[`${lesson.id}-footer`]
+              >
+                <div class="flex flex-col items-center gap-0.5 text-xs tabular-nums">
+                  <span v-if="settings.footerCount">
+                    {{ formatCount(lessonStats(lesson.id, group.students).sum) }}
+                    <span class="text-muted">
+                      / {{ lessonStats(lesson.id, group.students).total }}
+                    </span>
+                  </span>
+                  <span v-if="settings.footerPercent" class="text-muted">
+                    {{ formatPercent(lessonStats(lesson.id, group.students).percent) }}
+                  </span>
+                </div>
+              </template>
+
+              <template v-if="settings.summaryCount" #summaryCount-footer>
+                <span class="tabular-nums font-medium">
+                  {{ formatCount(groupStats(group.students).sum) }}
+                </span>
+              </template>
+
+              <template v-if="settings.summaryPercent" #summaryPercent-footer>
+                <span class="tabular-nums font-medium">
+                  {{ formatPercent(groupStats(group.students).percent) }}
+                </span>
+              </template>
+            </UTable>
+          </ClientOnly>
         </section>
       </div>
     </div>

@@ -5,11 +5,24 @@ import type { TableColumn } from '@nuxt/ui'
 type CheckInSessionResponse = components['schemas']['CheckInSessionResponse']
 type CheckInState = NonNullable<CheckInSessionResponse['state']>
 
+interface ScopeState {
+  groupId: string
+  allowedSubgroupId: string | null
+}
+
 const route = useRoute()
 const subjectId = computed(() => String(route.params.uuid ?? ''))
 
-const { permission, pending: permissionPending } = usePermissions()
-const permissionId = computed(() => permission.value?.id ?? '')
+const { permission, scopes: myScopes, permissionId, pending: permissionPending } = usePermissions()
+
+function myScopeForGroup(groupId: string) {
+  return myScopes.value.find(s => s.group?.id === groupId)
+}
+
+const scopeState = reactive<ScopeState>({
+  groupId: '',
+  allowedSubgroupId: null,
+})
 
 const { data, pending: sessionsPending, error, refresh } = useBackend('/api/check-in-sessions', {
   method: 'GET',
@@ -32,6 +45,23 @@ const rows = computed<CheckInSessionResponse[]>(() => {
     return bt - at
   })
   return arr
+})
+
+const filteredRows = computed<CheckInSessionResponse[]>(() => {
+  if (!scopeState.groupId)
+    return rows.value
+  return rows.value.filter((r) => {
+    if (r.allGroups)
+      return true
+    const audience = r.audience ?? []
+    return audience.some((a) => {
+      if (a.groupId !== scopeState.groupId)
+        return false
+      if (scopeState.allowedSubgroupId != null)
+        return a.allowedSubgroupId === scopeState.allowedSubgroupId
+      return true
+    })
+  })
 })
 
 const stateLabel: Record<CheckInState, string> = {
@@ -117,7 +147,7 @@ const columns: TableColumn<CheckInSessionResponse>[] = [
     />
 
     <UAlert
-      v-else-if="!permissionPending && !permission"
+      v-else-if="!permissionPending && (!permission || myScopes.length === 0)"
       color="warning"
       variant="soft"
       icon="i-lucide-circle-alert"
@@ -127,73 +157,90 @@ const columns: TableColumn<CheckInSessionResponse>[] = [
 
     <div
       v-else
+      class="flex flex-col gap-4"
     >
-      <UTable
-        :data="rows"
-        :columns="columns"
-        :loading="pending && rows.length === 0"
-        loading-color="primary"
-        sticky
-      >
-        <template #state-cell="{ row }">
-          <UBadge
-            :color="row.original.state ? stateColor[row.original.state] : 'neutral'"
-            variant="subtle"
-            :label="row.original.state ? stateLabel[row.original.state] : '—'"
+      <div class="grid gap-4 sm:grid-cols-2">
+        <UFormField label="Группа">
+          <GroupsPermissionScopeSelect v-model="scopeState.groupId" />
+        </UFormField>
+
+        <UFormField v-if="scopeState.groupId" label="Подгруппа">
+          <SubgroupsSelect
+            v-model="scopeState.allowedSubgroupId"
+            :group-id="scopeState.groupId"
+            :allowed-subgroup-id="myScopeForGroup(scopeState.groupId)?.allowedSubgroup?.id"
           />
-        </template>
+        </UFormField>
+      </div>
 
-        <template #startedAt-cell="{ row }">
-          <span class="text-muted tabular-nums">
-            {{ formatDateTime(row.original.startedAt) }}
-          </span>
-        </template>
-
-        <template #onTimeSeconds-cell="{ row }">
-          <span class="text-muted tabular-nums">
-            {{ formatMinutes(row.original.onTimeSeconds) }}
-            <span v-if="row.original.lateSeconds" class="text-xs">
-              + {{ formatMinutes(row.original.lateSeconds) }}
-            </span>
-          </span>
-        </template>
-
-        <template #confirmedAt-cell="{ row }">
-          <span class="text-muted tabular-nums">
-            {{ formatDateTime(row.original.confirmedAt) }}
-          </span>
-        </template>
-
-        <template #actions-cell="{ row }">
-          <UButton
-            icon="i-lucide-arrow-right"
-            color="neutral"
-            variant="ghost"
-            :to="`/dashboard/subjects/${subjectId}/check-ins/${row.original.id}`"
-          />
-        </template>
-
-        <template #empty>
-          <div class="flex flex-col items-center gap-4 py-16 px-6 text-center">
-            <div class="p-3 rounded-full bg-elevated">
-              <UIcon name="i-lucide-clipboard-list" class="size-6 text-muted" />
-            </div>
-            <div>
-              <p class="font-medium text-highlighted">
-                Сессий пока нет
-              </p>
-              <p class="text-sm text-muted mt-1">
-                Запустите опрос для текущего занятия
-              </p>
-            </div>
-            <UButton
-              icon="i-lucide-play"
-              label="Запустить опрос"
-              :to="`/dashboard/subjects/${subjectId}/check-ins/create`"
+      <ClientOnly>
+        <UTable
+          :data="filteredRows"
+          :columns="columns"
+          :loading="pending && filteredRows.length === 0"
+          loading-color="primary"
+          sticky
+        >
+          <template #state-cell="{ row }">
+            <UBadge
+              :color="row.original.state ? stateColor[row.original.state] : 'neutral'"
+              variant="subtle"
+              :label="row.original.state ? stateLabel[row.original.state] : '—'"
             />
-          </div>
-        </template>
-      </UTable>
+          </template>
+
+          <template #startedAt-cell="{ row }">
+            <span class="text-muted tabular-nums">
+              {{ formatDateTime(row.original.startedAt) }}
+            </span>
+          </template>
+
+          <template #onTimeSeconds-cell="{ row }">
+            <span class="text-muted tabular-nums">
+              {{ formatMinutes(row.original.onTimeSeconds) }}
+              <span v-if="row.original.lateSeconds" class="text-xs">
+                + {{ formatMinutes(row.original.lateSeconds) }}
+              </span>
+            </span>
+          </template>
+
+          <template #confirmedAt-cell="{ row }">
+            <span class="text-muted tabular-nums">
+              {{ formatDateTime(row.original.confirmedAt) }}
+            </span>
+          </template>
+
+          <template #actions-cell="{ row }">
+            <UButton
+              icon="i-lucide-arrow-right"
+              color="neutral"
+              variant="ghost"
+              :to="`/dashboard/subjects/${subjectId}/check-ins/${row.original.id}`"
+            />
+          </template>
+
+          <template #empty>
+            <div class="flex flex-col items-center gap-4 py-16 px-6 text-center">
+              <div class="p-3 rounded-full bg-elevated">
+                <UIcon name="i-lucide-clipboard-list" class="size-6 text-muted" />
+              </div>
+              <div>
+                <p class="font-medium text-highlighted">
+                  Сессий пока нет
+                </p>
+                <p class="text-sm text-muted mt-1">
+                  Запустите опрос для текущего занятия
+                </p>
+              </div>
+              <UButton
+                icon="i-lucide-play"
+                label="Запустить опрос"
+                :to="`/dashboard/subjects/${subjectId}/check-ins/create`"
+              />
+            </div>
+          </template>
+        </UTable>
+      </ClientOnly>
     </div>
   </div>
 </template>

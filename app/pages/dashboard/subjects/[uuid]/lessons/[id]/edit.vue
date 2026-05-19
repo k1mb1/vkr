@@ -12,7 +12,6 @@ const UpdateLessonSchema = v.object({
   topic: v.optional(v.string()),
   startedAt: v.pipe(v.string(), v.isoDate('Введите корректную дату')),
   type: v.picklist(['LECTURE', 'PRACTICE'] as LessonType[], 'Выберите тип занятия'),
-  subgroupId: v.optional(v.nullable(v.pipe(v.string(), v.uuid()))),
 })
 type Schema = v.InferOutput<typeof UpdateLessonSchema>
 
@@ -24,12 +23,33 @@ const lessonId = String(route.params.id ?? '')
 
 const targetLesson = (history.state?.lesson ?? null) as LessonResponse | null
 
-// ── My scope ─────────────────────────────────────────────
+// ── My scopes ────────────────────────────────────────────
 
-const { permission: myPermission, pending: loadingScope } = usePermissions()
+const { permission: myPermission, scopes: myScopes, pending: loadingScope } = usePermissions()
 
-const subgroupLocked = computed(() => !!myPermission.value?.allowedSubgroupId)
-const lessonTypeLocked = computed(() => !!myPermission.value?.allowedLessonType)
+// Check if teacher has access to this lesson
+const hasAccess = computed(() => {
+  if (!targetLesson)
+    return false
+  if (myPermission.value?.allPermissions)
+    return true
+  const teacherGroupIds = new Set(
+    myScopes.value.map(s => s.group?.id).filter((id): id is string => !!id),
+  )
+  return (targetLesson.scopes ?? []).some(ls => !!ls.groupId && teacherGroupIds.has(ls.groupId))
+})
+
+// Find matching scope for restrictions (first match)
+const matchingScope = computed(() => {
+  if (!targetLesson)
+    return null
+  const lessonGroupId = (targetLesson.scopes ?? [])[0]?.groupId
+  if (!lessonGroupId)
+    return null
+  return myScopes.value.find(s => s.group?.id === lessonGroupId) ?? null
+})
+
+const lessonTypeLocked = computed(() => !!matchingScope.value?.allowedLessonType)
 
 // ── Form state ────────────────────────────────────────────
 
@@ -37,14 +57,12 @@ const state = reactive<Schema>({
   topic: targetLesson?.topic ?? '',
   startedAt: targetLesson?.startedAt ?? '',
   type: (targetLesson?.type as LessonType) ?? 'LECTURE',
-  subgroupId: targetLesson?.subgroupId ?? null,
 })
 
 const original = ref({
   topic: targetLesson?.topic ?? '',
   startedAt: targetLesson?.startedAt ?? '',
   type: targetLesson?.type ?? 'LECTURE',
-  subgroupId: targetLesson?.subgroupId ?? null,
 })
 
 const typeOptions = [
@@ -75,8 +93,6 @@ async function handleUpdate() {
       body.startedAt = data.startedAt
     if (data.type !== original.value.type)
       body.type = data.type
-    if ((data.subgroupId ?? null) !== original.value.subgroupId)
-      body.subgroupId = data.subgroupId ?? undefined
 
     await $backend('/api/lessons/{id}', {
       method: 'PATCH',
@@ -129,6 +145,15 @@ const isReady = !!targetLesson
       description="У вас нет назначения по данному предмету."
     />
 
+    <UAlert
+      v-else-if="!loadingScope && !hasAccess"
+      color="warning"
+      variant="soft"
+      icon="i-lucide-circle-alert"
+      title="Нет доступа"
+      description="Это занятие не входит в ваши разрешённые доступы."
+    />
+
     <UForm
       v-else
       ref="form"
@@ -161,21 +186,15 @@ const isReady = !!targetLesson
         />
         <UInput
           v-else
-          :model-value="myPermission?.allowedLessonType === 'LECTURE' ? 'Лекция' : 'Практика'"
+          :model-value="matchingScope?.allowedLessonType === 'LECTURE' ? 'Лекция' : 'Практика'"
           disabled
           class="w-full"
         />
       </UFormField>
 
-      <UFormField label="Подгруппа" name="subgroupId">
-        <SubgroupSelect
-          v-if="!subgroupLocked"
-          v-model="state.subgroupId"
-          :group-id="targetLesson?.groupId ?? ''"
-        />
+      <UFormField label="Группы">
         <UInput
-          v-else
-          :model-value="myPermission?.allowedSubgroupIndex != null ? `Подгруппа ${myPermission.allowedSubgroupIndex}` : ''"
+          :model-value="targetLesson?.allGroups ? 'Все группы' : (targetLesson?.scopes ?? []).map(s => s.groupName ?? '—').join(', ')"
           disabled
           class="w-full"
         />

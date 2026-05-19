@@ -1,21 +1,17 @@
 <script setup lang="ts">
 import type { components } from '#open-fetch-schemas/backend'
-import type { Form } from '#ui/types'
 import type { FetchError } from 'ofetch'
-import * as v from 'valibot'
-import { uuidV4 } from '~/utils/validation'
 
 type TeacherSubjectPermissionResponse = components['schemas']['TeacherSubjectPermissionResponse']
 type UpdateTeacherSubjectPermissionRequest = components['schemas']['UpdateTeacherSubjectPermissionRequest']
-type LessonType = NonNullable<UpdateTeacherSubjectPermissionRequest['allowedLessonType']>
+type PermissionScopeRequest = components['schemas']['PermissionScopeRequest']
+type LessonType = NonNullable<PermissionScopeRequest['allowedLessonType']>
 
-const UpdatePermissionSchema = v.object({
-  teacherId: uuidV4('Выберите преподавателя'),
-  groupId: uuidV4('Выберите группу'),
-  allowedSubgroupId: v.optional(v.nullable(v.pipe(v.string(), v.uuid()))),
-  allowedLessonType: v.optional(v.nullable(v.picklist(['LECTURE', 'PRACTICE'] as LessonType[]))),
-})
-type Schema = v.InferOutput<typeof UpdatePermissionSchema>
+interface ScopeState {
+  groupId: string
+  allowedSubgroupId: string | null
+  allowedLessonType: LessonType | null
+}
 
 const route = useRoute()
 const subjectId = String(route.params.uuid ?? '')
@@ -25,28 +21,44 @@ const permissionId = String(route.params.id ?? '')
 
 const targetPermission = (history.state?.permission ?? null) as TeacherSubjectPermissionResponse | null
 
-// ── My scope ─────────────────────────────────────────────
-
-const { permission: myPermission, pending: loadingScope } = usePermissions()
-
-const subgroupLocked = computed(() => !!myPermission.value?.allowedSubgroupId)
-const lessonTypeLocked = computed(() => !!myPermission.value?.allowedLessonType)
-
 // ── Form state ────────────────────────────────────────────
 
-const state = reactive<Schema>({
-  teacherId: targetPermission?.teacherId ?? '',
-  groupId: targetPermission?.groupId ?? '',
-  allowedSubgroupId: targetPermission?.allowedSubgroupId ?? null,
-  allowedLessonType: (targetPermission?.allowedLessonType as LessonType | null | undefined) ?? null,
-})
+const allGroups = ref<boolean>(targetPermission?.allPermissions ?? false)
 
-const original = ref({
-  teacherId: targetPermission?.teacherId ?? '',
-  groupId: targetPermission?.groupId ?? '',
-  allowedSubgroupId: targetPermission?.allowedSubgroupId ?? null,
-  allowedLessonType: targetPermission?.allowedLessonType ?? null,
-})
+const initialScopes: ScopeState[] = (targetPermission?.scopes ?? []).map(s => ({
+  groupId: s.group?.id ?? '',
+  allowedSubgroupId: s.allowedSubgroup?.id ?? null,
+  allowedLessonType: (s.allowedLessonType as LessonType | null | undefined) ?? null,
+}))
+
+const scopes = ref<ScopeState[]>(
+  initialScopes.length > 0
+    ? initialScopes
+    : [{ groupId: '', allowedSubgroupId: null, allowedLessonType: null }],
+)
+
+function addScope() {
+  scopes.value.push({ groupId: '', allowedSubgroupId: null, allowedLessonType: null })
+}
+
+function removeScope(i: number) {
+  scopes.value.splice(i, 1)
+}
+
+const errors = ref<string[]>([])
+
+function validate(): boolean {
+  errors.value = []
+  if (!allGroups.value && scopes.value.length === 0)
+    errors.value.push('Добавьте хотя бы один доступ')
+  if (!allGroups.value) {
+    for (const [i, s] of scopes.value.entries()) {
+      if (!s.groupId)
+        errors.value.push(`Доступ ${i + 1}: выберите группу`)
+    }
+  }
+  return errors.value.length === 0
+}
 
 // ── Submit ────────────────────────────────────────────────
 
@@ -55,25 +67,22 @@ const { toastError } = useApiError()
 const toast = useToast()
 
 const loading = ref(false)
-const formRef = useTemplateRef<Form<typeof UpdatePermissionSchema>>('form')
 
 async function handleUpdate() {
-  const data = await formRef.value?.validate({ transform: true })
-  if (!data)
+  if (!validate())
     return
 
   loading.value = true
   try {
-    const body: UpdateTeacherSubjectPermissionRequest = {}
-    if (data.teacherId !== original.value.teacherId)
-      body.teacherId = data.teacherId
-    if (data.groupId !== original.value.groupId)
-      body.groupId = data.groupId
-    if ((data.allowedSubgroupId ?? null) !== original.value.allowedSubgroupId) {
-      body.allowedSubgroupId = data.allowedSubgroupId ?? undefined
-    }
-    if ((data.allowedLessonType ?? null) !== original.value.allowedLessonType) {
-      body.allowedLessonType = data.allowedLessonType ?? undefined
+    const body: UpdateTeacherSubjectPermissionRequest = {
+      allPermissions: allGroups.value,
+      scopes: allGroups.value
+        ? undefined
+        : scopes.value.map<PermissionScopeRequest>(s => ({
+            groupId: s.groupId,
+            allowedSubgroupId: s.allowedSubgroupId ?? undefined,
+            allowedLessonType: s.allowedLessonType ?? undefined,
+          })),
     }
 
     await $backend('/api/teacher-subject-permissions/{id}', {
@@ -118,23 +127,8 @@ const isReady = !!targetPermission
       description="Откройте назначение из списка."
     />
 
-    <UAlert
-      v-else-if="!loadingScope && !myPermission"
-      color="warning"
-      variant="soft"
-      icon="i-lucide-circle-alert"
-      title="Нет назначения"
-      description="У вас нет назначения по данному предмету."
-    />
-
-    <UForm
-      v-else
-      ref="form"
-      :schema="UpdatePermissionSchema"
-      :state="state"
-      class="flex flex-col gap-4"
-    >
-      <UFormField label="Преподаватель" name="teacherId" required>
+    <div v-else class="flex flex-col gap-4">
+      <UFormField label="Преподаватель">
         <UInput
           :model-value="targetPermission?.teacherName ?? ''"
           disabled
@@ -142,40 +136,63 @@ const isReady = !!targetPermission
         />
       </UFormField>
 
-      <UFormField label="Группа" name="groupId" required>
-        <UInput
-          :model-value="targetPermission?.groupName ?? ''"
-          disabled
-          class="w-full"
-        />
-      </UFormField>
+      <UCheckbox v-model="allGroups" label="Все группы предмета" />
 
-      <UFormField label="Подгруппа" name="allowedSubgroupId">
-        <SubgroupSelect
-          v-if="!subgroupLocked"
-          v-model="state.allowedSubgroupId"
-          :group-id="state.groupId"
-        />
-        <UInput
-          v-else
-          :model-value="myPermission?.allowedSubgroupIndex != null ? `Подгруппа ${myPermission.allowedSubgroupIndex}` : ''"
-          disabled
-          class="w-full"
-        />
-      </UFormField>
+      <template v-if="!allGroups">
+        <USeparator label="Доступы" />
 
-      <UFormField label="Тип занятия" name="allowedLessonType">
-        <LessonTypeScopeSelect
-          v-if="!lessonTypeLocked"
-          v-model="state.allowedLessonType"
+        <UAlert
+          v-if="errors.length"
+          color="error"
+          variant="soft"
+          icon="i-lucide-circle-alert"
+          title="Исправьте ошибки"
+          :description="errors.join(' · ')"
         />
-        <UInput
-          v-else
-          :model-value="myPermission?.allowedLessonType === 'LECTURE' ? 'Лекция' : 'Практика'"
-          disabled
-          class="w-full"
+
+        <UCard
+          v-for="(s, i) in scopes"
+          :key="i"
+          :ui="{ body: 'flex flex-col gap-3' }"
+        >
+          <template #header>
+            <div class="flex items-center justify-between">
+              <span class="font-medium">Доступ {{ i + 1 }}</span>
+              <UButton
+                v-if="scopes.length > 1"
+                icon="i-lucide-x"
+                color="neutral"
+                variant="ghost"
+                @click="removeScope(i)"
+              />
+            </div>
+          </template>
+
+          <UFormField label="Группа" required>
+            <GroupsPermissionScopeSelect v-model="s.groupId" />
+          </UFormField>
+
+          <UFormField label="Тип занятия">
+            <LessonTypesPermissionSelect v-model="s.allowedLessonType" :group-id="s.groupId" />
+          </UFormField>
+
+          <UFormField v-if="s.groupId" label="Подгруппа">
+            <SubgroupsSelect
+              v-model="s.allowedSubgroupId"
+              :group-id="s.groupId"
+            />
+          </UFormField>
+        </UCard>
+
+        <UButton
+          icon="i-lucide-plus"
+          label="Добавить доступ"
+          color="neutral"
+          variant="outline"
+          class="self-start"
+          @click="addScope"
         />
-      </UFormField>
+      </template>
 
       <div class="flex justify-end gap-2">
         <UButton
@@ -195,6 +212,6 @@ const isReady = !!targetPermission
           Сохранить изменения
         </UButton>
       </div>
-    </UForm>
+    </div>
   </div>
 </template>

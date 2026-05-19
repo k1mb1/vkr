@@ -6,12 +6,21 @@ import * as v from 'valibot'
 import { nonNegativeInteger, uuidV4 } from '~/utils/validation'
 
 type CreateLessonsByTypeRequest = components['schemas']['CreateLessonsByTypeRequest']
+type LessonScopeRequest = components['schemas']['LessonScopeRequest']
+
+interface ScopeState {
+  groupId: string
+  allowedSubgroupId: string | null
+}
 
 const CreateLessonsSchema = v.pipe(
   v.object({
     subjectId: uuidV4(),
-    groupId: uuidV4('Выберите группу'),
-    subgroupId: v.optional(v.nullable(v.pipe(v.string(), v.uuid()))),
+    allGroups: v.boolean(),
+    scopes: v.array(v.object({
+      groupId: uuidV4(),
+      allowedSubgroupId: v.optional(v.nullable(v.pipe(v.string(), v.uuid()))),
+    })),
     lectureCount: nonNegativeInteger(),
     practiceCount: nonNegativeInteger(),
   }),
@@ -29,29 +38,48 @@ const { $backend } = useNuxtApp()
 const { toastError } = useApiError()
 const toast = useToast()
 
-// ── My scope ─────────────────────────────────────────────
+// ── My scopes ────────────────────────────────────────────
 
-const { permission, pending: loadingScope } = usePermissions()
+const { permission, scopes: myScopes, pending: loadingScope } = usePermissions()
+
+const teacherAllGroups = computed(() => permission.value?.allPermissions ?? false)
+
+function myScopeForGroup(groupId: string) {
+  return myScopes.value.find(s => s.group?.id === groupId)
+}
+
+const scopeState = reactive<ScopeState>({
+  groupId: '',
+  allowedSubgroupId: null,
+})
 
 const state = reactive<Schema>({
   subjectId,
-  groupId: '',
-  subgroupId: null,
+  allGroups: teacherAllGroups.value,
+  scopes: [],
   lectureCount: 0,
   practiceCount: 0,
 })
 
-// Seed from the single permission: groupId is fixed, subgroupId is fixed if restricted.
-watch(permission, (p) => {
-  if (!p)
-    return
-  state.groupId = p.groupId ?? ''
-  state.subgroupId = p.allowedSubgroupId ?? null
+watch(() => scopeState.groupId, (gid, oldGid) => {
+  if (gid !== oldGid)
+    scopeState.allowedSubgroupId = null
+  if (gid) {
+    state.scopes = [{ groupId: gid, allowedSubgroupId: scopeState.allowedSubgroupId }]
+  }
+  else {
+    state.scopes = []
+  }
 }, { immediate: true })
 
-const subgroupLocked = computed(() => !!permission.value?.allowedSubgroupId)
-const canLecture = computed(() => !permission.value?.allowedLessonType || permission.value.allowedLessonType === 'LECTURE')
-const canPractice = computed(() => !permission.value?.allowedLessonType || permission.value.allowedLessonType === 'PRACTICE')
+watch(() => scopeState.allowedSubgroupId, (sid) => {
+  if (state.scopes[0])
+    state.scopes[0].allowedSubgroupId = sid
+})
+
+const selectedScope = computed(() => myScopeForGroup(scopeState.groupId))
+const canLecture = computed(() => !selectedScope.value?.allowedLessonType || selectedScope.value.allowedLessonType === 'LECTURE')
+const canPractice = computed(() => !selectedScope.value?.allowedLessonType || selectedScope.value.allowedLessonType === 'PRACTICE')
 
 // Reset counts of types the teacher can't use
 watch([canLecture, canPractice], ([lec, prac]) => {
@@ -69,12 +97,17 @@ async function handleCreate() {
   if (!data)
     return
 
+  if (!data.allGroups && data.scopes.length === 0) {
+    toast.add({ title: 'Выберите группу', color: 'error', icon: 'i-lucide-circle-alert' })
+    return
+  }
+
   loading.value = true
   try {
     const body: CreateLessonsByTypeRequest = {
       subjectId: data.subjectId,
-      groupId: data.groupId,
-      subgroupId: data.subgroupId ?? undefined,
+      allGroups: data.allGroups,
+      scopes: data.allGroups ? undefined : data.scopes as LessonScopeRequest[],
       lectureCount: data.lectureCount,
       practiceCount: data.practiceCount,
     }
@@ -129,19 +162,21 @@ async function handleCreate() {
       :state="state"
       class="flex flex-col gap-4"
     >
-      <UFormField label="Подгруппа" name="subgroupId">
-        <SubgroupSelect
-          v-if="!subgroupLocked"
-          v-model="state.subgroupId"
-          :group-id="state.groupId"
-        />
-        <UInput
-          v-else
-          :model-value="permission?.allowedSubgroupIndex != null ? `Подгруппа ${permission.allowedSubgroupIndex}` : ''"
-          disabled
-          class="w-full"
-        />
-      </UFormField>
+      <UCheckbox v-if="teacherAllGroups" v-model="state.allGroups" label="Все группы предмета" />
+
+      <template v-if="!state.allGroups">
+        <UFormField label="Группа" required>
+          <GroupsPermissionScopeSelect v-model="scopeState.groupId" />
+        </UFormField>
+
+        <UFormField v-if="scopeState.groupId" label="Подгруппа">
+          <SubgroupsSelect
+            v-model="scopeState.allowedSubgroupId"
+            :group-id="scopeState.groupId"
+            :allowed-subgroup-id="myScopeForGroup(scopeState.groupId)?.allowedSubgroup?.id"
+          />
+        </UFormField>
+      </template>
 
       <div
         v-if="canLecture || canPractice"
@@ -170,7 +205,7 @@ async function handleCreate() {
       <UButton
         icon="i-lucide-check"
         :loading="loading"
-        :disabled="!state.groupId || (!canLecture && !canPractice)"
+        :disabled="(!state.allGroups && state.scopes.length === 0) || (!canLecture && !canPractice)"
         class="ml-auto"
         @click="handleCreate"
       >

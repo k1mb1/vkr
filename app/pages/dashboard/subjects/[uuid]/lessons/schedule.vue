@@ -3,9 +3,10 @@ import type { components } from '#open-fetch-schemas/backend'
 import type { FetchError } from 'ofetch'
 
 type BulkScheduleRequest = components['schemas']['BulkScheduleRequest']
+type LessonScopeRequest = components['schemas']['LessonScopeRequest']
+type LessonType = 'LECTURE' | 'PRACTICE'
 type shedules = BulkScheduleRequest['schedules'][number]
 type DayOfWeek = shedules['daysOfWeek'][number][number]
-type LessonType = shedules['type']
 
 const DAYS: { value: DayOfWeek, label: string }[] = [
   { value: 'MONDAY', label: 'Пн' },
@@ -17,11 +18,9 @@ const DAYS: { value: DayOfWeek, label: string }[] = [
   { value: 'SUNDAY', label: 'Вс' },
 ]
 
-interface Schema {
-  subjectId: string
+interface ScopeState {
   groupId: string
-  subgroupId: string | null
-  schedules: EntryState[]
+  allowedSubgroupId: string | null
 }
 
 interface EntryState {
@@ -38,12 +37,27 @@ const { $backend } = useNuxtApp()
 const { toastError } = useApiError()
 const toast = useToast()
 
-// ── My scope ─────────────────────────────────────────────
+const { permission, scopes: myScopes, pending: loadingScope } = usePermissions()
 
-const { permission, pending: loadingScope } = usePermissions()
+const teacherAllGroups = computed(() => permission.value?.allPermissions ?? false)
+const allGroups = ref(teacherAllGroups.value)
+
+function myScopeForGroup(groupId: string) {
+  return myScopes.value.find(s => s.group?.id === groupId)
+}
+
+const scopeState = reactive<ScopeState>({
+  groupId: '',
+  allowedSubgroupId: null,
+})
+
+watch(() => scopeState.groupId, (gid, oldGid) => {
+  if (gid !== oldGid)
+    scopeState.allowedSubgroupId = null
+})
 
 const allowedLessonTypeOptions = computed<{ value: LessonType, label: string }[]>(() => {
-  const restricted = permission.value?.allowedLessonType
+  const restricted = myScopeForGroup(scopeState.groupId)?.allowedLessonType as LessonType | null | undefined
   if (restricted)
     return [{ value: restricted, label: restricted === 'LECTURE' ? 'Лекция' : 'Практика' }]
   return [
@@ -56,44 +70,24 @@ function makeEntry(defaultType: LessonType = 'LECTURE'): EntryState {
   return { type: defaultType, startDate: '', totalCount: 1, daysOfWeek: [[]] }
 }
 
-const state = reactive<Schema>({
-  subjectId,
-  groupId: '',
-  subgroupId: null,
-  schedules: [makeEntry()],
-})
+const schedules = ref<EntryState[]>([makeEntry()])
 
-// Seed groupId/subgroupId from the single permission.
-watch(permission, (p) => {
-  if (!p)
-    return
-  state.groupId = p.groupId ?? ''
-  state.subgroupId = p.allowedSubgroupId ?? null
-}, { immediate: true })
-
-const subgroupLocked = computed(() => !!permission.value?.allowedSubgroupId)
-
-// Keep each entry's type within the allowed set
 watch(allowedLessonTypeOptions, (opts) => {
   const allowed = new Set(opts.map(o => o.value))
-  for (const entry of state.schedules) {
+  for (const entry of schedules.value) {
     if (!allowed.has(entry.type) && opts.length > 0)
       entry.type = opts[0]!.value
   }
 })
 
-// ── Schedule entry management ──────────────────────────────
-
 function addEntry() {
   const firstAllowed = allowedLessonTypeOptions.value[0]?.value ?? 'LECTURE'
-  state.schedules.push(makeEntry(firstAllowed))
+  schedules.value.push(makeEntry(firstAllowed))
 }
 
 function removeEntry(i: number) {
-  state.schedules.splice(i, 1)
+  schedules.value.splice(i, 1)
 }
-
-// ── Week pattern management ────────────────────────────────
 
 function addWeek(entry: EntryState) {
   entry.daysOfWeek.push([])
@@ -118,18 +112,15 @@ function isDaySelected(entry: EntryState, wi: number, day: DayOfWeek): boolean {
   return entry.daysOfWeek[wi]?.includes(day) ?? false
 }
 
-// ── Submit ─────────────────────────────────────────────────
-
 const loading = ref(false)
 
-// Manual validation since the nested dynamic structure doesn't map to UForm
 const errors = ref<string[]>([])
 
 function validate(): boolean {
   errors.value = []
-  if (!state.groupId)
+  if (!allGroups.value && !scopeState.groupId)
     errors.value.push('Выберите группу')
-  for (const [i, entry] of state.schedules.entries()) {
+  for (const [i, entry] of schedules.value.entries()) {
     if (!entry.startDate)
       errors.value.push(`Занятие ${i + 1}: введите дату начала`)
     if (entry.totalCount < 1)
@@ -149,10 +140,15 @@ async function handleCreate() {
   loading.value = true
   try {
     const body: BulkScheduleRequest = {
-      subjectId: state.subjectId,
-      groupId: state.groupId,
-      subgroupId: state.subgroupId ?? undefined,
-      schedules: state.schedules,
+      subjectId,
+      allGroups: allGroups.value,
+      scopes: allGroups.value
+        ? undefined
+        : [{
+            groupId: scopeState.groupId,
+            allowedSubgroupId: scopeState.allowedSubgroupId ?? undefined,
+          }] as LessonScopeRequest[],
+      schedules: schedules.value,
     }
     const result = await $backend('/api/lessons/bulk-schedule', { method: 'POST', body })
     toast.add({
@@ -194,20 +190,26 @@ async function handleCreate() {
       description="У вас нет назначения по данному предмету."
     />
 
+    <div v-else-if="loadingScope" class="flex flex-col gap-4">
+      <USkeleton v-for="i in 3" :key="i" class="h-12" />
+    </div>
+
     <div v-else class="flex flex-col gap-4">
-      <UFormField label="Подгруппа">
-        <SubgroupSelect
-          v-if="!subgroupLocked"
-          v-model="state.subgroupId"
-          :group-id="state.groupId"
-        />
-        <UInput
-          v-else
-          :model-value="permission?.allowedSubgroupIndex != null ? `Подгруппа ${permission.allowedSubgroupIndex}` : ''"
-          disabled
-          class="w-full"
-        />
-      </UFormField>
+      <UCheckbox v-if="teacherAllGroups" v-model="allGroups" label="Все группы предмета" />
+
+      <template v-if="!allGroups">
+        <UFormField label="Группа" required>
+          <GroupsPermissionScopeSelect v-model="scopeState.groupId" />
+        </UFormField>
+
+        <UFormField v-if="scopeState.groupId" label="Подгруппа">
+          <SubgroupsSelect
+            v-model="scopeState.allowedSubgroupId"
+            :group-id="scopeState.groupId"
+            :allowed-subgroup-id="myScopeForGroup(scopeState.groupId)?.allowedSubgroup?.id"
+          />
+        </UFormField>
+      </template>
 
       <USeparator />
 
@@ -222,7 +224,7 @@ async function handleCreate() {
 
       <div class="flex flex-col gap-6">
         <UCard
-          v-for="(entry, i) in state.schedules"
+          v-for="(entry, i) in schedules"
           :key="i"
           :ui="{ body: 'flex flex-col gap-4' }"
         >
@@ -230,7 +232,7 @@ async function handleCreate() {
             <div class="flex items-center justify-between">
               <span class="font-medium">Занятие {{ i + 1 }}</span>
               <UButton
-                v-if="state.schedules.length > 1"
+                v-if="schedules.length > 1"
                 icon="i-lucide-x"
                 color="neutral"
                 variant="ghost"
@@ -326,7 +328,7 @@ async function handleCreate() {
       <UButton
         icon="i-lucide-check"
         :loading="loading"
-        :disabled="!state.groupId || allowedLessonTypeOptions.length === 0"
+        :disabled="(!allGroups && !scopeState.groupId) || allowedLessonTypeOptions.length === 0"
         class="ml-auto"
         @click="handleCreate"
       >

@@ -5,7 +5,7 @@ import { refDebounced } from '@vueuse/core'
 type TeacherResponse = components['schemas']['TeacherResponse']
 
 const props = defineProps<{
-  exclude?: string[]
+  excludeId?: NonNullable<TeacherResponse['id']>[]
   initialLabel?: string
 }>()
 
@@ -31,7 +31,7 @@ const { selectedOption, hasMore, selectOptions, menuRef } = useInfiniteSelectMen
   getId: t => t.id,
   getLabel: t => t.username ?? '—',
   initialLabel: () => props.initialLabel,
-  exclude: () => props.exclude,
+  exclude: () => props.excludeId,
 })
 
 const { alertProps } = useApiError()

@@ -1,15 +1,27 @@
 <script setup lang="ts">
 import type { components } from '#open-fetch-schemas/backend'
 import type { DropdownMenuItem, TableColumn } from '@nuxt/ui'
+import type { Cell } from '@tanstack/vue-table'
 import type { FetchError } from 'ofetch'
 
 type LessonResponse = components['schemas']['LessonResponse']
 
+interface FlatRow {
+  _lessonId: string
+  _scopeIndex: number
+  _totalScopes: number
+  topic: string
+  type: string
+  startedAt: string
+  groupName: string
+  subgroupLabel: string
+  lesson: LessonResponse
+}
+
 const route = useRoute()
 const subjectId = computed(() => String(route.params.uuid ?? ''))
 
-const { permission, pending: permissionPending } = usePermissions()
-const permissionId = computed(() => permission.value?.id ?? '')
+const { permissionId, pending: permissionPending } = usePermissions()
 
 const { data, pending: lessonsPending, error, refresh } = useBackend('/api/lessons', {
   method: 'GET',
@@ -17,25 +29,12 @@ const { data, pending: lessonsPending, error, refresh } = useBackend('/api/lesso
   immediate: false,
 })
 
-watch(permissionId, (id) => {
-  if (id)
+watch(permissionId, (pid) => {
+  if (pid)
     refresh()
 }, { immediate: true })
 
 const pending = computed(() => permissionPending.value || lessonsPending.value)
-const rows = computed<LessonResponse[]>(() => {
-  const list = data.value ?? []
-  return [...list].sort((a, b) => {
-    const da = a.startedAt ?? ''
-    const db = b.startedAt ?? ''
-    return da.localeCompare(db)
-  })
-})
-
-const lessonTypeLabel: Record<string, string> = {
-  LECTURE: 'Лекция',
-  PRACTICE: 'Практика',
-}
 
 function formatDate(dt: string | undefined): string {
   if (!dt)
@@ -47,27 +46,98 @@ function formatDate(dt: string | undefined): string {
   }).format(new Date(dt))
 }
 
-const columns: TableColumn<LessonResponse>[] = [
+const rows = computed<FlatRow[]>(() => {
+  const out: FlatRow[] = []
+  for (const lesson of data.value ?? []) {
+    if (!lesson.id)
+      continue
+    const scopes = lesson.scopes ?? []
+    if (scopes.length === 0) {
+      out.push({
+        _lessonId: lesson.id,
+        _scopeIndex: 0,
+        _totalScopes: 1,
+        topic: lesson.topic ?? '—',
+        type: lesson.type ?? '—',
+        startedAt: formatDate(lesson.startedAt),
+        groupName: 'Все',
+        subgroupLabel: 'Все',
+        lesson,
+      })
+      continue
+    }
+    for (const [i, s] of scopes.entries()) {
+      out.push({
+        _lessonId: lesson.id,
+        _scopeIndex: i,
+        _totalScopes: scopes.length,
+        topic: lesson.topic ?? '—',
+        type: lesson.type ?? '—',
+        startedAt: formatDate(lesson.startedAt),
+        groupName: s.groupName ?? '—',
+        subgroupLabel: s.allowedSubgroupIndex != null
+          ? `Подгруппа ${s.allowedSubgroupIndex}`
+          : 'Все',
+        lesson,
+      })
+    }
+  }
+  return out
+})
+
+function makeRowspanMeta(extraClass = '') {
+  return {
+    rowspan: {
+      td: (cell: Cell<FlatRow, unknown>) => {
+        const row = cell.row.original
+        return row._scopeIndex === 0 ? String(row._totalScopes) : '0'
+      },
+    },
+    class: {
+      td: (cell: Cell<FlatRow, unknown>) =>
+        cell.row.original._scopeIndex !== 0
+          ? 'hidden'
+          : `align-middle ${extraClass}`.trim(),
+    },
+  }
+}
+
+const columns: TableColumn<FlatRow>[] = [
   {
     accessorKey: 'topic',
     header: 'Тема',
+    meta: makeRowspanMeta('font-medium'),
   },
   {
     accessorKey: 'type',
     header: 'Тип',
-  },
-  {
-    accessorKey: 'subgroupIndex',
-    header: 'Подгруппа',
+    meta: makeRowspanMeta(),
   },
   {
     accessorKey: 'startedAt',
     header: 'Дата',
-    cell: ({ row }) => formatDate(row.original.startedAt),
+    meta: makeRowspanMeta('text-muted text-sm'),
+  },
+  {
+    accessorKey: 'groupName',
+    header: 'Группа',
+  },
+  {
+    accessorKey: 'subgroupLabel',
+    header: 'Подгруппа',
   },
   {
     id: 'actions',
-    meta: { class: { td: 'w-10' } },
+    meta: {
+      rowspan: makeRowspanMeta().rowspan,
+      class: {
+        td: (cell: Cell<FlatRow, unknown>) => {
+          if (cell.row.original._scopeIndex !== 0)
+            return 'hidden'
+          return 'w-10 align-middle'
+        },
+      },
+    },
   },
 ]
 
@@ -120,13 +190,13 @@ async function handleDelete() {
   }
 }
 
-function rowActions(row: LessonResponse): DropdownMenuItem[][] {
+function rowActions(row: FlatRow): DropdownMenuItem[][] {
   return [
     [
       {
         label: 'Изменить',
         icon: 'i-lucide-pencil',
-        onSelect: () => goToEdit(row),
+        onSelect: () => goToEdit(row.lesson),
       },
     ],
     [
@@ -134,7 +204,7 @@ function rowActions(row: LessonResponse): DropdownMenuItem[][] {
         label: 'Удалить',
         icon: 'i-lucide-trash-2',
         color: 'error',
-        onSelect: () => openDeleteModal(row),
+        onSelect: () => openDeleteModal(row.lesson),
       },
     ],
   ]
@@ -142,19 +212,9 @@ function rowActions(row: LessonResponse): DropdownMenuItem[][] {
 </script>
 
 <template>
-  <div class="flex flex-col gap-8">
-    <!-- Header -->
-    <div class="flex items-center justify-between">
-      <div>
-        <p class="text-xs font-medium text-muted uppercase tracking-widest mb-1">
-          Предмет
-        </p>
-        <h1 class="text-2xl font-semibold text-highlighted">
-          Занятия
-        </h1>
-      </div>
-
-      <div class="flex items-center gap-2">
+  <div class="flex flex-col gap-6">
+    <UPageHeader title="Занятия">
+      <template #links>
         <UButton
           icon="i-lucide-refresh-cw"
           color="neutral"
@@ -174,10 +234,9 @@ function rowActions(row: LessonResponse): DropdownMenuItem[][] {
           label="По расписанию"
           :to="`/dashboard/subjects/${subjectId}/lessons/schedule`"
         />
-      </div>
-    </div>
+      </template>
+    </UPageHeader>
 
-    <!-- Error -->
     <UAlert
       v-if="error"
       color="error"
@@ -187,50 +246,40 @@ function rowActions(row: LessonResponse): DropdownMenuItem[][] {
       :description="error.message"
     />
 
-    <!-- Table -->
-    <div
-      v-if="!error"
-    >
+    <ClientOnly v-else>
       <UTable
         :data="rows"
         :columns="columns"
         :loading="pending && rows.length === 0"
         sticky
+        class="w-full"
+        :ui="{ td: 'empty:p-0' }"
       >
-        <!-- Тема -->
-        <template #topic-cell="{ row }">
-          <UTooltip
-            :text="row.original.topic ?? '—'"
-            :disabled="!row.original.topic"
-            :delay-duration="300"
-          >
-            <span class="block truncate max-w-[240px] font-medium text-highlighted">
-              {{ row.original.topic ?? '—' }}
-            </span>
-          </UTooltip>
-        </template>
-
         <!-- Тип -->
         <template #type-cell="{ row }">
           <UBadge
             :color="row.original.type === 'LECTURE' ? 'primary' : 'secondary'"
             variant="subtle"
-            :label="lessonTypeLabel[row.original.type ?? ''] ?? row.original.type ?? '—'"
-          />
+          >
+            {{ row.original.type === 'LECTURE' ? 'Лекция' : 'Практика' }}
+          </UBadge>
+        </template>
+
+        <!-- Группа -->
+        <template #groupName-cell="{ row }">
+          <span class="font-mono font-semibold uppercase tracking-wide">
+            {{ row.original.groupName }}
+          </span>
         </template>
 
         <!-- Подгруппа -->
-        <template #subgroupIndex-cell="{ row }">
-          <span class="text-muted text-sm">
-            {{ row.original.subgroupIndex === null ? 'Все' : `Подгруппа ${row.original.subgroupIndex}` }}
-          </span>
-        </template>
-
-        <!-- Дата -->
-        <template #startedAt-cell="{ row }">
-          <span class="text-muted tabular-nums">
-            {{ formatDate(row.original.startedAt) }}
-          </span>
+        <template #subgroupLabel-cell="{ row }">
+          <UBadge
+            :color="row.original.subgroupLabel === 'Все' ? 'success' : 'primary'"
+            :variant="row.original.subgroupLabel === 'Все' ? 'subtle' : 'outline'"
+          >
+            {{ row.original.subgroupLabel }}
+          </UBadge>
         </template>
 
         <!-- Действия -->
@@ -240,47 +289,25 @@ function rowActions(row: LessonResponse): DropdownMenuItem[][] {
             :ui="{ content: 'w-36' }"
           >
             <UButton
-              icon="i-lucide-ellipsis"
+              icon="i-lucide-ellipsis-vertical"
               color="neutral"
               variant="ghost"
             />
           </UDropdownMenu>
         </template>
 
-        <!-- Пусто -->
         <template #empty>
-          <div class="flex flex-col items-center gap-4 py-16 px-6 text-center">
-            <div class="p-3 rounded-full bg-elevated">
-              <UIcon name="i-lucide-calendar-off" class="size-6 text-muted" />
-            </div>
-            <div>
-              <p class="font-medium text-highlighted">
-                Занятий пока нет
-              </p>
-              <p class="text-sm text-muted mt-1">
-                Добавьте занятия по количеству или расписанию
-              </p>
-            </div>
-            <div class="flex gap-2 mt-1">
-              <UButton
-                icon="i-lucide-list-plus"
-                label="По количеству"
-                color="neutral"
-                variant="outline"
-                :to="`/dashboard/subjects/${subjectId}/lessons/create`"
-              />
-              <UButton
-                icon="i-lucide-calendar-plus"
-                label="По расписанию"
-                :to="`/dashboard/subjects/${subjectId}/lessons/schedule`"
-              />
-            </div>
-          </div>
+          <UEmpty
+            icon="i-lucide-calendar-off"
+            title="Занятий пока нет"
+            description="Добавьте занятия по количеству или расписанию"
+            variant="naked"
+            class="py-6"
+          />
         </template>
       </UTable>
-    </div>
+    </ClientOnly>
 
-    <!-- Delete modal -->
     <ConfirmModal
       :open="deleteModal"
       title="Удалить занятие"
