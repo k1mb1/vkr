@@ -15,7 +15,7 @@
   ],
   "security": [{ "bearerAuth": [] }],
   "tags": [
-    { "name": "Assignments", "description": "Задания" },
+    { "name": "Grades", "description": "Оценивание" },
     {
       "name": "Teacher Subject Permissions",
       "description": "Права преподавателей на предметы"
@@ -30,10 +30,10 @@
     },
     { "name": "Subgroups", "description": "Управление подгруппами" },
     { "name": "Groups", "description": "Управление группами и их составом" },
-    { "name": "Grades", "description": "Оценки" },
     { "name": "Subjects", "description": "Управление предметами" },
     { "name": "Lessons", "description": "Управление занятиями и расписанием" },
     { "name": "Teachers", "description": "Управление преподавателями" },
+    { "name": "Assignments", "description": "Задания для оценивания" },
     { "name": "Attendances", "description": "Посещаемость" }
   ],
   "paths": {
@@ -86,7 +86,7 @@
       "get": {
         "tags": ["Grades"],
         "summary": "Получить таблицу оценок по permissionId",
-        "operationId": "getGradeTable",
+        "operationId": "getGradingTable",
         "parameters": [
           {
             "name": "permissionId",
@@ -105,7 +105,9 @@
             "description": "OK",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/GradeTableResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/GradingTableResponse"
+                }
               }
             }
           }
@@ -113,8 +115,8 @@
       },
       "put": {
         "tags": ["Grades"],
-        "summary": "Проставить или обновить оценку для пары (студент, задание)",
-        "operationId": "upsert",
+        "summary": "Проставить или обновить оценку для пары (студент, занятие [+ задание])",
+        "operationId": "upsertGrade",
         "requestBody": {
           "description": "Ячейка оценки",
           "content": {
@@ -170,7 +172,7 @@
       "put": {
         "tags": ["Attendances"],
         "summary": "Проставить или обновить отметку для пары (студент, занятие)",
-        "operationId": "upsert_1",
+        "operationId": "upsert",
         "requestBody": {
           "description": "Ячейка посещаемости",
           "content": {
@@ -194,6 +196,56 @@
             }
           }
         }
+      }
+    },
+    "/api/assignments/{id}": {
+      "put": {
+        "tags": ["Assignments"],
+        "summary": "Обновить задание",
+        "operationId": "update",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "description": "Поля задания",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAssignmentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AssignmentResponse" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Assignments"],
+        "summary": "Удалить задание (связанные оценки удаляются каскадно)",
+        "operationId": "delete",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": { "200": { "description": "OK" } }
       }
     },
     "/api/teacher-subject-permissions": {
@@ -629,15 +681,42 @@
       }
     },
     "/api/assignments": {
+      "get": {
+        "tags": ["Assignments"],
+        "summary": "Получить список заданий по lessonId (отсортированный по order)",
+        "operationId": "getByLesson",
+        "parameters": [
+          {
+            "name": "lessonId",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/AssignmentResponse" }
+                }
+              }
+            }
+          }
+        }
+      },
       "post": {
         "tags": ["Assignments"],
-        "summary": "Создать задание",
+        "summary": "Создать список заданий для урока (только если у урока ещё нет заданий)",
         "operationId": "create_1",
         "requestBody": {
+          "description": "Список заданий для урока",
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateAssignmentRequest"
+                "$ref": "#/components/schemas/CreateAssignmentsRequest"
               }
             }
           },
@@ -648,7 +727,10 @@
             "description": "OK",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/AssignmentResponse" }
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/AssignmentResponse" }
+                }
               }
             }
           }
@@ -659,7 +741,7 @@
       "delete": {
         "tags": ["Teacher Subject Permissions"],
         "summary": "Удалить (архивировать) право преподавателя на предмет",
-        "operationId": "delete",
+        "operationId": "delete_1",
         "parameters": [
           {
             "name": "id",
@@ -673,7 +755,7 @@
       "patch": {
         "tags": ["Teacher Subject Permissions"],
         "summary": "Обновить право преподавателя на предмет",
-        "operationId": "update",
+        "operationId": "update_1",
         "parameters": [
           {
             "name": "id",
@@ -860,78 +942,6 @@
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/GroupResponse" }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/assignments/{id}": {
-      "get": {
-        "tags": ["Assignments"],
-        "summary": "Получить задание по ID",
-        "operationId": "findById",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": { "type": "string", "format": "uuid" }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/AssignmentResponse" }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "tags": ["Assignments"],
-        "summary": "Удалить задание",
-        "operationId": "delete_1",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": { "type": "string", "format": "uuid" }
-          }
-        ],
-        "responses": { "200": { "description": "OK" } }
-      },
-      "patch": {
-        "tags": ["Assignments"],
-        "summary": "Обновить задание",
-        "operationId": "update_1",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": { "type": "string", "format": "uuid" }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateAssignmentRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/AssignmentResponse" }
               }
             }
           }
@@ -1282,19 +1292,24 @@
             "format": "uuid",
             "description": "ID студента"
           },
+          "lessonId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID занятия"
+          },
           "assignmentId": {
             "type": "string",
             "format": "uuid",
-            "description": "ID задания"
+            "description": "ID задания. null = оценка вне задания (одна на пару студент+занятие)"
           },
-          "value": {
+          "score": {
             "type": "integer",
             "format": "int32",
-            "description": "Оценка (> 0)"
+            "description": "Балл (>0). Если задано assignmentId, должен быть ≤ maxPoints задания"
           },
           "comment": { "type": "string", "description": "Комментарий" }
         },
-        "required": ["assignmentId", "studentId", "value"]
+        "required": ["lessonId", "score", "studentId"]
       },
       "GradeCellResponse": {
         "type": "object",
@@ -1310,15 +1325,20 @@
             "format": "uuid",
             "description": "ID студента"
           },
+          "lessonId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID занятия"
+          },
           "assignmentId": {
             "type": "string",
             "format": "uuid",
-            "description": "ID задания"
+            "description": "ID задания (null = оценка вне задания)"
           },
-          "value": {
+          "score": {
             "type": "integer",
             "format": "int32",
-            "description": "Оценка (> 0)"
+            "description": "Балл"
           },
           "comment": { "type": "string", "description": "Комментарий" }
         }
@@ -1371,6 +1391,57 @@
             "enum": ["PRESENT", "ABSENT", "LATE", "EXCUSED"]
           },
           "comment": { "type": "string", "description": "Комментарий" }
+        }
+      },
+      "UpdateAssignmentRequest": {
+        "type": "object",
+        "description": "Обновление задания (lessonId менять нельзя — задание привязано к уроку при создании)",
+        "properties": {
+          "order": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Порядковый номер задания в рамках занятия (1..N)"
+          },
+          "maxPoints": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Максимальное количество баллов (>0)"
+          },
+          "required": {
+            "type": "boolean",
+            "description": "Обязательное ли задание"
+          }
+        },
+        "required": ["maxPoints", "order", "required"]
+      },
+      "AssignmentResponse": {
+        "type": "object",
+        "description": "Задание в таблице оценок",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID задания"
+          },
+          "lessonId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID занятия"
+          },
+          "order": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Порядковый номер задания"
+          },
+          "maxPoints": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Максимальное количество баллов"
+          },
+          "required": {
+            "type": "boolean",
+            "description": "Обязательное ли задание"
+          }
         }
       },
       "CreateTeacherSubjectPermissionRequest": {
@@ -2094,55 +2165,39 @@
           }
         }
       },
-      "CreateAssignmentRequest": {
+      "CreateAssignmentsRequest": {
         "type": "object",
-        "description": "Создание задания",
+        "description": "Массовое создание заданий для урока. Допустимо только если у урока ещё нет заданий; иначе используйте PUT /api/assignments/{id} для обновления конкретного задания.",
         "properties": {
           "lessonId": {
             "type": "string",
             "format": "uuid",
             "description": "ID занятия"
           },
-          "title": {
-            "type": "string",
-            "description": "Название задания",
-            "minLength": 1
-          },
-          "maxScore": {
+          "items": {
+            "type": "array",
+            "description": "Список заданий. Порядковый номер (order) присваивается автоматически 1..N в соответствии с позицией в массиве.",
+            "items": { "$ref": "#/components/schemas/Item" },
+            "minItems": 1
+          }
+        },
+        "required": ["items", "lessonId"]
+      },
+      "Item": {
+        "type": "object",
+        "description": "Описание одного задания в bulk-запросе",
+        "properties": {
+          "maxPoints": {
             "type": "integer",
             "format": "int32",
-            "description": "Максимальный балл (> 0)"
+            "description": "Максимальное количество баллов (>0)"
           },
           "required": {
             "type": "boolean",
-            "default": false,
-            "description": "Обязательное задание"
+            "description": "Обязательное ли задание"
           }
         },
-        "required": ["lessonId", "maxScore", "title"]
-      },
-      "AssignmentResponse": {
-        "type": "object",
-        "description": "Задание",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID задания"
-          },
-          "lessonId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID занятия"
-          },
-          "title": { "type": "string", "description": "Название" },
-          "required": { "type": "boolean", "description": "Обязательное" },
-          "maxScore": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Максимальный балл"
-          }
-        }
+        "required": ["maxPoints", "required"]
       },
       "UpdateTeacherSubjectPermissionRequest": {
         "type": "object",
@@ -2255,27 +2310,6 @@
           }
         }
       },
-      "UpdateAssignmentRequest": {
-        "type": "object",
-        "description": "Обновление задания",
-        "properties": {
-          "title": {
-            "type": "string",
-            "description": "Название задания",
-            "minLength": 1
-          },
-          "maxScore": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Максимальный балл (> 0)"
-          },
-          "required": {
-            "type": "boolean",
-            "description": "Обязательное задание"
-          }
-        },
-        "required": ["maxScore", "title"]
-      },
       "PageMetadata": {
         "type": "object",
         "properties": {
@@ -2363,9 +2397,9 @@
           "page": { "$ref": "#/components/schemas/PageMetadata" }
         }
       },
-      "GradeAudienceScope": {
+      "GradingAudienceScope": {
         "type": "object",
-        "description": "Аудитория таблицы оценок — одна запись на (группа, опц. подгруппа)",
+        "description": "Аудитория таблицы — одна запись на (группа, опц. подгруппа). Один scope разрешения = одна запись; при allPermissions=true — по одной записи на каждую группу предмета.",
         "properties": {
           "groupId": {
             "type": "string",
@@ -2385,66 +2419,60 @@
           }
         }
       },
-      "GradeTableColumn": {
+      "GradingTableLesson": {
         "type": "object",
-        "description": "Колонка таблицы оценок — задание с контекстом занятия",
+        "description": "Занятие в таблице оценок",
         "properties": {
           "id": {
             "type": "string",
             "format": "uuid",
-            "description": "ID задания"
-          },
-          "title": { "type": "string", "description": "Название задания" },
-          "required": { "type": "boolean", "description": "Обязательное" },
-          "maxScore": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Максимальный балл"
-          },
-          "lessonId": {
-            "type": "string",
-            "format": "uuid",
             "description": "ID занятия"
           },
-          "lessonDate": {
+          "startedAt": {
             "type": "string",
             "format": "date",
             "description": "Дата занятия"
           },
-          "lessonType": {
+          "type": {
             "type": "string",
             "description": "Тип занятия",
             "enum": ["LECTURE", "PRACTICE"]
-          }
+          },
+          "topic": { "type": "string", "description": "Тема" }
         }
       },
-      "GradeTableResponse": {
+      "GradingTableResponse": {
         "type": "object",
-        "description": "Таблица оценок: студенты × задания с существующими ячейками",
+        "description": "Таблица оценок: студенты × (задания + extra-колонка) с существующими ячейками",
         "properties": {
           "audience": {
             "type": "array",
-            "description": "Аудитория таблицы — группы и подгруппы, покрываемые разрешением",
-            "items": { "$ref": "#/components/schemas/GradeAudienceScope" }
+            "description": "Аудитория таблицы — группы и подгруппы, покрываемые разрешением (для построения заголовка таблицы).",
+            "items": { "$ref": "#/components/schemas/GradingAudienceScope" }
           },
           "students": {
             "type": "array",
             "description": "Строки таблицы — студенты",
-            "items": { "$ref": "#/components/schemas/GradeTableStudent" }
+            "items": { "$ref": "#/components/schemas/GradingTableStudent" }
           },
-          "columns": {
+          "lessons": {
             "type": "array",
-            "description": "Колонки таблицы — задания",
-            "items": { "$ref": "#/components/schemas/GradeTableColumn" }
+            "description": "Занятия (нужны для построения подзаголовков колонок и extra-оценок по уроку)",
+            "items": { "$ref": "#/components/schemas/GradingTableLesson" }
+          },
+          "assignments": {
+            "type": "array",
+            "description": "Задания (колонки таблицы внутри каждого урока)",
+            "items": { "$ref": "#/components/schemas/AssignmentResponse" }
           },
           "grades": {
             "type": "array",
-            "description": "Проставленные ячейки; если ячейки нет — оценка ещё не выставлена",
+            "description": "Проставленные ячейки оценок (включая оценки вне заданий — у них assignmentId=null)",
             "items": { "$ref": "#/components/schemas/GradeCellResponse" }
           }
         }
       },
-      "GradeTableStudent": {
+      "GradingTableStudent": {
         "type": "object",
         "description": "Студент в таблице оценок",
         "properties": {
@@ -2457,9 +2485,12 @@
           "groupId": {
             "type": "string",
             "format": "uuid",
-            "description": "ID группы"
+            "description": "ID группы студента"
           },
-          "groupName": { "type": "string", "description": "Название группы" },
+          "groupName": {
+            "type": "string",
+            "description": "Название группы студента"
+          },
           "subgroupId": {
             "type": "string",
             "format": "uuid",

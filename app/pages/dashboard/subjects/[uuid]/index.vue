@@ -33,7 +33,14 @@ const { permission, scopes, pending, error } = usePermissions()
         <UButton
           :to="`/dashboard/subjects/${subjectId}/attendances`"
           icon="i-lucide-clipboard-check"
+          color="neutral"
+          variant="outline"
           label="Посещаемость"
+        />
+        <UButton
+          :to="`/dashboard/subjects/${subjectId}/grades`"
+          icon="i-lucide-graduation-cap"
+          label="Оценки"
         />
       </template>
     </UPageHeader>

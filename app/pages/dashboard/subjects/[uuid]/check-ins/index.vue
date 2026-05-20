@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { components } from '#open-fetch-schemas/backend'
 import type { TableColumn } from '@nuxt/ui'
+import type { Cell } from '@tanstack/vue-table'
 
 type CheckInSessionResponse = components['schemas']['CheckInSessionResponse']
 type CheckInState = NonNullable<CheckInSessionResponse['state']>
@@ -8,6 +9,21 @@ type CheckInState = NonNullable<CheckInSessionResponse['state']>
 interface ScopeState {
   groupId: string
   allowedSubgroupId: string | null
+}
+
+interface FlatRow {
+  _sessionId: string
+  _scopeIndex: number
+  _totalScopes: number
+  state: CheckInState | undefined
+  startedAt: string | undefined
+  onTimeSeconds: number | undefined
+  lateSeconds: number | undefined
+  confirmedAt: string | undefined
+  groupId: string | undefined
+  groupName: string
+  subgroupLabel: string
+  session: CheckInSessionResponse
 }
 
 const route = useRoute()
@@ -37,30 +53,88 @@ watch(permissionId, (id) => {
 
 const pending = computed(() => permissionPending.value || sessionsPending.value)
 
-const rows = computed<CheckInSessionResponse[]>(() => {
-  const arr = [...(data.value ?? [])]
-  arr.sort((a, b) => {
+function makeRowspanMeta(extraClass = '') {
+  return {
+    rowspan: {
+      td: (cell: Cell<FlatRow, unknown>) => {
+        const row = cell.row.original
+        return row._scopeIndex === 0 ? String(row._totalScopes) : '0'
+      },
+    },
+    class: {
+      td: (cell: Cell<FlatRow, unknown>) =>
+        cell.row.original._scopeIndex !== 0
+          ? 'hidden'
+          : `align-middle ${extraClass}`.trim(),
+    },
+  }
+}
+
+const flatRows = computed<FlatRow[]>(() => {
+  const out: FlatRow[] = []
+  const sessions = [...(data.value ?? [])]
+  sessions.sort((a, b) => {
     const at = a.startedAt ? new Date(a.startedAt).getTime() : 0
     const bt = b.startedAt ? new Date(b.startedAt).getTime() : 0
     return bt - at
   })
-  return arr
+
+  for (const session of sessions) {
+    if (!session.id)
+      continue
+    const audience = session.audience ?? []
+    if (audience.length === 0) {
+      out.push({
+        _sessionId: session.id,
+        _scopeIndex: 0,
+        _totalScopes: 1,
+        state: session.state,
+        startedAt: session.startedAt,
+        onTimeSeconds: session.onTimeSeconds,
+        lateSeconds: session.lateSeconds,
+        confirmedAt: session.confirmedAt,
+        groupId: undefined,
+        groupName: 'Все',
+        subgroupLabel: 'Все',
+        session,
+      })
+      continue
+    }
+    for (const [i, a] of audience.entries()) {
+      out.push({
+        _sessionId: session.id,
+        _scopeIndex: i,
+        _totalScopes: audience.length,
+        state: session.state,
+        startedAt: session.startedAt,
+        onTimeSeconds: session.onTimeSeconds,
+        lateSeconds: session.lateSeconds,
+        confirmedAt: session.confirmedAt,
+        groupId: a.groupId ?? undefined,
+        groupName: a.groupName ?? '—',
+        subgroupLabel: a.allowedSubgroupIndex != null
+          ? `Подгруппа ${a.allowedSubgroupIndex}`
+          : 'Все',
+        session,
+      })
+    }
+  }
+  return out
 })
 
-const filteredRows = computed<CheckInSessionResponse[]>(() => {
+const filteredRows = computed<FlatRow[]>(() => {
   if (!scopeState.groupId)
-    return rows.value
-  return rows.value.filter((r) => {
-    if (r.allGroups)
+    return flatRows.value
+  return flatRows.value.filter((r) => {
+    if (r.groupName === 'Все')
       return true
-    const audience = r.audience ?? []
-    return audience.some((a) => {
-      if (a.groupId !== scopeState.groupId)
-        return false
-      if (scopeState.allowedSubgroupId != null)
-        return a.allowedSubgroupId === scopeState.allowedSubgroupId
-      return true
-    })
+    if (r.groupId !== scopeState.groupId)
+      return false
+    if (scopeState.allowedSubgroupId != null) {
+      const scope = r.session.audience?.[r._scopeIndex]
+      return scope?.allowedSubgroupId === scopeState.allowedSubgroupId
+    }
+    return true
   })
 })
 
@@ -99,12 +173,48 @@ function formatMinutes(sec: number | undefined): string {
   return Number.isInteger(m) ? `${m}` : m.toFixed(1)
 }
 
-const columns: TableColumn<CheckInSessionResponse>[] = [
-  { accessorKey: 'state', header: 'Состояние' },
-  { accessorKey: 'startedAt', header: 'Начата' },
-  { accessorKey: 'onTimeSeconds', header: 'Окно (мин)' },
-  { accessorKey: 'confirmedAt', header: 'Подтверждена' },
-  { id: 'actions', meta: { class: { td: 'w-10' } } },
+const columns: TableColumn<FlatRow>[] = [
+  {
+    accessorKey: 'state',
+    header: 'Состояние',
+    meta: makeRowspanMeta(),
+  },
+  {
+    accessorKey: 'startedAt',
+    header: 'Начата',
+    meta: makeRowspanMeta('text-muted text-sm'),
+  },
+  {
+    accessorKey: 'onTimeSeconds',
+    header: 'Окно (мин)',
+    meta: makeRowspanMeta('text-muted text-sm'),
+  },
+  {
+    accessorKey: 'confirmedAt',
+    header: 'Подтверждена',
+    meta: makeRowspanMeta('text-muted text-sm'),
+  },
+  {
+    accessorKey: 'groupName',
+    header: 'Группа',
+  },
+  {
+    accessorKey: 'subgroupLabel',
+    header: 'Подгруппа',
+  },
+  {
+    id: 'actions',
+    meta: {
+      rowspan: makeRowspanMeta().rowspan,
+      class: {
+        td: (cell: Cell<FlatRow, unknown>) => {
+          if (cell.row.original._scopeIndex !== 0)
+            return 'hidden'
+          return 'w-10 align-middle'
+        },
+      },
+    },
+  },
 ]
 </script>
 
@@ -180,6 +290,8 @@ const columns: TableColumn<CheckInSessionResponse>[] = [
           :loading="pending && filteredRows.length === 0"
           loading-color="primary"
           sticky
+          class="w-full"
+          :ui="{ td: 'empty:p-0' }"
         >
           <template #state-cell="{ row }">
             <UBadge
@@ -210,12 +322,27 @@ const columns: TableColumn<CheckInSessionResponse>[] = [
             </span>
           </template>
 
+          <template #groupName-cell="{ row }">
+            <span class="font-mono font-semibold uppercase tracking-wide">
+              {{ row.original.groupName }}
+            </span>
+          </template>
+
+          <template #subgroupLabel-cell="{ row }">
+            <UBadge
+              :color="row.original.subgroupLabel === 'Все' ? 'success' : 'primary'"
+              :variant="row.original.subgroupLabel === 'Все' ? 'subtle' : 'outline'"
+            >
+              {{ row.original.subgroupLabel }}
+            </UBadge>
+          </template>
+
           <template #actions-cell="{ row }">
             <UButton
               icon="i-lucide-arrow-right"
               color="neutral"
               variant="ghost"
-              :to="`/dashboard/subjects/${subjectId}/check-ins/${row.original.id}`"
+              :to="`/dashboard/subjects/${subjectId}/check-ins/${row.original.session.id}`"
             />
           </template>
 

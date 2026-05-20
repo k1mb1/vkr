@@ -454,10 +454,6 @@ async function saveCell() {
     />
 
     <div v-else class="flex flex-col gap-3">
-      <UFormField label="Доступ">
-        <PermissionsScopeSelect />
-      </UFormField>
-
       <div class="text-muted flex flex-wrap items-center gap-3 text-sm">
         <span>Легенда:</span>
         <UBadge

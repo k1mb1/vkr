@@ -127,6 +127,11 @@ const columns: TableColumn<FlatRow>[] = [
     header: 'Подгруппа',
   },
   {
+    id: 'assignments',
+    header: 'Задания',
+    meta: makeRowspanMeta('text-center'),
+  },
+  {
     id: 'actions',
     meta: {
       rowspan: makeRowspanMeta().rowspan,
@@ -280,6 +285,18 @@ function rowActions(row: FlatRow): DropdownMenuItem[][] {
           >
             {{ row.original.subgroupLabel }}
           </UBadge>
+        </template>
+
+        <!-- Задания -->
+        <template #assignments-cell="{ row }">
+          <UButton
+            :to="`/dashboard/subjects/${subjectId}/lessons/${row.original._lessonId}/grades`"
+            icon="i-lucide-clipboard-pen"
+            color="neutral"
+            variant="outline"
+            size="xs"
+            label="Задания"
+          />
         </template>
 
         <!-- Действия -->

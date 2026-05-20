@@ -50,6 +50,8 @@ const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
         items.push({ label: 'По количеству' })
       else if (route.path.endsWith('/schedule'))
         items.push({ label: 'По расписанию' })
+      else if (route.path.endsWith('/grades'))
+        items.push({ label: 'Задания' })
     }
     else if (route.path.includes('/check-ins')) {
       items.push({ label: 'Check-in', to: `/dashboard/subjects/${uuid.value}/check-ins` })
@@ -58,6 +60,9 @@ const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
     }
     else if (route.path.includes('/attendances')) {
       items.push({ label: 'Посещаемость', to: `/dashboard/subjects/${uuid.value}/attendances` })
+    }
+    else if (route.path.includes('/grades')) {
+      items.push({ label: 'Оценки', to: `/dashboard/subjects/${uuid.value}/grades` })
     }
   }
 
@@ -95,6 +100,12 @@ const toolbarItems = computed<NavigationMenuItem[][]>(() => uuid.value
         icon: 'i-lucide-clipboard-check',
         to: `/dashboard/subjects/${uuid.value}/attendances`,
         active: route.path.startsWith(`/dashboard/subjects/${uuid.value}/attendances`),
+      },
+      {
+        label: 'Оценки',
+        icon: 'i-lucide-graduation-cap',
+        to: `/dashboard/subjects/${uuid.value}/grades`,
+        active: route.path.startsWith(`/dashboard/subjects/${uuid.value}/grades`),
       },
     ]]
   : [])
