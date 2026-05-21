@@ -2,48 +2,45 @@
 const route = useRoute()
 const subjectId = computed(() => String(route.params.uuid ?? ''))
 
-const { permission, scopes, pending, error } = usePermissions()
+const { permission, pending, error } = usePermissions()
+
+const cards = computed(() => [
+  {
+    label: 'Занятия',
+    description: 'Расписание и управление занятиями',
+    icon: 'i-lucide-calendar',
+    to: `/dashboard/subjects/${subjectId.value}/lessons`,
+  },
+  {
+    label: 'Check-in',
+    description: 'Запуск и управление отметками присутствия',
+    icon: 'i-lucide-clipboard-list',
+    to: `/dashboard/subjects/${subjectId.value}/check-ins`,
+  },
+  {
+    label: 'Посещаемость',
+    description: 'Просмотр статистики посещаемости',
+    icon: 'i-lucide-clipboard-check',
+    to: `/dashboard/subjects/${subjectId.value}/attendances`,
+  },
+  {
+    label: 'Оценки',
+    description: 'Журнал оценок и задания',
+    icon: 'i-lucide-graduation-cap',
+    to: `/dashboard/subjects/${subjectId.value}/grades`,
+  },
+  {
+    label: 'Настройки',
+    description: 'Назначения преподавателей и права доступа',
+    icon: 'i-lucide-settings',
+    to: `/dashboard/subjects/${subjectId.value}/settings`,
+  },
+])
 </script>
 
 <template>
   <div class="flex flex-col gap-6">
-    <UPageHeader title="Обзор предмета">
-      <template #links>
-        <UButton
-          :to="`/dashboard/subjects/${subjectId}/permissions`"
-          icon="i-lucide-shield-check"
-          color="neutral"
-          variant="outline"
-          label="Назначения"
-        />
-        <UButton
-          :to="`/dashboard/subjects/${subjectId}/lessons`"
-          icon="i-lucide-calendar"
-          color="neutral"
-          variant="outline"
-          label="Занятия"
-        />
-        <UButton
-          :to="`/dashboard/subjects/${subjectId}/check-ins`"
-          icon="i-lucide-clipboard-list"
-          color="neutral"
-          variant="outline"
-          label="Check-in"
-        />
-        <UButton
-          :to="`/dashboard/subjects/${subjectId}/attendances`"
-          icon="i-lucide-clipboard-check"
-          color="neutral"
-          variant="outline"
-          label="Посещаемость"
-        />
-        <UButton
-          :to="`/dashboard/subjects/${subjectId}/grades`"
-          icon="i-lucide-graduation-cap"
-          label="Оценки"
-        />
-      </template>
-    </UPageHeader>
+    <UPageHeader title="Обзор предмета" />
 
     <UAlert
       v-if="error"
@@ -64,26 +61,15 @@ const { permission, scopes, pending, error } = usePermissions()
       class="py-8"
     />
 
-    <div v-else class="flex flex-col gap-3">
-      <UCard
-        v-for="s in scopes"
-        :key="s.id"
-      >
-        <template #header>
-          <div class="flex items-center gap-3">
-            <UIcon name="i-lucide-users" class="text-primary size-5" />
-            <span class="font-medium">{{ s.group?.name ?? '—' }}</span>
-          </div>
-        </template>
-        <div class="flex flex-wrap gap-2">
-          <UBadge
-            variant="soft"
-            color="neutral"
-            :label="s.allowedSubgroup?.index != null ? `Подгруппа ${s.allowedSubgroup.index}` : 'Все подгруппы'"
-            icon="i-lucide-layers"
-          />
-        </div>
-      </UCard>
-    </div>
+    <UPageGrid v-else>
+      <UPageCard
+        v-for="card in cards"
+        :key="card.label"
+        :to="card.to"
+        :title="card.label"
+        :description="card.description"
+        :icon="card.icon"
+      />
+    </UPageGrid>
   </div>
 </template>

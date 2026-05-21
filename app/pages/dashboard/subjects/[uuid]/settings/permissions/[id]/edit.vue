@@ -91,7 +91,7 @@ async function handleUpdate() {
       body,
     })
     toast.add({ title: 'Назначение обновлено', color: 'success', icon: 'i-lucide-check' })
-    await navigateTo(`/dashboard/subjects/${subjectId}/permissions`)
+    await navigateTo(`/dashboard/subjects/${subjectId}/settings/permissions`)
   }
   catch (e) {
     toastError(e as FetchError)
@@ -109,7 +109,7 @@ const isReady = !!targetPermission
     <UPageHeader title="Редактирование назначения">
       <template #links>
         <UButton
-          :to="`/dashboard/subjects/${subjectId}/permissions`"
+          :to="`/dashboard/subjects/${subjectId}/settings/permissions`"
           icon="i-lucide-arrow-left"
           color="neutral"
           variant="ghost"
@@ -196,7 +196,7 @@ const isReady = !!targetPermission
 
       <div class="flex justify-end gap-2">
         <UButton
-          :to="`/dashboard/subjects/${subjectId}/permissions`"
+          :to="`/dashboard/subjects/${subjectId}/settings/permissions`"
           color="neutral"
           variant="ghost"
           type="button"

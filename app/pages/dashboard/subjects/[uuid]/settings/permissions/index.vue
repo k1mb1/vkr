@@ -190,12 +190,12 @@ async function handleDelete() {
 }
 
 function goToCreate() {
-  navigateTo(`/dashboard/subjects/${subjectId.value}/permissions/create`)
+  navigateTo(`/dashboard/subjects/${subjectId.value}/settings/permissions/create`)
 }
 
 function goToEdit(perm: TeacherSubjectPermissionResponse) {
   navigateTo({
-    path: `/dashboard/subjects/${subjectId.value}/permissions/${perm.id}/edit`,
+    path: `/dashboard/subjects/${subjectId.value}/settings/permissions/${perm.id}/edit`,
     state: { permission: JSON.parse(JSON.stringify(perm)) },
   })
 }

@@ -35,13 +35,16 @@ const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
       to: `/dashboard/subjects/${uuid.value}`,
     })
 
-    if (route.path.includes('/permissions')) {
-      items.push({ label: 'Назначения', to: `/dashboard/subjects/${uuid.value}/permissions` })
-      if (route.path.endsWith('/create')) {
-        items.push({ label: 'Создание' })
-      }
-      else if (permId.value && route.path.endsWith('/edit')) {
-        items.push({ label: 'Редактирование' })
+    if (route.path.includes('/settings')) {
+      items.push({ label: 'Настройки', to: `/dashboard/subjects/${uuid.value}/settings` })
+      if (route.path.includes('/permissions')) {
+        items.push({ label: 'Назначения', to: `/dashboard/subjects/${uuid.value}/settings/permissions` })
+        if (route.path.endsWith('/create')) {
+          items.push({ label: 'Создание' })
+        }
+        else if (permId.value && route.path.endsWith('/edit')) {
+          items.push({ label: 'Редактирование' })
+        }
       }
     }
     else if (route.path.includes('/lessons')) {
@@ -78,12 +81,6 @@ const toolbarItems = computed<NavigationMenuItem[][]>(() => uuid.value
         active: route.path === `/dashboard/subjects/${uuid.value}`,
       },
       {
-        label: 'Назначения',
-        icon: 'i-lucide-shield-check',
-        to: `/dashboard/subjects/${uuid.value}/permissions`,
-        active: route.path.startsWith(`/dashboard/subjects/${uuid.value}/permissions`),
-      },
-      {
         label: 'Занятия',
         icon: 'i-lucide-calendar',
         to: `/dashboard/subjects/${uuid.value}/lessons`,
@@ -106,6 +103,12 @@ const toolbarItems = computed<NavigationMenuItem[][]>(() => uuid.value
         icon: 'i-lucide-graduation-cap',
         to: `/dashboard/subjects/${uuid.value}/grades`,
         active: route.path.startsWith(`/dashboard/subjects/${uuid.value}/grades`),
+      },
+      {
+        label: 'Настройки',
+        icon: 'i-lucide-settings',
+        to: `/dashboard/subjects/${uuid.value}/settings`,
+        active: route.path.startsWith(`/dashboard/subjects/${uuid.value}/settings`),
       },
     ]]
   : [])
