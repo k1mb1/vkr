@@ -1,15 +1,11 @@
 <script setup lang="ts">
 import type { components } from '#open-fetch-schemas/backend'
 import type { DropdownMenuItem, TableColumn } from '@nuxt/ui'
-import type { Cell } from '@tanstack/vue-table'
-import type { FetchError } from 'ofetch'
 
 type LessonResponse = components['schemas']['LessonResponse']
 
 interface FlatRow {
   _lessonId: string
-  _scopeIndex: number
-  _totalScopes: number
   topic: string
   type: string
   startedAt: string
@@ -55,8 +51,6 @@ const rows = computed<FlatRow[]>(() => {
     if (scopes.length === 0) {
       out.push({
         _lessonId: lesson.id,
-        _scopeIndex: 0,
-        _totalScopes: 1,
         topic: lesson.topic ?? '—',
         type: lesson.type ?? '—',
         startedAt: formatDate(lesson.startedAt),
@@ -66,11 +60,9 @@ const rows = computed<FlatRow[]>(() => {
       })
       continue
     }
-    for (const [i, s] of scopes.entries()) {
+    for (const s of scopes) {
       out.push({
         _lessonId: lesson.id,
-        _scopeIndex: i,
-        _totalScopes: scopes.length,
         topic: lesson.topic ?? '—',
         type: lesson.type ?? '—',
         startedAt: formatDate(lesson.startedAt),
@@ -85,76 +77,25 @@ const rows = computed<FlatRow[]>(() => {
   return out
 })
 
-function makeRowspanMeta(extraClass = '') {
-  return {
-    rowspan: {
-      td: (cell: Cell<FlatRow, unknown>) => {
-        const row = cell.row.original
-        return row._scopeIndex === 0 ? String(row._totalScopes) : '0'
-      },
-    },
-    class: {
-      td: (cell: Cell<FlatRow, unknown>) =>
-        cell.row.original._scopeIndex !== 0
-          ? 'hidden'
-          : `align-middle ${extraClass}`.trim(),
-    },
-  }
-}
+const lessonSpans = computed(() => buildRowspanMap(rows.value, '_lessonId'))
 
-const columns: TableColumn<FlatRow>[] = [
-  {
-    accessorKey: 'topic',
-    header: 'Тема',
-    meta: makeRowspanMeta('font-medium'),
-  },
-  {
-    accessorKey: 'type',
-    header: 'Тип',
-    meta: makeRowspanMeta(),
-  },
-  {
-    accessorKey: 'startedAt',
-    header: 'Дата',
-    meta: makeRowspanMeta('text-muted text-sm'),
-  },
-  {
-    accessorKey: 'groupName',
-    header: 'Группа',
-  },
-  {
-    accessorKey: 'subgroupLabel',
-    header: 'Подгруппа',
-  },
-  {
-    id: 'assignments',
-    header: 'Задания',
-    meta: makeRowspanMeta('text-center'),
-  },
-  {
-    id: 'actions',
-    meta: {
-      rowspan: makeRowspanMeta().rowspan,
-      class: {
-        td: (cell: Cell<FlatRow, unknown>) => {
-          if (cell.row.original._scopeIndex !== 0)
-            return 'hidden'
-          return 'w-10 align-middle'
-        },
-      },
-    },
-  },
-]
+const columns = computed<TableColumn<FlatRow>[]>(() => [
+  withRowspan({ accessorKey: 'topic', header: 'Тема' }, lessonSpans.value, 'align-middle font-medium'),
+  withRowspan({ accessorKey: 'type', header: 'Тип' }, lessonSpans.value),
+  withRowspan({ accessorKey: 'startedAt', header: 'Дата' }, lessonSpans.value, 'align-middle text-muted text-sm'),
+  { accessorKey: 'groupName', header: 'Группа' },
+  { accessorKey: 'subgroupLabel', header: 'Подгруппа' },
+  withRowspan({ id: 'assignments', header: 'Задания' }, lessonSpans.value, 'align-middle text-center'),
+  withRowspan({ id: 'actions' }, lessonSpans.value, 'w-10 align-middle'),
+])
 
 // ── Delete ────────────────────────────────────────────────
 
 const deleteTarget = ref<LessonResponse | null>(null)
 const deleteModal = ref(false)
-const deleting = ref(false)
 
 const { $backend } = useNuxtApp()
-const { toastError } = useApiError()
-const toast = useToast()
+const { loading: deleting, submit } = useFormSubmit()
 
 function goToEdit(row: LessonResponse) {
   navigateTo({
@@ -177,22 +118,19 @@ async function handleDelete() {
   if (!deleteTarget.value?.id)
     return
 
-  deleting.value = true
-  try {
-    await $backend('/api/lessons/{id}', {
+  await submit(
+    () => $backend('/api/lessons/{id}', {
       method: 'DELETE',
-      path: { id: deleteTarget.value.id },
-    })
-    toast.add({ title: 'Занятие удалено', color: 'success', icon: 'i-lucide-check' })
-    closeDeleteModal()
-    await refresh()
-  }
-  catch (e) {
-    toastError(e as FetchError)
-  }
-  finally {
-    deleting.value = false
-  }
+      path: { id: deleteTarget.value!.id! },
+    }),
+    {
+      successMessage: 'Занятие удалено',
+      onSuccess: async () => {
+        closeDeleteModal()
+        await refresh()
+      },
+    },
+  )
 }
 
 function rowActions(row: FlatRow): DropdownMenuItem[][] {

@@ -1,10 +1,7 @@
 <script setup lang="ts">
 import type { components } from '#open-fetch-schemas/backend'
-import type { Form } from '#ui/types'
-import type { FetchError } from 'ofetch'
 import * as v from 'valibot'
 
-import { useApiError } from '~/composables/useApiError'
 import { arrayMinLength, string, uuidV4 } from '~/utils/validation'
 
 type GroupResponse = components['schemas']['GroupResponse']
@@ -38,8 +35,6 @@ const route = useRoute()
 const groupId = computed(() => String(route.params.uuid ?? ''))
 
 const { $backend } = useNuxtApp()
-const { toastError } = useApiError()
-const toast = useToast()
 
 const { data, pending, error, refresh } = useBackend('/api/groups/{id}', {
   method: 'GET',
@@ -48,16 +43,13 @@ const { data, pending, error, refresh } = useBackend('/api/groups/{id}', {
 
 const group = computed<GroupResponse | null>(() => data.value ?? null)
 
-const state = reactive<Schema>({
-  name: '',
-  students: [],
+const { state, formRef, loading, handleSubmit } = useResourceForm<typeof UpdateGroupRequestSchema, Schema>({
+  initialState: () => ({ name: '', students: [] }),
+  successMessage: 'Группа обновлена',
 })
 
 const originalName = ref('')
 const originalStudents = ref<FormSchema['students']>([])
-
-const loading = ref(false)
-const formRef = useTemplateRef<Form<typeof UpdateGroupRequestSchema>>('form')
 
 watch(
   group,
@@ -203,37 +195,22 @@ const filteredTabRows = computed(() => {
 
 // Submit
 async function handleSave() {
-  const data = await formRef.value?.validate({ transform: true })
-  if (!data)
-    return
-
-  loading.value = true
-  try {
+  await handleSubmit(async (data) => {
     const body: UpdateGroupRequest = {}
     if (data.name !== originalName.value)
       body.name = data.name
     if (isStudentsChanged(data.students, originalStudents.value))
       body.students = data.students
 
-    await $backend('/api/groups/{id}', {
+    const result = await $backend('/api/groups/{id}', {
       method: 'PATCH',
       path: { id: groupId.value },
       body,
     })
-    toast.add({
-      title: 'Группа обновлена',
-      color: 'success',
-      icon: 'i-lucide-check',
-    })
     await refresh()
     await navigateTo(`/dashboard/groups/${groupId.value}`)
-  }
-  catch (e) {
-    toastError(e as FetchError)
-  }
-  finally {
-    loading.value = false
-  }
+    return result
+  })
 }
 
 function handleCancel() {
@@ -286,7 +263,7 @@ function handleCancel() {
       </UPageHeader>
 
       <UForm
-        ref="form"
+        ref="formRef"
         :schema="UpdateGroupRequestSchema"
         :state="state"
         class="flex flex-col gap-4"

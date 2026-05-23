@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { components } from '#open-fetch-schemas/backend'
-import type { FetchError } from 'ofetch'
 
 type StartCheckInRequest = components['schemas']['StartCheckInRequest']
 type LessonResponse = components['schemas']['LessonResponse']
@@ -9,8 +8,6 @@ const route = useRoute()
 const subjectId = String(route.params.uuid ?? '')
 
 const { $backend } = useNuxtApp()
-const { toastError } = useApiError()
-const toast = useToast()
 
 const { permission, permissionId, pending: permissionPending } = usePermissions()
 
@@ -84,7 +81,7 @@ const selectedLesson = computed<LessonResponse | undefined>(() =>
   lessons.value.find(l => l.id === state.lessonId),
 )
 
-const loading = ref(false)
+const { loading, submit } = useFormSubmit()
 
 const errors = ref<string[]>([])
 
@@ -103,23 +100,20 @@ async function handleStart() {
   if (!validate())
     return
 
-  loading.value = true
-  try {
-    const body: StartCheckInRequest = {
-      lessonId: state.lessonId,
-      onTimeSeconds: state.onTimeMinutes * 60,
-      lateSeconds: state.lateMinutes * 60,
-    }
-    const result = await $backend('/api/check-in-sessions', { method: 'POST', body })
-    toast.add({ title: 'Опрос запущен', color: 'success', icon: 'i-lucide-check' })
-    await navigateTo(`/dashboard/subjects/${subjectId}/check-ins/${result.id}`)
-  }
-  catch (e) {
-    toastError(e as FetchError)
-  }
-  finally {
-    loading.value = false
-  }
+  await submit(
+    () => {
+      const body: StartCheckInRequest = {
+        lessonId: state.lessonId,
+        onTimeSeconds: state.onTimeMinutes * 60,
+        lateSeconds: state.lateMinutes * 60,
+      }
+      return $backend('/api/check-in-sessions', { method: 'POST', body })
+    },
+    {
+      successMessage: 'Опрос запущен',
+      onSuccess: result => navigateTo(`/dashboard/subjects/${subjectId}/check-ins/${result.id}`),
+    },
+  )
 }
 </script>
 

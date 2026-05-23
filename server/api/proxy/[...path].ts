@@ -1,7 +1,20 @@
 import { getAccessToken } from '#server/utils/getAccessToken'
-import { getProxyRequestHeaders, proxyRequest } from 'h3'
+import { proxyRequest } from 'h3'
 
 const DEFAULT_TIMEOUT_MS = 15_000
+
+const ALLOWED_METHODS = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'])
+
+const FORWARDED_REQUEST_HEADERS = new Set([
+  'accept',
+  'accept-language',
+  'accept-encoding',
+  'content-type',
+  'content-length',
+  'user-agent',
+  'x-request-id',
+  'x-proxy-auth-optional',
+])
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig(event)
@@ -12,6 +25,24 @@ export default defineEventHandler(async (event) => {
       statusCode: 500,
       message: 'Backend URL is not configured',
     })
+  }
+
+  if (!ALLOWED_METHODS.has(event.method)) {
+    throw createError({ statusCode: 405, statusMessage: 'Method Not Allowed' })
+  }
+
+  // Path traversal guard
+  const path = getRouterParam(event, 'path') ?? ''
+  const decodedPath = (() => {
+    try {
+      return decodeURIComponent(path)
+    }
+    catch {
+      throw createError({ statusCode: 400, statusMessage: 'Invalid path' })
+    }
+  })()
+  if (decodedPath.includes('..') || decodedPath.includes('\\') || /%2e%2e/i.test(path)) {
+    throw createError({ statusCode: 400, statusMessage: 'Invalid path' })
   }
 
   // Auth
@@ -26,7 +57,6 @@ export default defineEventHandler(async (event) => {
   }
 
   // Build target URL
-  const path = getRouterParam(event, 'path') ?? ''
   const query = getQuery(event)
   const url = new URL(`${backendUrl}/${path}`.replace(/([^:])\/+/g, '$1/'))
   for (const [k, v] of Object.entries(query)) {
@@ -36,18 +66,22 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  // Headers
-  const headers = new Headers(getProxyRequestHeaders(event))
+  // Headers — whitelist only, then re-add Authorization. Strips cookies, host,
+  // x-forwarded-* and any other client-controlled hop-by-hop headers.
+  const headers = new Headers()
+  for (const [name, value] of Object.entries(getRequestHeaders(event))) {
+    if (!value)
+      continue
+    if (FORWARDED_REQUEST_HEADERS.has(name.toLowerCase()))
+      headers.set(name, Array.isArray(value) ? value.join(', ') : value)
+  }
   if (accessToken)
     headers.set('authorization', `Bearer ${accessToken}`)
 
-  // Proxy
   const timeoutMs = Number(config.proxyTimeoutMs) || DEFAULT_TIMEOUT_MS
 
   if (import.meta.dev) {
-    console.warn('[proxy]', event.method, url.pathname, {
-      auth: !!accessToken,
-    })
+    console.warn('[proxy]', event.method, url.pathname, { auth: !!accessToken })
   }
 
   return proxyRequest(event, url.toString(), {

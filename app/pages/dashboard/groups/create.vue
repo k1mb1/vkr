@@ -1,10 +1,7 @@
 <script setup lang="ts">
 import type { components } from '#open-fetch-schemas/backend'
-import type { Form } from '#ui/types'
-import type { FetchError } from 'ofetch'
 import * as v from 'valibot'
 
-import { useApiError } from '~/composables/useApiError'
 import { arrayMinLength, nonNegativeInteger, string } from '~/utils/validation'
 
 type CreateGroupRequest = components['schemas']['CreateGroupRequest']
@@ -25,12 +22,11 @@ const CreateGroupRequestSchema: SchemaFor<CreateGroupRequest> = v.object({
 type Schema = v.InferOutput<typeof CreateGroupRequestSchema>
 
 const { $backend } = useNuxtApp()
-const { toastError } = useApiError()
-const toast = useToast()
 
-const state = reactive<Schema>({ name: '', students: [] })
-const loading = ref(false)
-const formRef = useTemplateRef<Form<typeof CreateGroupRequestSchema>>('form')
+const { state, formRef, loading, handleSubmit } = useResourceForm<typeof CreateGroupRequestSchema, Schema>({
+  initialState: () => ({ name: '', students: [] }),
+  successMessage: 'Группа создана',
+})
 
 const { subgroups, cards, cardLabel, addCard, removeCard, resetCards } = useSubgroupCards()
 const { addStudents, handlePaste: handleStudentPaste } = useStudentInput<Student>({ separator: /\n+/ })
@@ -101,22 +97,12 @@ function resetForm() {
 }
 
 async function handleCreate() {
-  const data = await formRef.value?.validate({ transform: true })
-  if (!data)
-    return
-  loading.value = true
-  try {
+  await handleSubmit(async (data) => {
     const result = await $backend('/api/groups', { method: 'POST', body: data })
-    toast.add({ title: 'Группа создана', color: 'success', icon: 'i-lucide-check' })
     await navigateTo(`/dashboard/groups/${result.id}`)
     resetForm()
-  }
-  catch (e) {
-    toastError(e as FetchError)
-  }
-  finally {
-    loading.value = false
-  }
+    return result
+  })
 }
 </script>
 
@@ -135,7 +121,7 @@ async function handleCreate() {
     </UPageHeader>
 
     <UForm
-      ref="form"
+      ref="formRef"
       :schema="CreateGroupRequestSchema"
       :state="state"
       class="flex flex-1 flex-col gap-4 overflow-hidden"

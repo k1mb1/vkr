@@ -1,9 +1,6 @@
 <script setup lang="ts">
 import type { User } from '#auth-utils'
 import type { components } from '#open-fetch-schemas/backend'
-import type { FetchError } from 'ofetch'
-
-import { useApiError } from '~/composables/useApiError'
 
 type CreateSubjectRequest = components['schemas']['CreateSubjectRequest']
 
@@ -11,8 +8,6 @@ const { user } = useOidcAuth()
 const { sub: myTeacherId } = user.value as User
 
 const { $backend } = useNuxtApp()
-const { toastError } = useApiError()
-const toast = useToast()
 
 const name = ref('')
 const description = ref<string | undefined>(undefined)
@@ -34,34 +29,27 @@ function validate(): boolean {
   return errors.value.length === 0
 }
 
-const loading = ref(false)
+const { loading, submit } = useFormSubmit()
 
 async function handleCreate() {
   if (!validate())
     return
 
-  loading.value = true
-  try {
-    const body: CreateSubjectRequest = {
-      name: name.value.trim(),
-      description: description.value || undefined,
-      teacherId: teacherId.value,
-      groupIds: groupIds.value.filter(Boolean),
-    }
-    const result = await $backend('/api/subjects', { method: 'POST', body })
-    toast.add({
-      title: 'Предмет создан',
-      color: 'success',
-      icon: 'i-lucide-check',
-    })
-    await navigateTo(`/dashboard/subjects/${result.id}`)
-  }
-  catch (e) {
-    toastError(e as FetchError)
-  }
-  finally {
-    loading.value = false
-  }
+  await submit(
+    () => {
+      const body: CreateSubjectRequest = {
+        name: name.value.trim(),
+        description: description.value || undefined,
+        teacherId: teacherId.value,
+        groupIds: groupIds.value.filter(Boolean),
+      }
+      return $backend('/api/subjects', { method: 'POST', body })
+    },
+    {
+      successMessage: 'Предмет создан',
+      onSuccess: result => navigateTo(`/dashboard/subjects/${result.id}`),
+    },
+  )
 }
 </script>
 

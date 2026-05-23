@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { components } from '#open-fetch-schemas/backend'
 import type { TableColumn } from '@nuxt/ui'
-import type { FetchError } from 'ofetch'
 
 type GradingTableStudent = components['schemas']['GradingTableStudent']
 type GradingTableLesson = components['schemas']['GradingTableLesson']
@@ -227,11 +226,10 @@ const editLesson = ref<GradingTableLesson | null>(null)
 const editAssignment = ref<AssignmentResponse | null>(null)
 const editScore = ref<number | undefined>(undefined)
 const editComment = ref('')
-const saving = ref(false)
 
 const { $backend } = useNuxtApp()
-const { toastError } = useApiError()
 const toast = useToast()
+const { loading: saving, submit } = useFormSubmit()
 
 const maxScore = computed(() => editAssignment.value?.maxPoints ?? undefined)
 
@@ -277,26 +275,25 @@ async function saveCell() {
     return
   }
 
-  saving.value = true
-  try {
-    const body: UpsertGradeRequest = {
-      studentId: editStudent.value.id,
-      lessonId: editLesson.value.id,
-      assignmentId: editAssignment.value?.id ?? undefined,
-      score: editScore.value,
-      comment: editComment.value.trim() || undefined,
-    }
-    await $backend('/api/grades', { method: 'PUT', body })
-    toast.add({ title: 'Оценка сохранена', color: 'success', icon: 'i-lucide-check' })
-    closeEdit()
-    await refresh()
-  }
-  catch (e) {
-    toastError(e as FetchError)
-  }
-  finally {
-    saving.value = false
-  }
+  await submit(
+    () => {
+      const body: UpsertGradeRequest = {
+        studentId: editStudent.value!.id!,
+        lessonId: editLesson.value!.id!,
+        assignmentId: editAssignment.value?.id ?? undefined,
+        score: editScore.value!,
+        comment: editComment.value.trim() || undefined,
+      }
+      return $backend('/api/grades', { method: 'PUT', body })
+    },
+    {
+      successMessage: 'Оценка сохранена',
+      onSuccess: async () => {
+        closeEdit()
+        await refresh()
+      },
+    },
+  )
 }
 </script>
 

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { components } from '#open-fetch-schemas/backend'
 import type { TableColumn } from '@nuxt/ui'
-import type { FetchError } from 'ofetch'
 import { useLocalStorage } from '@vueuse/core'
 
 type AttendanceTableStudent = components['schemas']['AttendanceTableStudent']
@@ -304,11 +303,9 @@ const editStudent = ref<AttendanceTableStudent | null>(null)
 const editLesson = ref<AttendanceTableLesson | null>(null)
 const editStatus = ref<AttendanceStatus>('PRESENT')
 const editComment = ref('')
-const saving = ref(false)
 
 const { $backend } = useNuxtApp()
-const { toastError } = useApiError()
-const toast = useToast()
+const { loading: saving, submit } = useFormSubmit()
 
 const statusItems = computed(() =>
   STATUSES.map(s => ({ value: s, label: statusLabel[s] })),
@@ -336,25 +333,24 @@ async function saveCell() {
   if (!editStudent.value?.id || !editLesson.value?.id)
     return
 
-  saving.value = true
-  try {
-    const body: UpsertAttendanceRequest = {
-      studentId: editStudent.value.id,
-      lessonId: editLesson.value.id,
-      status: editStatus.value,
-      comment: editComment.value.trim() || undefined,
-    }
-    await $backend('/api/attendances', { method: 'PUT', body })
-    toast.add({ title: 'Отметка сохранена', color: 'success', icon: 'i-lucide-check' })
-    closeEdit()
-    await refresh()
-  }
-  catch (e) {
-    toastError(e as FetchError)
-  }
-  finally {
-    saving.value = false
-  }
+  await submit(
+    () => {
+      const body: UpsertAttendanceRequest = {
+        studentId: editStudent.value!.id!,
+        lessonId: editLesson.value!.id!,
+        status: editStatus.value,
+        comment: editComment.value.trim() || undefined,
+      }
+      return $backend('/api/attendances', { method: 'PUT', body })
+    },
+    {
+      successMessage: 'Отметка сохранена',
+      onSuccess: async () => {
+        closeEdit()
+        await refresh()
+      },
+    },
+  )
 }
 </script>
 

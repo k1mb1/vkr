@@ -1,15 +1,11 @@
 <script setup lang="ts">
 import type { components } from '#open-fetch-schemas/backend'
 import type { DropdownMenuItem, TableColumn } from '@nuxt/ui'
-import type { Cell } from '@tanstack/vue-table'
-import type { FetchError } from 'ofetch'
 
 type TeacherSubjectPermissionResponse = components['schemas']['TeacherSubjectPermissionResponse']
 
 interface FlatRow {
   _permId: string
-  _scopeIndex: number
-  _totalScopes: number
   teacherName: string
   allPermissions: boolean
   groupName: string
@@ -48,8 +44,6 @@ const rows = computed<FlatRow[]>(() => {
     if (scopes.length === 0) {
       out.push({
         _permId: perm.id,
-        _scopeIndex: 0,
-        _totalScopes: 1,
         teacherName: perm.teacherName ?? '—',
         allPermissions: !!perm.allPermissions,
         groupName: '—',
@@ -60,11 +54,9 @@ const rows = computed<FlatRow[]>(() => {
       })
       continue
     }
-    for (const [i, s] of scopes.entries()) {
+    for (const s of scopes) {
       out.push({
         _permId: perm.id,
-        _scopeIndex: i,
-        _totalScopes: scopes.length,
         teacherName: perm.teacherName ?? '—',
         allPermissions: !!perm.allPermissions,
         groupName: s.group?.name ?? '—',
@@ -87,75 +79,29 @@ const rows = computed<FlatRow[]>(() => {
   return out
 })
 
-function makeRowspanMeta(extraClass = '') {
-  return {
-    rowspan: {
-      td: (cell: Cell<FlatRow, unknown>) => {
-        const row = cell.row.original
-        return row._scopeIndex === 0 ? String(row._totalScopes) : '0'
-      },
-    },
-    class: {
-      td: (cell: Cell<FlatRow, unknown>) =>
-        cell.row.original._scopeIndex !== 0
-          ? 'hidden'
-          : `align-middle ${extraClass}`.trim(),
-    },
-  }
-}
+const permSpans = computed(() => buildRowspanMap(rows.value, '_permId'))
 
-const columns: TableColumn<FlatRow>[] = [
-  {
-    accessorKey: 'teacherName',
-    header: 'Преподаватель',
-    enablePinning: true,
-    meta: makeRowspanMeta('font-medium'),
-  },
-  {
-    accessorKey: 'allPermissions',
-    header: 'Все права',
-    meta: makeRowspanMeta(),
-  },
-  {
-    accessorKey: 'groupName',
-    header: 'Группа',
-  },
-  {
-    accessorKey: 'subgroups',
-    header: 'Подгруппы',
-  },
-  {
-    accessorKey: 'allowedSubgroup',
-    header: 'Разр. подгруппа',
-  },
-  {
-    accessorKey: 'allowedLessonType',
-    header: 'Тип занятия',
-  },
-  {
-    id: 'actions',
-    meta: {
-      rowspan: makeRowspanMeta().rowspan,
-      class: {
-        td: (cell: Cell<FlatRow, unknown>) => {
-          if (cell.row.original._scopeIndex !== 0)
-            return 'hidden'
-          return 'w-10 align-middle'
-        },
-      },
-    },
-  },
-]
+const columns = computed<TableColumn<FlatRow>[]>(() => [
+  withRowspan(
+    { accessorKey: 'teacherName', header: 'Преподаватель', enablePinning: true },
+    permSpans.value,
+    'align-middle font-medium',
+  ),
+  withRowspan({ accessorKey: 'allPermissions', header: 'Все права' }, permSpans.value),
+  { accessorKey: 'groupName', header: 'Группа' },
+  { accessorKey: 'subgroups', header: 'Подгруппы' },
+  { accessorKey: 'allowedSubgroup', header: 'Разр. подгруппа' },
+  { accessorKey: 'allowedLessonType', header: 'Тип занятия' },
+  withRowspan({ id: 'actions' }, permSpans.value, 'w-10 align-middle'),
+])
 
 // ── Delete ────────────────────────────────────────────────
 
 const deleteTarget = ref<TeacherSubjectPermissionResponse | null>(null)
 const deleteModal = ref(false)
-const deleting = ref(false)
 
 const { $backend } = useNuxtApp()
-const { toastError } = useApiError()
-const toast = useToast()
+const { loading: deleting, submit } = useFormSubmit()
 
 function openDeleteModal(perm: TeacherSubjectPermissionResponse) {
   deleteTarget.value = perm
@@ -171,31 +117,28 @@ async function handleDelete() {
   if (!deleteTarget.value?.id)
     return
 
-  deleting.value = true
-  try {
-    await $backend('/api/teacher-subject-permissions/{id}', {
+  await submit(
+    () => $backend('/api/teacher-subject-permissions/{id}', {
       method: 'DELETE',
-      path: { id: deleteTarget.value.id },
-    })
-    toast.add({ title: 'Назначение удалено', color: 'success', icon: 'i-lucide-check' })
-    closeDeleteModal()
-    await refresh()
-  }
-  catch (e) {
-    toastError(e as FetchError)
-  }
-  finally {
-    deleting.value = false
-  }
+      path: { id: deleteTarget.value!.id! },
+    }),
+    {
+      successMessage: 'Назначение удалено',
+      onSuccess: async () => {
+        closeDeleteModal()
+        await refresh()
+      },
+    },
+  )
 }
 
 function goToCreate() {
-  navigateTo(`/dashboard/subjects/${subjectId.value}/settings/permissions/create`)
+  navigateTo(`/dashboard/subjects/${subjectId.value}/permissions/create`)
 }
 
 function goToEdit(perm: TeacherSubjectPermissionResponse) {
   navigateTo({
-    path: `/dashboard/subjects/${subjectId.value}/settings/permissions/${perm.id}/edit`,
+    path: `/dashboard/subjects/${subjectId.value}/permissions/${perm.id}/edit`,
     state: { permission: JSON.parse(JSON.stringify(perm)) },
   })
 }

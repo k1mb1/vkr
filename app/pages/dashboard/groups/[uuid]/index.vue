@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { components } from '#open-fetch-schemas/backend'
-import type { FetchError } from 'ofetch'
 import type { Subgroup } from '~/composables/useGroupTabs'
 
 const route = useRoute()
@@ -18,33 +17,22 @@ const { data, pending, error } = useBackend('/api/groups/{id}', {
 const group = computed(() => data.value ?? null)
 
 const { $backend } = useNuxtApp()
-const { toastError } = useApiError()
-const toast = useToast()
 
 const deletingGroup = ref(false)
-const deleteGroupPending = ref(false)
+const { loading: deleteGroupPending, submit } = useFormSubmit()
 
 async function onDeleteGroup() {
-  deleteGroupPending.value = true
-  try {
-    await $backend('/api/groups/{id}', {
+  await submit(
+    () => $backend('/api/groups/{id}', {
       method: 'DELETE',
       path: { id: groupId.value },
-    })
-    toast.add({
-      title: 'Группа удалена',
-      color: 'success',
-      icon: 'i-lucide-check',
-    })
-    await navigateTo('/dashboard/groups')
-  }
-  catch (e) {
-    toastError(e as FetchError)
-  }
-  finally {
-    deleteGroupPending.value = false
-    deletingGroup.value = false
-  }
+    }),
+    {
+      successMessage: 'Группа удалена',
+      onSuccess: () => navigateTo('/dashboard/groups'),
+    },
+  )
+  deletingGroup.value = false
 }
 
 // Tabs & Table

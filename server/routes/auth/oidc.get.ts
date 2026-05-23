@@ -12,17 +12,38 @@ interface OidcTokens {
   expires_in?: number
 }
 
+function containsControlChar(value: string): boolean {
+  for (let i = 0; i < value.length; i++) {
+    const code = value.charCodeAt(i)
+    if (code < 0x20 || code === 0x7F)
+      return true
+  }
+  return false
+}
+
 function sanitizeRedirect(input: unknown): string {
-  const value = typeof input === 'string' ? input : '/dashboard'
+  const fallback = '/dashboard'
+  if (typeof input !== 'string')
+    return fallback
 
-  if (!value.startsWith('/') || value.startsWith('//')) {
-    return '/dashboard'
-  }
+  const value = input.trim()
+  if (value.length === 0 || value.length > 512)
+    return fallback
 
+  // Must be a same-origin absolute path; reject scheme/host-relative and
+  // backslash variants (some browsers normalize \ → /).
+  if (!value.startsWith('/'))
+    return fallback
+  if (value.startsWith('//') || value.startsWith('/\\') || value.includes('\\'))
+    return fallback
+
+  if (containsControlChar(value))
+    return fallback
+
+  const pathOnly = value.split(/[?#]/)[0] ?? ''
   const blocked = ['/auth/oidc', '/auth/login', '/auth/callback', '/logout']
-  if (blocked.includes(value)) {
-    return '/dashboard'
-  }
+  if (blocked.includes(pathOnly) || pathOnly.startsWith('/auth/'))
+    return fallback
 
   return value
 }

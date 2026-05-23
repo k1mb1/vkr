@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { components } from '#open-fetch-schemas/backend'
-import type { FetchError } from 'ofetch'
 
 type TeacherSubjectPermissionResponse = components['schemas']['TeacherSubjectPermissionResponse']
 type UpdateTeacherSubjectPermissionRequest = components['schemas']['UpdateTeacherSubjectPermissionRequest']
@@ -63,42 +62,37 @@ function validate(): boolean {
 // ── Submit ────────────────────────────────────────────────
 
 const { $backend } = useNuxtApp()
-const { toastError } = useApiError()
-const toast = useToast()
 
-const loading = ref(false)
+const { loading, submit } = useFormSubmit()
 
 async function handleUpdate() {
   if (!validate())
     return
 
-  loading.value = true
-  try {
-    const body: UpdateTeacherSubjectPermissionRequest = {
-      allPermissions: allGroups.value,
-      scopes: allGroups.value
-        ? undefined
-        : scopes.value.map<PermissionScopeRequest>(s => ({
-            groupId: s.groupId,
-            allowedSubgroupId: s.allowedSubgroupId ?? undefined,
-            allowedLessonType: s.allowedLessonType ?? undefined,
-          })),
-    }
+  await submit(
+    () => {
+      const body: UpdateTeacherSubjectPermissionRequest = {
+        allPermissions: allGroups.value,
+        scopes: allGroups.value
+          ? undefined
+          : scopes.value.map<PermissionScopeRequest>(s => ({
+              groupId: s.groupId,
+              allowedSubgroupId: s.allowedSubgroupId ?? undefined,
+              allowedLessonType: s.allowedLessonType ?? undefined,
+            })),
+      }
 
-    await $backend('/api/teacher-subject-permissions/{id}', {
-      method: 'PATCH',
-      path: { id: permissionId },
-      body,
-    })
-    toast.add({ title: 'Назначение обновлено', color: 'success', icon: 'i-lucide-check' })
-    await navigateTo(`/dashboard/subjects/${subjectId}/settings/permissions`)
-  }
-  catch (e) {
-    toastError(e as FetchError)
-  }
-  finally {
-    loading.value = false
-  }
+      return $backend('/api/teacher-subject-permissions/{id}', {
+        method: 'PATCH',
+        path: { id: permissionId },
+        body,
+      })
+    },
+    {
+      successMessage: 'Назначение обновлено',
+      onSuccess: () => navigateTo(`/dashboard/subjects/${subjectId}/permissions`),
+    },
+  )
 }
 
 const isReady = !!targetPermission
@@ -109,7 +103,7 @@ const isReady = !!targetPermission
     <UPageHeader title="Редактирование назначения">
       <template #links>
         <UButton
-          :to="`/dashboard/subjects/${subjectId}/settings/permissions`"
+          :to="`/dashboard/subjects/${subjectId}/permissions`"
           icon="i-lucide-arrow-left"
           color="neutral"
           variant="ghost"
@@ -196,7 +190,7 @@ const isReady = !!targetPermission
 
       <div class="flex justify-end gap-2">
         <UButton
-          :to="`/dashboard/subjects/${subjectId}/settings/permissions`"
+          :to="`/dashboard/subjects/${subjectId}/permissions`"
           color="neutral"
           variant="ghost"
           type="button"

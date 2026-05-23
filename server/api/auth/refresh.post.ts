@@ -1,6 +1,12 @@
 import { getAccessToken } from '#server/utils/getAccessToken'
+import { validateBody } from '#server/utils/validateBody'
+import * as v from 'valibot'
+
+const RefreshBodySchema = v.strictObject({})
 
 export default defineEventHandler(async (event) => {
+  await validateBody(event, RefreshBodySchema, { allowEmpty: true, emptyValue: {} })
+
   const session = await getUserSession(event)
   const secure = session.secure
 
@@ -12,9 +18,8 @@ export default defineEventHandler(async (event) => {
   }
 
   const nowMs = Date.now()
-  if (session.tokenExpiresAt && session.tokenExpiresAt - 30_000 > nowMs) {
+  if (session.tokenExpiresAt && session.tokenExpiresAt - 30_000 > nowMs)
     return { success: true, skipped: true }
-  }
 
   await getAccessToken(event)
 

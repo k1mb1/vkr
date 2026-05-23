@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { components } from '#open-fetch-schemas/backend'
-import type { FetchError } from 'ofetch'
 
 type BulkScheduleRequest = components['schemas']['BulkScheduleRequest']
 type LessonScopeRequest = components['schemas']['LessonScopeRequest']
@@ -34,8 +33,6 @@ const route = useRoute()
 const subjectId = String(route.params.uuid ?? '')
 
 const { $backend } = useNuxtApp()
-const { toastError } = useApiError()
-const toast = useToast()
 
 const { permission, scopes: myScopes, pending: loadingScope } = usePermissions()
 
@@ -112,7 +109,7 @@ function isDaySelected(entry: EntryState, wi: number, day: DayOfWeek): boolean {
   return entry.daysOfWeek[wi]?.includes(day) ?? false
 }
 
-const loading = ref(false)
+const { loading, submit } = useFormSubmit()
 
 const errors = ref<string[]>([])
 
@@ -137,33 +134,26 @@ async function handleCreate() {
   if (!validate())
     return
 
-  loading.value = true
-  try {
-    const body: BulkScheduleRequest = {
-      subjectId,
-      allGroups: allGroups.value,
-      scopes: allGroups.value
-        ? undefined
-        : [{
-            groupId: scopeState.groupId,
-            allowedSubgroupId: scopeState.allowedSubgroupId ?? undefined,
-          }] as LessonScopeRequest[],
-      schedules: schedules.value,
-    }
-    const result = await $backend('/api/lessons/bulk-schedule', { method: 'POST', body })
-    toast.add({
-      title: `Создано занятий: ${result.length}`,
-      color: 'success',
-      icon: 'i-lucide-check',
-    })
-    await navigateTo(`/dashboard/subjects/${subjectId}/lessons`)
-  }
-  catch (e) {
-    toastError(e as FetchError)
-  }
-  finally {
-    loading.value = false
-  }
+  await submit(
+    () => {
+      const body: BulkScheduleRequest = {
+        subjectId,
+        allGroups: allGroups.value,
+        scopes: allGroups.value
+          ? undefined
+          : [{
+              groupId: scopeState.groupId,
+              allowedSubgroupId: scopeState.allowedSubgroupId ?? undefined,
+            }] as LessonScopeRequest[],
+        schedules: schedules.value,
+      }
+      return $backend('/api/lessons/bulk-schedule', { method: 'POST', body })
+    },
+    {
+      successMessage: result => `Создано занятий: ${result.length}`,
+      onSuccess: () => navigateTo(`/dashboard/subjects/${subjectId}/lessons`),
+    },
+  )
 }
 </script>
 

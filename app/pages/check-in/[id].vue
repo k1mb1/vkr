@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { components } from '#open-fetch-schemas/backend'
-import type { FetchError } from 'ofetch'
 import { useLocalStorage } from '@vueuse/core'
 
 type PublicCheckInSessionResponse = components['schemas']['PublicCheckInSessionResponse']
@@ -15,8 +14,8 @@ const route = useRoute()
 const sessionId = computed(() => String(route.params.id ?? ''))
 
 const { $backend } = useNuxtApp()
-const { toastError } = useApiError()
 const toast = useToast()
+const { submit } = useFormSubmit()
 
 const {
   data: session,
@@ -156,27 +155,26 @@ async function handleCheckIn(student: Student) {
     return
 
   checkingInId.value = student.id
-  try {
-    const result = await $backend('/api/check-in-sessions/public/{id}/check-in', {
+  await submit(
+    () => $backend('/api/check-in-sessions/public/{id}/check-in', {
       method: 'POST',
       path: { id: sessionId.value },
       body: { studentId: student.id },
       headers: { 'x-proxy-auth-optional': 'true' },
-    })
-    lockedStudentId.value = student.id
-    toast.add({
-      title: result.status === 'LATE' ? 'Отмечено: опоздание' : 'Отмечено: вовремя',
-      color: result.status === 'LATE' ? 'warning' : 'success',
-      icon: 'i-lucide-check',
-    })
-    await refresh()
-  }
-  catch (e) {
-    toastError(e as FetchError)
-  }
-  finally {
-    checkingInId.value = null
-  }
+    }),
+    {
+      onSuccess: async (result) => {
+        lockedStudentId.value = student.id
+        toast.add({
+          title: result.status === 'LATE' ? 'Отмечено: опоздание' : 'Отмечено: вовремя',
+          color: result.status === 'LATE' ? 'warning' : 'success',
+          icon: 'i-lucide-check',
+        })
+        await refresh()
+      },
+    },
+  )
+  checkingInId.value = null
 }
 
 // ── Confirm dialog ────────────────────────────────────────

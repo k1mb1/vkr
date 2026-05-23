@@ -2,7 +2,7 @@
   "name": "vite-nuxt",
   "type": "module",
   "private": true,
-  "packageManager": "pnpm@11.1.2",
+  "packageManager": "pnpm@11.2.2",
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
@@ -24,6 +24,7 @@
     "@vueuse/integrations": "^14.3.0",
     "nuxt": "^4.4.2",
     "nuxt-auth-utils": "0.5.29",
+    "nuxt-security": "^2.6.0",
     "qrcode": "^1.5.4",
     "sortablejs": "^1.15.7",
     "tailwindcss": "^4.2.2",

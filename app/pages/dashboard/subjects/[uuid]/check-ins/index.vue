@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { components } from '#open-fetch-schemas/backend'
 import type { TableColumn } from '@nuxt/ui'
-import type { Cell } from '@tanstack/vue-table'
 
 type CheckInSessionResponse = components['schemas']['CheckInSessionResponse']
 type CheckInState = NonNullable<CheckInSessionResponse['state']>
@@ -14,7 +13,6 @@ interface ScopeState {
 interface FlatRow {
   _sessionId: string
   _scopeIndex: number
-  _totalScopes: number
   state: CheckInState | undefined
   startedAt: string | undefined
   onTimeSeconds: number | undefined
@@ -53,23 +51,6 @@ watch(permissionId, (id) => {
 
 const pending = computed(() => permissionPending.value || sessionsPending.value)
 
-function makeRowspanMeta(extraClass = '') {
-  return {
-    rowspan: {
-      td: (cell: Cell<FlatRow, unknown>) => {
-        const row = cell.row.original
-        return row._scopeIndex === 0 ? String(row._totalScopes) : '0'
-      },
-    },
-    class: {
-      td: (cell: Cell<FlatRow, unknown>) =>
-        cell.row.original._scopeIndex !== 0
-          ? 'hidden'
-          : `align-middle ${extraClass}`.trim(),
-    },
-  }
-}
-
 const flatRows = computed<FlatRow[]>(() => {
   const out: FlatRow[] = []
   const sessions = [...(data.value ?? [])]
@@ -87,7 +68,6 @@ const flatRows = computed<FlatRow[]>(() => {
       out.push({
         _sessionId: session.id,
         _scopeIndex: 0,
-        _totalScopes: 1,
         state: session.state,
         startedAt: session.startedAt,
         onTimeSeconds: session.onTimeSeconds,
@@ -104,7 +84,6 @@ const flatRows = computed<FlatRow[]>(() => {
       out.push({
         _sessionId: session.id,
         _scopeIndex: i,
-        _totalScopes: audience.length,
         state: session.state,
         startedAt: session.startedAt,
         onTimeSeconds: session.onTimeSeconds,
@@ -173,49 +152,17 @@ function formatMinutes(sec: number | undefined): string {
   return Number.isInteger(m) ? `${m}` : m.toFixed(1)
 }
 
-const columns: TableColumn<FlatRow>[] = [
-  {
-    accessorKey: 'state',
-    header: 'Состояние',
-    meta: makeRowspanMeta(),
-  },
-  {
-    accessorKey: 'startedAt',
-    header: 'Начата',
-    meta: makeRowspanMeta('text-muted text-sm'),
-  },
-  {
-    accessorKey: 'onTimeSeconds',
-    header: 'Окно (мин)',
-    meta: makeRowspanMeta('text-muted text-sm'),
-  },
-  {
-    accessorKey: 'confirmedAt',
-    header: 'Подтверждена',
-    meta: makeRowspanMeta('text-muted text-sm'),
-  },
-  {
-    accessorKey: 'groupName',
-    header: 'Группа',
-  },
-  {
-    accessorKey: 'subgroupLabel',
-    header: 'Подгруппа',
-  },
-  {
-    id: 'actions',
-    meta: {
-      rowspan: makeRowspanMeta().rowspan,
-      class: {
-        td: (cell: Cell<FlatRow, unknown>) => {
-          if (cell.row.original._scopeIndex !== 0)
-            return 'hidden'
-          return 'w-10 align-middle'
-        },
-      },
-    },
-  },
-]
+const sessionSpans = computed(() => buildRowspanMap(filteredRows.value, '_sessionId'))
+
+const columns = computed<TableColumn<FlatRow>[]>(() => [
+  withRowspan({ accessorKey: 'state', header: 'Состояние' }, sessionSpans.value),
+  withRowspan({ accessorKey: 'startedAt', header: 'Начата' }, sessionSpans.value, 'align-middle text-muted text-sm'),
+  withRowspan({ accessorKey: 'onTimeSeconds', header: 'Окно (мин)' }, sessionSpans.value, 'align-middle text-muted text-sm'),
+  withRowspan({ accessorKey: 'confirmedAt', header: 'Подтверждена' }, sessionSpans.value, 'align-middle text-muted text-sm'),
+  { accessorKey: 'groupName', header: 'Группа' },
+  { accessorKey: 'subgroupLabel', header: 'Подгруппа' },
+  withRowspan({ id: 'actions' }, sessionSpans.value, 'w-10 align-middle'),
+])
 </script>
 
 <template>

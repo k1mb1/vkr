@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { components } from '#open-fetch-schemas/backend'
-import type { FetchError } from 'ofetch'
 
 type CreateTeacherSubjectPermissionRequest = components['schemas']['CreateTeacherSubjectPermissionRequest']
 type PermissionScopeRequest = components['schemas']['PermissionScopeRequest']
@@ -20,8 +19,6 @@ const route = useRoute()
 const subjectId = String(route.params.uuid ?? '')
 
 const { $backend } = useNuxtApp()
-const { toastError } = useApiError()
-const toast = useToast()
 
 const { permission, scopes: myScopes, pending: loadingScope } = usePermissions()
 
@@ -74,36 +71,33 @@ function validate(): boolean {
 
 // ── Submit ────────────────────────────────────────────────
 
-const loading = ref(false)
+const { loading, submit } = useFormSubmit()
 
 async function handleCreate() {
   if (!validate())
     return
 
-  loading.value = true
-  try {
-    const body: CreateTeacherSubjectPermissionRequest = {
-      teacherId: teacherId.value,
-      subjectId,
-      allPermissions: allGroups.value,
-      scopes: allGroups.value
-        ? undefined
-        : scopes.value.map<PermissionScopeRequest>(s => ({
-            groupId: s.groupId,
-            allowedSubgroupId: s.allowedSubgroupId ?? undefined,
-            allowedLessonType: s.allowedLessonType ?? undefined,
-          })),
-    }
-    await $backend('/api/teacher-subject-permissions', { method: 'POST', body })
-    toast.add({ title: 'Назначение создано', color: 'success', icon: 'i-lucide-check' })
-    await navigateTo(`/dashboard/subjects/${subjectId}/settings/permissions`)
-  }
-  catch (e) {
-    toastError(e as FetchError)
-  }
-  finally {
-    loading.value = false
-  }
+  await submit(
+    () => {
+      const body: CreateTeacherSubjectPermissionRequest = {
+        teacherId: teacherId.value,
+        subjectId,
+        allPermissions: allGroups.value,
+        scopes: allGroups.value
+          ? undefined
+          : scopes.value.map<PermissionScopeRequest>(s => ({
+              groupId: s.groupId,
+              allowedSubgroupId: s.allowedSubgroupId ?? undefined,
+              allowedLessonType: s.allowedLessonType ?? undefined,
+            })),
+      }
+      return $backend('/api/teacher-subject-permissions', { method: 'POST', body })
+    },
+    {
+      successMessage: 'Назначение создано',
+      onSuccess: () => navigateTo(`/dashboard/subjects/${subjectId}/permissions`),
+    },
+  )
 }
 </script>
 
@@ -112,7 +106,7 @@ async function handleCreate() {
     <UPageHeader title="Новое назначение">
       <template #links>
         <UButton
-          :to="`/dashboard/subjects/${subjectId}/settings/permissions`"
+          :to="`/dashboard/subjects/${subjectId}/permissions`"
           icon="i-lucide-arrow-left"
           color="neutral"
           variant="ghost"

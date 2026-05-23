@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { components } from '#open-fetch-schemas/backend'
 import type { TableColumn } from '@nuxt/ui'
-import type { FetchError } from 'ofetch'
 
 type AssignmentResponse = components['schemas']['AssignmentResponse']
 type CreateAssignmentsRequest = components['schemas']['CreateAssignmentsRequest']
@@ -24,7 +23,6 @@ interface DraftItem {
 }
 
 const createItems = ref<DraftItem[]>([{ maxPoints: 10, required: true }])
-const creating = ref(false)
 
 function addCreateItem() {
   createItems.value.push({ maxPoints: 10, required: false })
@@ -35,33 +33,31 @@ function removeCreateItem(index: number) {
 }
 
 const { $backend } = useNuxtApp()
-const { toastError } = useApiError()
-const toast = useToast()
+const { loading: creating, submit: submitCreate } = useFormSubmit()
 
 async function handleCreate() {
   if (createItems.value.length === 0)
     return
 
-  creating.value = true
-  try {
-    const body: CreateAssignmentsRequest = {
-      lessonId: lessonId.value,
-      items: createItems.value.map(item => ({
-        maxPoints: item.maxPoints,
-        required: item.required,
-      })),
-    }
-    await $backend('/api/assignments', { method: 'POST', body })
-    toast.add({ title: 'Задания созданы', color: 'success', icon: 'i-lucide-check' })
-    createItems.value = [{ maxPoints: 10, required: true }]
-    await refresh()
-  }
-  catch (e) {
-    toastError(e as FetchError)
-  }
-  finally {
-    creating.value = false
-  }
+  await submitCreate(
+    () => {
+      const body: CreateAssignmentsRequest = {
+        lessonId: lessonId.value,
+        items: createItems.value.map(item => ({
+          maxPoints: item.maxPoints,
+          required: item.required,
+        })),
+      }
+      return $backend('/api/assignments', { method: 'POST', body })
+    },
+    {
+      successMessage: 'Задания созданы',
+      onSuccess: async () => {
+        createItems.value = [{ maxPoints: 10, required: true }]
+        await refresh()
+      },
+    },
+  )
 }
 
 // ── Edit ──────────────────────────────────────────────────
@@ -71,7 +67,7 @@ const editAssignment = ref<AssignmentResponse | null>(null)
 const editOrder = ref<number>(1)
 const editMaxPoints = ref<number>(10)
 const editRequired = ref<boolean>(true)
-const saving = ref(false)
+const { loading: saving, submit: submitEdit } = useFormSubmit()
 
 function openEdit(assignment: AssignmentResponse) {
   editAssignment.value = assignment
@@ -90,35 +86,34 @@ async function handleUpdate() {
   if (!editAssignment.value?.id)
     return
 
-  saving.value = true
-  try {
-    const body: UpdateAssignmentRequest = {
-      order: editOrder.value,
-      maxPoints: editMaxPoints.value,
-      required: editRequired.value,
-    }
-    await $backend('/api/assignments/{id}', {
-      method: 'PUT',
-      path: { id: editAssignment.value.id },
-      body,
-    })
-    toast.add({ title: 'Задание обновлено', color: 'success', icon: 'i-lucide-check' })
-    closeEdit()
-    await refresh()
-  }
-  catch (e) {
-    toastError(e as FetchError)
-  }
-  finally {
-    saving.value = false
-  }
+  await submitEdit(
+    () => {
+      const body: UpdateAssignmentRequest = {
+        order: editOrder.value,
+        maxPoints: editMaxPoints.value,
+        required: editRequired.value,
+      }
+      return $backend('/api/assignments/{id}', {
+        method: 'PUT',
+        path: { id: editAssignment.value!.id! },
+        body,
+      })
+    },
+    {
+      successMessage: 'Задание обновлено',
+      onSuccess: async () => {
+        closeEdit()
+        await refresh()
+      },
+    },
+  )
 }
 
 // ── Delete ────────────────────────────────────────────────
 
 const deleteModal = ref(false)
 const deleteTarget = ref<AssignmentResponse | null>(null)
-const deleting = ref(false)
+const { loading: deleting, submit: submitDelete } = useFormSubmit()
 
 function openDelete(assignment: AssignmentResponse) {
   deleteTarget.value = assignment
@@ -134,22 +129,19 @@ async function confirmDelete() {
   if (!deleteTarget.value?.id)
     return
 
-  deleting.value = true
-  try {
-    await $backend('/api/assignments/{id}', {
+  await submitDelete(
+    () => $backend('/api/assignments/{id}', {
       method: 'DELETE',
-      path: { id: deleteTarget.value.id },
-    })
-    toast.add({ title: 'Задание удалено', color: 'success', icon: 'i-lucide-check' })
-    closeDelete()
-    await refresh()
-  }
-  catch (e) {
-    toastError(e as FetchError)
-  }
-  finally {
-    deleting.value = false
-  }
+      path: { id: deleteTarget.value!.id! },
+    }),
+    {
+      successMessage: 'Задание удалено',
+      onSuccess: async () => {
+        closeDelete()
+        await refresh()
+      },
+    },
+  )
 }
 
 // ── Table ─────────────────────────────────────────────────

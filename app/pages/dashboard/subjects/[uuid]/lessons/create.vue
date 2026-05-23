@@ -1,7 +1,5 @@
 <script setup lang="ts">
 import type { components } from '#open-fetch-schemas/backend'
-import type { Form } from '#ui/types'
-import type { FetchError } from 'ofetch'
 import * as v from 'valibot'
 import { nonNegativeInteger, uuidV4 } from '~/utils/validation'
 
@@ -35,7 +33,6 @@ const route = useRoute()
 const subjectId = String(route.params.uuid ?? '')
 
 const { $backend } = useNuxtApp()
-const { toastError } = useApiError()
 const toast = useToast()
 
 // ── My scopes ────────────────────────────────────────────
@@ -53,12 +50,14 @@ const scopeState = reactive<ScopeState>({
   allowedSubgroupId: null,
 })
 
-const state = reactive<Schema>({
-  subjectId,
-  allGroups: teacherAllGroups.value,
-  scopes: [],
-  lectureCount: 0,
-  practiceCount: 0,
+const { state, formRef, loading, submit, validate } = useResourceForm<typeof CreateLessonsSchema, Schema>({
+  initialState: () => ({
+    subjectId,
+    allGroups: teacherAllGroups.value,
+    scopes: [],
+    lectureCount: 0,
+    practiceCount: 0,
+  }),
 })
 
 watch(() => scopeState.groupId, (gid, oldGid) => {
@@ -89,11 +88,8 @@ watch([canLecture, canPractice], ([lec, prac]) => {
     state.practiceCount = 0
 })
 
-const loading = ref(false)
-const formRef = useTemplateRef<Form<typeof CreateLessonsSchema>>('form')
-
 async function handleCreate() {
-  const data = await formRef.value?.validate({ transform: true })
+  const data = await validate()
   if (!data)
     return
 
@@ -102,29 +98,22 @@ async function handleCreate() {
     return
   }
 
-  loading.value = true
-  try {
-    const body: CreateLessonsByTypeRequest = {
-      subjectId: data.subjectId,
-      allGroups: data.allGroups,
-      scopes: data.allGroups ? undefined : data.scopes as LessonScopeRequest[],
-      lectureCount: data.lectureCount,
-      practiceCount: data.practiceCount,
-    }
-    const result = await $backend('/api/lessons/by-type', { method: 'POST', body })
-    toast.add({
-      title: `Создано занятий: ${result.length}`,
-      color: 'success',
-      icon: 'i-lucide-check',
-    })
-    await navigateTo(`/dashboard/subjects/${subjectId}/lessons`)
-  }
-  catch (e) {
-    toastError(e as FetchError)
-  }
-  finally {
-    loading.value = false
-  }
+  await submit(
+    () => {
+      const body: CreateLessonsByTypeRequest = {
+        subjectId: data.subjectId,
+        allGroups: data.allGroups,
+        scopes: data.allGroups ? undefined : data.scopes as LessonScopeRequest[],
+        lectureCount: data.lectureCount,
+        practiceCount: data.practiceCount,
+      }
+      return $backend('/api/lessons/by-type', { method: 'POST', body })
+    },
+    {
+      successMessage: result => `Создано занятий: ${result.length}`,
+      onSuccess: () => navigateTo(`/dashboard/subjects/${subjectId}/lessons`),
+    },
+  )
 }
 </script>
 
@@ -157,7 +146,7 @@ async function handleCreate() {
 
     <UForm
       v-else
-      ref="form"
+      ref="formRef"
       :schema="CreateLessonsSchema"
       :state="state"
       class="flex flex-col gap-4"

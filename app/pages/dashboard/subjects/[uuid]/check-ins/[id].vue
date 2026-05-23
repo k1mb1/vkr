@@ -220,25 +220,22 @@ async function downloadQr() {
 // ── Cancel ────────────────────────────────────────────────
 
 const cancelOpen = ref(false)
-const cancelling = ref(false)
+const { loading: cancelling, submit: submitCancel } = useFormSubmit()
 
 async function handleCancel() {
-  cancelling.value = true
-  try {
-    await $backend('/api/check-in-sessions/{id}/cancel', {
+  await submitCancel(
+    () => $backend('/api/check-in-sessions/{id}/cancel', {
       method: 'POST',
       path: { id: sessionId.value },
-    })
-    toast.add({ title: 'Сессия отменена', color: 'success', icon: 'i-lucide-check' })
-    cancelOpen.value = false
-    await refreshSession()
-  }
-  catch (e) {
-    toastError(e as FetchError)
-  }
-  finally {
-    cancelling.value = false
-  }
+    }),
+    {
+      successMessage: 'Сессия отменена',
+      onSuccess: async () => {
+        cancelOpen.value = false
+        await refreshSession()
+      },
+    },
+  )
 }
 
 // ── Preview & confirm ─────────────────────────────────────
@@ -323,47 +320,46 @@ const previewColumns: TableColumn<Row>[] = [
   { id: 'comment', header: 'Комментарий', meta: { class: { td: 'min-w-[200px]' } } },
 ]
 
-const confirming = ref(false)
+const { loading: confirming, submit: submitConfirm } = useFormSubmit()
 
 async function handleConfirm() {
-  confirming.value = true
-  try {
-    const overridesList: Override[] = []
-    for (const row of preview.value?.rows ?? []) {
-      if (!row.studentId)
-        continue
-      const ovr = overrides[row.studentId]
-      if (!ovr)
-        continue
-      const status = ovr.status
-      const comment = ovr.comment.trim()
-      // Only include overrides that differ from proposed status or have a comment
-      if (status !== row.proposedStatus || comment) {
-        overridesList.push({
-          studentId: row.studentId,
-          status,
-          comment: comment || undefined,
-        })
+  await submitConfirm(
+    () => {
+      const overridesList: Override[] = []
+      for (const row of preview.value?.rows ?? []) {
+        if (!row.studentId)
+          continue
+        const ovr = overrides[row.studentId]
+        if (!ovr)
+          continue
+        const status = ovr.status
+        const comment = ovr.comment.trim()
+        // Only include overrides that differ from proposed status or have a comment
+        if (status !== row.proposedStatus || comment) {
+          overridesList.push({
+            studentId: row.studentId,
+            status,
+            comment: comment || undefined,
+          })
+        }
       }
-    }
-    const body: ConfirmCheckInRequest = {
-      overrides: overridesList.length ? overridesList : undefined,
-    }
-    await $backend('/api/check-in-sessions/{id}/confirm', {
-      method: 'POST',
-      path: { id: sessionId.value },
-      body,
-    })
-    toast.add({ title: 'Посещаемость подтверждена', color: 'success', icon: 'i-lucide-check' })
-    await refreshSession()
-    await navigateTo(`/dashboard/subjects/${subjectId.value}/attendances`)
-  }
-  catch (e) {
-    toastError(e as FetchError)
-  }
-  finally {
-    confirming.value = false
-  }
+      const body: ConfirmCheckInRequest = {
+        overrides: overridesList.length ? overridesList : undefined,
+      }
+      return $backend('/api/check-in-sessions/{id}/confirm', {
+        method: 'POST',
+        path: { id: sessionId.value },
+        body,
+      })
+    },
+    {
+      successMessage: 'Посещаемость подтверждена',
+      onSuccess: async () => {
+        await refreshSession()
+        await navigateTo(`/dashboard/subjects/${subjectId.value}/attendances`)
+      },
+    },
+  )
 }
 </script>
 

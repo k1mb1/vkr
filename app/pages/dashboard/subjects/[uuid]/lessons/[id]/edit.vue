@@ -1,7 +1,5 @@
 <script setup lang="ts">
 import type { components } from '#open-fetch-schemas/backend'
-import type { Form } from '#ui/types'
-import type { FetchError } from 'ofetch'
 import * as v from 'valibot'
 
 type LessonResponse = components['schemas']['LessonResponse']
@@ -51,14 +49,6 @@ const matchingScope = computed(() => {
 
 const lessonTypeLocked = computed(() => !!matchingScope.value?.allowedLessonType)
 
-// ── Form state ────────────────────────────────────────────
-
-const state = reactive<Schema>({
-  topic: targetLesson?.topic ?? '',
-  startedAt: targetLesson?.startedAt ?? '',
-  type: (targetLesson?.type as LessonType) ?? 'LECTURE',
-})
-
 const original = ref({
   topic: targetLesson?.topic ?? '',
   startedAt: targetLesson?.startedAt ?? '',
@@ -73,19 +63,19 @@ const typeOptions = [
 // ── Submit ────────────────────────────────────────────────
 
 const { $backend } = useNuxtApp()
-const { toastError } = useApiError()
-const toast = useToast()
 
-const loading = ref(false)
-const formRef = useTemplateRef<Form<typeof UpdateLessonSchema>>('form')
+const { state, formRef, loading, handleSubmit } = useResourceForm<typeof UpdateLessonSchema, Schema>({
+  initialState: () => ({
+    topic: targetLesson?.topic ?? '',
+    startedAt: targetLesson?.startedAt ?? '',
+    type: (targetLesson?.type as LessonType) ?? 'LECTURE',
+  }),
+  successMessage: 'Занятие обновлено',
+  onSuccess: () => navigateTo(`/dashboard/subjects/${subjectId}/lessons`),
+})
 
 async function handleUpdate() {
-  const data = await formRef.value?.validate({ transform: true })
-  if (!data)
-    return
-
-  loading.value = true
-  try {
+  await handleSubmit((data) => {
     const body: UpdateLessonRequest = {}
     if (data.topic !== undefined && data.topic !== original.value.topic)
       body.topic = data.topic
@@ -94,20 +84,12 @@ async function handleUpdate() {
     if (data.type !== original.value.type)
       body.type = data.type
 
-    await $backend('/api/lessons/{id}', {
+    return $backend('/api/lessons/{id}', {
       method: 'PATCH',
       path: { id: lessonId },
       body,
     })
-    toast.add({ title: 'Занятие обновлено', color: 'success', icon: 'i-lucide-check' })
-    await navigateTo(`/dashboard/subjects/${subjectId}/lessons`)
-  }
-  catch (e) {
-    toastError(e as FetchError)
-  }
-  finally {
-    loading.value = false
-  }
+  })
 }
 
 const isReady = !!targetLesson
@@ -156,7 +138,7 @@ const isReady = !!targetLesson
 
     <UForm
       v-else
-      ref="form"
+      ref="formRef"
       :schema="UpdateLessonSchema"
       :state="state"
       class="flex flex-col gap-4"
