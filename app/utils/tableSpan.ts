@@ -2,7 +2,7 @@ import type { TableColumn } from '@nuxt/ui'
 import type { Cell } from '@tanstack/vue-table'
 
 export function buildRowspanMap<T>(data: T[], key: keyof T): number[] {
-  const spans: number[] = Array.from({ length: data.length }).fill(1)
+  const spans: number[] = Array.from<number>({ length: data.length }).fill(1)
   let i = 0
   while (i < data.length) {
     let count = 1

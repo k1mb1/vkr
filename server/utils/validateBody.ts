@@ -30,7 +30,7 @@ export async function validateBody<TSchema extends v.GenericSchema>(
         statusMessage: 'Invalid request body',
         data: {
           issues: err.issues.map(i => ({
-            path: i.path?.map(p => p.key).join('.'),
+            path: i.path?.map((p: { key: PropertyKey }) => p.key).join('.'),
             message: i.message,
           })),
         },
