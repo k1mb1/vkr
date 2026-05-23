@@ -1352,10 +1352,10 @@
             "format": "uuid",
             "description": "ID студента"
           },
-          "lessonId": {
+          "lessonScopeId": {
             "type": "string",
             "format": "uuid",
-            "description": "ID занятия"
+            "description": "ID проведения занятия (lesson_scope)"
           },
           "status": {
             "type": "string",
@@ -1364,7 +1364,7 @@
           },
           "comment": { "type": "string", "description": "Комментарий" }
         },
-        "required": ["lessonId", "status", "studentId"]
+        "required": ["lessonScopeId", "status", "studentId"]
       },
       "AttendanceCellResponse": {
         "type": "object",
@@ -1380,10 +1380,10 @@
             "format": "uuid",
             "description": "ID студента"
           },
-          "lessonId": {
+          "lessonScopeId": {
             "type": "string",
             "format": "uuid",
-            "description": "ID занятия"
+            "description": "ID проведения занятия (lesson_scope)"
           },
           "status": {
             "type": "string",
@@ -1576,11 +1576,11 @@
           },
           "allPermissions": {
             "type": "boolean",
-            "description": "true = преподаватель имеет доступ ко всем группам предмета"
+            "description": "true = у преподавателя полный доступ к предмету (любая группа/подгруппа/тип занятия). В этом случае scopes возвращается пустым — клиент должен брать аудиторию из subject.groups напрямую."
           },
           "scopes": {
             "type": "array",
-            "description": "Список scope'ов (группа с полным списком подгрупп + опц. разрешённая подгруппа + опц. тип занятия). При allPermissions=true scope'ы синтезируются из групп предмета (по одному на группу, без ограничений по подгруппе и типу).",
+            "description": "Список scope'ов (группа с полным списком подгрупп + опц. разрешённая подгруппа + опц. тип занятия). Пустой список при allPermissions=true.",
             "items": { "$ref": "#/components/schemas/PermissionScopeResponse" }
           },
           "createdAt": {
@@ -1650,21 +1650,18 @@
       },
       "CreateLessonsByTypeRequest": {
         "type": "object",
-        "description": "Запрос на создание занятий по количеству типов",
+        "description": "Запрос на создание шаблонов занятий по количеству типов с начальной аудиторией",
         "properties": {
           "subjectId": {
             "type": "string",
             "format": "uuid",
             "description": "ID предмета"
           },
-          "allGroups": {
-            "type": "boolean",
-            "description": "true = занятия охватывают все группы предмета; false = только перечисленные в scopes"
-          },
           "scopes": {
             "type": "array",
-            "description": "Список scopes (group + опц. подгруппа). Обязателен и должен быть непустым при allGroups=false. При allGroups=true игнорируется.",
-            "items": { "$ref": "#/components/schemas/LessonScopeRequest" }
+            "description": "Список scopes (группа+опц.подгруппа или allGroups) с датой проведения. К каждому созданному шаблону прикрепляются все указанные scopes.",
+            "items": { "$ref": "#/components/schemas/LessonScopeRequest" },
+            "minItems": 1
           },
           "lectureCount": {
             "type": "integer",
@@ -1677,28 +1674,37 @@
             "description": "Количество практик"
           }
         },
-        "required": ["allGroups", "lectureCount", "practiceCount", "subjectId"]
+        "required": ["lectureCount", "practiceCount", "scopes", "subjectId"]
       },
       "LessonScopeRequest": {
         "type": "object",
-        "description": "Scope занятия: группа + опциональная подгруппа",
+        "description": "Проведение занятия: группа (опц. подгруппа) или все группы + дата",
         "properties": {
           "groupId": {
             "type": "string",
             "format": "uuid",
-            "description": "ID группы"
+            "description": "ID группы. null допустим только если allGroups=true"
           },
           "allowedSubgroupId": {
             "type": "string",
             "format": "uuid",
             "description": "ID разрешённой подгруппы (null = вся группа)"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date",
+            "description": "Дата проведения"
+          },
+          "allGroups": {
+            "type": "boolean",
+            "description": "true = проведение для всех групп предмета сразу (groupId должен быть null)"
           }
         },
-        "required": ["groupId"]
+        "required": ["startedAt"]
       },
       "LessonResponse": {
         "type": "object",
-        "description": "Информация о занятии",
+        "description": "Информация о занятии (шаблон без даты — даты в scopes)",
         "properties": {
           "id": {
             "type": "string",
@@ -1719,19 +1725,15 @@
             "description": "Тип занятия",
             "enum": ["LECTURE", "PRACTICE"]
           },
-          "startedAt": {
-            "type": "string",
-            "format": "date",
-            "description": "Дата занятия"
+          "orderIndex": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Порядковый номер занятия в рамках (предмет, тип)"
           },
           "topic": { "type": "string", "description": "Тема занятия" },
-          "allGroups": {
-            "type": "boolean",
-            "description": "true = занятие охватывает все группы предмета"
-          },
           "scopes": {
             "type": "array",
-            "description": "Список scopes занятия (группа + опц. подгруппа)",
+            "description": "Список проведений занятия (группа/подгруппа + дата)",
             "items": { "$ref": "#/components/schemas/LessonScopeResponse" }
           },
           "createdAt": {
@@ -1748,7 +1750,7 @@
       },
       "LessonScopeResponse": {
         "type": "object",
-        "description": "Scope занятия — группа + опц. подгруппа",
+        "description": "Проведение занятия — группа/подгруппа (или все группы) + дата",
         "properties": {
           "id": {
             "type": "string",
@@ -1758,9 +1760,12 @@
           "groupId": {
             "type": "string",
             "format": "uuid",
-            "description": "ID группы"
+            "description": "ID группы (null = все группы предмета)"
           },
-          "groupName": { "type": "string", "description": "Название группы" },
+          "groupName": {
+            "type": "string",
+            "description": "Название группы (null = все группы предмета)"
+          },
           "allowedSubgroupId": {
             "type": "string",
             "format": "uuid",
@@ -1770,26 +1775,32 @@
             "type": "integer",
             "format": "int32",
             "description": "Индекс разрешённой подгруппы"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date",
+            "description": "Дата проведения занятия"
+          },
+          "allGroups": {
+            "type": "boolean",
+            "description": "true = проведение для всех групп предмета сразу"
           }
         }
       },
       "BulkScheduleRequest": {
         "type": "object",
-        "description": "Запрос на массовое создание занятий по недельному шаблону",
+        "description": "Запрос на массовое создание шаблонов занятий по недельному шаблону. Для каждой даты создаётся один шаблон занятия и по одному scope на каждую указанную аудиторию.",
         "properties": {
           "subjectId": {
             "type": "string",
             "format": "uuid",
             "description": "ID предмета"
           },
-          "allGroups": {
-            "type": "boolean",
-            "description": "true = занятия охватывают все группы предмета; false = только перечисленные в scopes"
-          },
-          "scopes": {
+          "audiences": {
             "type": "array",
-            "description": "Список scopes (group + опц. подгруппа). Обязателен и должен быть непустым при allGroups=false. При allGroups=true игнорируется.",
-            "items": { "$ref": "#/components/schemas/LessonScopeRequest" }
+            "description": "Аудитории, для которых создавать scope-проведения (группа+опц.подгруппа или allGroups). Должен содержать хотя бы один элемент.",
+            "items": { "$ref": "#/components/schemas/LessonAudienceRequest" },
+            "minItems": 1
           },
           "schedules": {
             "type": "array",
@@ -1798,7 +1809,7 @@
             "minItems": 1
           }
         },
-        "required": ["allGroups", "schedules", "subjectId"]
+        "required": ["audiences", "schedules", "subjectId"]
       },
       "Entry": {
         "type": "object",
@@ -1843,6 +1854,26 @@
           }
         },
         "required": ["daysOfWeek", "startDate", "totalCount", "type"]
+      },
+      "LessonAudienceRequest": {
+        "type": "object",
+        "description": "Аудитория проведения занятия без даты: группа (опц. подгруппа) или все группы",
+        "properties": {
+          "groupId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID группы. null допустим только если allGroups=true"
+          },
+          "allowedSubgroupId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID разрешённой подгруппы (null = вся группа)"
+          },
+          "allGroups": {
+            "type": "boolean",
+            "description": "true = проведение для всех групп предмета сразу (groupId должен быть null)"
+          }
+        }
       },
       "CreateGroupRequest": {
         "type": "object",
@@ -1979,10 +2010,10 @@
         "type": "object",
         "description": "Запуск опроса по посещаемости",
         "properties": {
-          "lessonId": {
+          "lessonScopeId": {
             "type": "string",
             "format": "uuid",
-            "description": "ID занятия. Аудитория опроса совпадает с аудиторией занятия (все группы и подгруппы, заданные в lesson scopes; либо все группы предмета при allGroups=true)."
+            "description": "ID конкретного проведения занятия (lesson_scope). Аудитория опроса совпадает с группой/подгруппой этого scope (или со всеми группами предмета при allGroups=true)."
           },
           "onTimeSeconds": {
             "type": "integer",
@@ -1998,7 +2029,7 @@
             "example": 600
           }
         },
-        "required": ["lateSeconds", "lessonId", "onTimeSeconds"]
+        "required": ["lateSeconds", "lessonScopeId", "onTimeSeconds"]
       },
       "CheckInAudienceScope": {
         "type": "object",
@@ -2034,15 +2065,20 @@
           "lessonId": {
             "type": "string",
             "format": "uuid",
-            "description": "ID занятия"
+            "description": "ID шаблона занятия"
+          },
+          "lessonScopeId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID проведения занятия (lesson_scope)"
           },
           "allGroups": {
             "type": "boolean",
-            "description": "Признак, что занятие охватывает все группы предмета. Дублирует lesson.allGroups для удобства клиента."
+            "description": "Признак, что проведение охватывает все группы предмета."
           },
           "audience": {
             "type": "array",
-            "description": "Аудитория опроса — копия lesson scopes (группа + опц. подгруппа). Если allGroups=true, содержит по одной записи на каждую группу предмета.",
+            "description": "Аудитория опроса — копия аудитории lesson scope. Если allGroups=true, содержит по одной записи на каждую группу предмета.",
             "items": { "$ref": "#/components/schemas/CheckInAudienceScope" }
           },
           "startedAt": {
@@ -2241,7 +2277,7 @@
       },
       "UpdateLessonRequest": {
         "type": "object",
-        "description": "Запрос на частичное обновление занятия (PATCH).\nСемантика: поле = null или отсутствует — значение не изменяется.\nЕсли передан allGroups=false, то scopes должен быть непустым.\n",
+        "description": "Запрос на частичное обновление шаблона занятия (PATCH).\nСемантика: поле = null или отсутствует — значение не изменяется.\nЕсли передан scopes, он должен быть непустым.\n",
         "properties": {
           "subjectId": {
             "type": "string",
@@ -2253,22 +2289,18 @@
             "description": "Тип занятия (null — не менять)",
             "enum": ["LECTURE", "PRACTICE"]
           },
-          "startedAt": {
-            "type": "string",
-            "format": "date",
-            "description": "Дата занятия (null — не менять)"
-          },
           "topic": {
             "type": "string",
             "description": "Тема занятия (null — не менять)"
           },
-          "allGroups": {
-            "type": "boolean",
-            "description": "true = все группы предмета (null — не менять)"
+          "orderIndex": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Порядковый номер в рамках (предмет, тип). null — не менять"
           },
           "scopes": {
             "type": "array",
-            "description": "Список scopes (null — не менять). Если задан вместе с allGroups=false, должен быть непустым.",
+            "description": "Список scopes (null — не менять, иначе полностью замещает существующие).",
             "items": { "$ref": "#/components/schemas/LessonScopeRequest" }
           }
         }
@@ -2421,24 +2453,29 @@
       },
       "GradingTableLesson": {
         "type": "object",
-        "description": "Занятие в таблице оценок",
+        "description": "Занятие в таблице оценок (шаблон); даты — в scopes",
         "properties": {
           "id": {
             "type": "string",
             "format": "uuid",
             "description": "ID занятия"
           },
-          "startedAt": {
-            "type": "string",
-            "format": "date",
-            "description": "Дата занятия"
-          },
           "type": {
             "type": "string",
             "description": "Тип занятия",
             "enum": ["LECTURE", "PRACTICE"]
           },
-          "topic": { "type": "string", "description": "Тема" }
+          "orderIndex": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Порядковый номер занятия в рамках (предмет, тип)"
+          },
+          "topic": { "type": "string", "description": "Тема" },
+          "scopes": {
+            "type": "array",
+            "description": "Проведения этого занятия для соответствующих групп",
+            "items": { "$ref": "#/components/schemas/Scope" }
+          }
         }
       },
       "GradingTableResponse": {
@@ -2447,7 +2484,7 @@
         "properties": {
           "audience": {
             "type": "array",
-            "description": "Аудитория таблицы — группы и подгруппы, покрываемые разрешением (для построения заголовка таблицы).",
+            "description": "Аудитория таблицы — группы/подгруппы из scope'ов разрешения. Пустой список при allPermissions=true: клиент должен взять группы из subject.groups.",
             "items": { "$ref": "#/components/schemas/GradingAudienceScope" }
           },
           "students": {
@@ -2500,6 +2537,36 @@
             "type": "integer",
             "format": "int32",
             "description": "Индекс подгруппы (null = без подгруппы)"
+          }
+        }
+      },
+      "Scope": {
+        "type": "object",
+        "description": "Проведение занятия для группы (для отображения даты в шапке колонки)",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID проведения"
+          },
+          "groupId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID группы (null = все группы)"
+          },
+          "allowedSubgroupId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID разрешённой подгруппы (null = вся группа)"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date",
+            "description": "Дата проведения"
+          },
+          "allGroups": {
+            "type": "boolean",
+            "description": "true = проведение для всех групп"
           }
         }
       },
@@ -2639,24 +2706,57 @@
       },
       "AttendanceTableLesson": {
         "type": "object",
-        "description": "Занятие в таблице посещаемости",
+        "description": "Колонка таблицы посещаемости — конкретное проведение (lesson_scope)",
         "properties": {
           "id": {
             "type": "string",
             "format": "uuid",
-            "description": "ID занятия"
+            "description": "ID проведения (lesson_scope)"
+          },
+          "lessonId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID шаблона занятия"
           },
           "startedAt": {
             "type": "string",
             "format": "date",
-            "description": "Дата занятия"
+            "description": "Дата проведения"
           },
           "type": {
             "type": "string",
             "description": "Тип занятия",
             "enum": ["LECTURE", "PRACTICE"]
           },
-          "topic": { "type": "string", "description": "Тема" }
+          "orderIndex": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Порядковый номер занятия в рамках (предмет, тип)"
+          },
+          "topic": { "type": "string", "description": "Тема" },
+          "groupId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID группы (null = все группы)"
+          },
+          "groupName": {
+            "type": "string",
+            "description": "Название группы (null = все группы)"
+          },
+          "allowedSubgroupId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID разрешённой подгруппы (null = вся группа)"
+          },
+          "allowedSubgroupIndex": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Индекс разрешённой подгруппы (null = вся группа)"
+          },
+          "allGroups": {
+            "type": "boolean",
+            "description": "true = проведение для всех групп"
+          }
         }
       },
       "AttendanceTableResponse": {
@@ -2665,7 +2765,7 @@
         "properties": {
           "audience": {
             "type": "array",
-            "description": "Аудитория таблицы — группы и подгруппы, покрываемые разрешением (для построения заголовка таблицы).",
+            "description": "Аудитория таблицы — группы/подгруппы из scope'ов разрешения. Пустой список при allPermissions=true: клиент должен взять группы из subject.groups.",
             "items": { "$ref": "#/components/schemas/AttendanceAudienceScope" }
           },
           "students": {
