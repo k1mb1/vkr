@@ -96,7 +96,7 @@ async function handleCreate() {
     }
     await $backend('/api/teacher-subject-permissions', { method: 'POST', body })
     toast.add({ title: 'Назначение создано', color: 'success', icon: 'i-lucide-check' })
-    await navigateTo(`/dashboard/subjects/${subjectId}/permissions`)
+    await navigateTo(`/dashboard/subjects/${subjectId}/settings/permissions`)
   }
   catch (e) {
     toastError(e as FetchError)
@@ -112,7 +112,7 @@ async function handleCreate() {
     <UPageHeader title="Новое назначение">
       <template #links>
         <UButton
-          :to="`/dashboard/subjects/${subjectId}/permissions`"
+          :to="`/dashboard/subjects/${subjectId}/settings/permissions`"
           icon="i-lucide-arrow-left"
           color="neutral"
           variant="ghost"

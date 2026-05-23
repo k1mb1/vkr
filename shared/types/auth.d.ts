@@ -9,6 +9,7 @@ declare module '#auth-utils' {
   interface UserSession {
     loggedInAt?: number
     tokenExpiresAt?: number
+    teacherSyncedAt?: number
   }
 
   interface SecureSessionData {
