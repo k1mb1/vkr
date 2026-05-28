@@ -3,14 +3,14 @@ const { t } = useI18n({
   messages: {
     en: {
       hero: {
-        title: 'Self-service attendance for university classes',
-        description: 'Students check themselves in by scanning a QR code or opening a link — you just review and confirm. Subjects, lessons and attendance in one teacher dashboard.',
+        title: 'Self-service attendance & grading for university classes',
+        description: 'Students check themselves in by scanning a QR code — you just review and confirm. Subjects, lessons, attendance and grades, in one teacher dashboard.',
         signin: 'Sign in',
         how: 'How it works',
       },
       features: {
         title: 'Built around real lessons',
-        description: 'Subjects, groups, lessons and attendance — plus the live check-in flow tying it all together.',
+        description: 'Everything a teacher needs to run a course — from the roll call to the final grade sheet.',
         items: {
           subjects: {
             title: 'Subjects & groups',
@@ -28,13 +28,21 @@ const { t } = useI18n({
             title: 'Attendance grid',
             description: 'A single sortable table of students × lessons. Override any cell, leave a comment, see subgroup splits.',
           },
+          grades: {
+            title: 'Grades & export',
+            description: 'A grading table that mirrors attendance: set scores per lesson, group by section, export the result to Excel.',
+          },
           permissions: {
-            title: 'Flexible assignments',
+            title: 'Flexible permissions',
             description: 'Assign a teacher to a subject for a specific group, subgroup or lesson type. Permissions stay scoped.',
           },
           auth: {
             title: 'Institutional sign-in',
             description: 'Single sign-on via OIDC. Each teacher sees only the subjects they were granted access to.',
+          },
+          settings: {
+            title: 'Per-subject settings',
+            description: 'Tune lesson types, sections and grading rules for each subject independently from a dedicated settings page.',
           },
         },
       },
@@ -51,8 +59,34 @@ const { t } = useI18n({
             description: 'They open the QR or link, find themselves in the list and tap «I\'m here». One device — one check-in.',
           },
           confirm: {
-            title: 'Confirm the results',
-            description: 'Review who came on time, who was late, change statuses or add a comment, then move it to the main attendance table.',
+            title: 'Confirm and grade',
+            description: 'Review who came on time, who was late, then carry the results into the attendance and grades tables.',
+          },
+        },
+      },
+      faq: {
+        title: 'Frequently asked questions',
+        description: 'Quick answers to what teachers ask before their first session.',
+        items: {
+          install: {
+            label: 'Do students need to install anything?',
+            content: 'No. They just open the QR code or link from their phone browser and tap «I\'m here». No accounts, no app store.',
+          },
+          late: {
+            label: 'How do I handle latecomers?',
+            content: 'Each session has two windows — on-time and late. Anyone checking in after the on-time window is automatically flagged as late, and you can still override the status manually.',
+          },
+          override: {
+            label: 'Can I correct a status after the session?',
+            content: 'Yes. Any cell in the attendance grid can be overridden with a status and an optional comment, even days after the lesson.',
+          },
+          grades: {
+            label: 'How do grades work?',
+            content: 'Each subject has its own grading table linked to lessons. You can group rows by subgroup, filter by lecture or practice, and export everything to Excel.',
+          },
+          access: {
+            label: 'Who sees which subject?',
+            content: 'Access is granted per (subject, group) pair, optionally narrowed to a subgroup or lesson type. Teachers only see the subjects they were assigned to.',
           },
         },
       },
@@ -64,14 +98,14 @@ const { t } = useI18n({
     },
     ru: {
       hero: {
-        title: 'Самостоятельная отметка студентов на занятии',
-        description: 'Студенты отмечаются сами — по QR-коду или ссылке. Вы только проверяете и подтверждаете. Предметы, занятия и посещаемость — в одном кабинете преподавателя.',
+        title: 'Самостоятельная отметка и оценивание студентов',
+        description: 'Студенты отмечаются сами — по QR-коду или ссылке. Вы только проверяете и подтверждаете. Предметы, занятия, посещаемость и оценки — в одном кабинете преподавателя.',
         signin: 'Войти',
         how: 'Как это работает',
       },
       features: {
         title: 'Заточено под реальные занятия',
-        description: 'Предметы, группы, занятия и посещаемость — плюс живой check-in, который связывает всё вместе.',
+        description: 'Всё, что нужно преподавателю — от переклички до итоговой ведомости.',
         items: {
           subjects: {
             title: 'Предметы и группы',
@@ -89,13 +123,21 @@ const { t } = useI18n({
             title: 'Таблица посещаемости',
             description: 'Студенты × занятия в одной таблице. Можно переопределить любую ячейку, оставить комментарий, видеть разбивку по подгруппам.',
           },
+          grades: {
+            title: 'Оценки и экспорт',
+            description: 'Ведомость оценок построена по аналогии с посещаемостью: баллы по занятиям, группировка по подгруппам, выгрузка в Excel.',
+          },
           permissions: {
-            title: 'Гибкие назначения',
+            title: 'Гибкие права доступа',
             description: 'Преподаватель привязывается к предмету и группе — с уточнением подгруппы или типа занятий, если нужно.',
           },
           auth: {
             title: 'Институциональный вход',
             description: 'Single Sign-On через OIDC. Каждый видит только те предметы, к которым у него есть доступ.',
+          },
+          settings: {
+            title: 'Настройки предмета',
+            description: 'Отдельная страница настроек — типы занятий, разбиение на секции и правила оценивания настраиваются под каждый предмет.',
           },
         },
       },
@@ -112,8 +154,34 @@ const { t } = useI18n({
             description: 'Открывают QR с проектора или ссылку, ищут себя и жмут «Я здесь». Одно устройство — одна отметка.',
           },
           confirm: {
-            title: 'Подтвердить результаты',
-            description: 'Видно, кто пришёл вовремя, кто опоздал. При желании поменяйте статус или оставьте комментарий и перенесите в основную посещаемость.',
+            title: 'Подтвердить и оценить',
+            description: 'Посмотрите, кто пришёл вовремя и кто опоздал, и перенесите результат в таблицы посещаемости и оценок.',
+          },
+        },
+      },
+      faq: {
+        title: 'Частые вопросы',
+        description: 'Короткие ответы на то, что преподаватели спрашивают перед первой сессией.',
+        items: {
+          install: {
+            label: 'Нужно ли студентам что-то устанавливать?',
+            content: 'Нет. Студент просто открывает QR-код или ссылку в браузере телефона и жмёт «Я здесь». Ни аккаунтов, ни приложений.',
+          },
+          late: {
+            label: 'Что делать с опоздавшими?',
+            content: 'У сессии есть два окна — «вовремя» и «для опоздавших». Все, кто отметился после первого окна, автоматически помечаются опоздавшими, и статус всегда можно поправить вручную.',
+          },
+          override: {
+            label: 'Можно ли поправить статус после занятия?',
+            content: 'Да. Любую ячейку посещаемости можно переопределить — поставить другой статус и оставить комментарий — даже спустя несколько дней после занятия.',
+          },
+          grades: {
+            label: 'Как устроены оценки?',
+            content: 'У каждого предмета своя таблица оценок, привязанная к занятиям. Можно группировать строки по подгруппам, фильтровать по лекциям и практикам и выгружать всё в Excel.',
+          },
+          access: {
+            label: 'Кто какой предмет видит?',
+            content: 'Доступ выдаётся на пару (предмет, группа), при необходимости — с уточнением подгруппы или типа занятий. Преподаватель видит только назначенные ему предметы.',
           },
         },
       },
@@ -138,7 +206,7 @@ const features = computed(() => [
     description: t('features.items.lessons.description'),
   },
   {
-    icon: 'i-lucide-clipboard-list',
+    icon: 'i-lucide-qr-code',
     title: t('features.items.checkin.title'),
     description: t('features.items.checkin.description'),
   },
@@ -146,6 +214,11 @@ const features = computed(() => [
     icon: 'i-lucide-clipboard-check',
     title: t('features.items.attendance.title'),
     description: t('features.items.attendance.description'),
+  },
+  {
+    icon: 'i-lucide-graduation-cap',
+    title: t('features.items.grades.title'),
+    description: t('features.items.grades.description'),
   },
   {
     icon: 'i-lucide-shield-check',
@@ -156,6 +229,11 @@ const features = computed(() => [
     icon: 'i-lucide-lock',
     title: t('features.items.auth.title'),
     description: t('features.items.auth.description'),
+  },
+  {
+    icon: 'i-lucide-settings-2',
+    title: t('features.items.settings.title'),
+    description: t('features.items.settings.description'),
   },
 ])
 
@@ -175,6 +253,14 @@ const steps = computed(() => [
     title: t('how.steps.confirm.title'),
     description: t('how.steps.confirm.description'),
   },
+])
+
+const faqItems = computed(() => [
+  { label: t('faq.items.install.label'), content: t('faq.items.install.content') },
+  { label: t('faq.items.late.label'), content: t('faq.items.late.content') },
+  { label: t('faq.items.override.label'), content: t('faq.items.override.content') },
+  { label: t('faq.items.grades.label'), content: t('faq.items.grades.content') },
+  { label: t('faq.items.access.label'), content: t('faq.items.access.content') },
 ])
 </script>
 
@@ -219,6 +305,15 @@ const steps = computed(() => [
           :description="step.description"
         />
       </UPageGrid>
+    </UPageSection>
+
+    <UPageSection
+      id="faq"
+      :title="t('faq.title')"
+      :description="t('faq.description')"
+      orientation="horizontal"
+    >
+      <UPageAccordion :items="faqItems" />
     </UPageSection>
 
     <UPageSection>
