@@ -1,5 +1,5 @@
-import type { components } from '#open-fetch-schemas/backend'
 import type { MaybeRefOrGetter } from 'vue'
+import type { components } from '#open-fetch-schemas/backend'
 import { computed, ref, toValue } from 'vue'
 
 type PageMetadata = components['schemas']['PageMetadata']

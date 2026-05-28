@@ -62,7 +62,7 @@ export default defineNuxtConfig({
         'default-src': ['\'self\''],
         'script-src': ['\'self\'', '\'nonce-{{nonce}}\'', '\'strict-dynamic\''],
         'style-src': ['\'self\'', '\'unsafe-inline\''],
-        'img-src': ['\'self\'', 'data:', 'blob:'],
+        'img-src': ['\'self\'', 'data:', 'blob:', 'https://api.dicebear.com'],
         'font-src': ['\'self\'', 'data:'],
         'connect-src': ['\'self\''],
         'form-action': ['\'self\''],

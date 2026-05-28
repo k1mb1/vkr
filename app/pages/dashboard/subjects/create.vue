@@ -1,56 +1,47 @@
 <script setup lang="ts">
 import type { User } from '#auth-utils'
 import type { components } from '#open-fetch-schemas/backend'
+import type { SchemaFor } from '~/utils/validation'
+
+import * as v from 'valibot'
+import { arrayMinLength, string } from '~/utils/validation'
 
 type CreateSubjectRequest = components['schemas']['CreateSubjectRequest']
+type CreateSubjectForm = Omit<CreateSubjectRequest, 'teacherId'>
+
+const CreateSubjectRequestSchema: SchemaFor<CreateSubjectForm> = v.object({
+  name: string('Введите название предмета'),
+  description: v.optional(v.pipe(v.string(), v.trim())),
+  groupIds: v.pipe(
+    arrayMinLength(v.string(), 1, 'Выберите хотя бы одну группу'),
+    v.check(ids => new Set(ids).size === ids.length, 'Группы не должны повторяться'),
+  ),
+})
 
 const { user } = useOidcAuth()
 const { sub: myTeacherId } = user.value as User
 
 const { $backend } = useNuxtApp()
 
-const name = ref('')
-const description = ref<string | undefined>(undefined)
-const teacherId = ref<string>(myTeacherId!)
-const groupIds = ref<string[]>([])
+const { state, formRef, loading, onSubmit, onError } = useResourceForm<typeof CreateSubjectRequestSchema>({
+  initialState: () => ({ name: '', description: undefined, groupIds: [] }),
+  successMessage: 'Предмет создан',
+})
 
-const errors = ref<string[]>([])
-
-function validate(): boolean {
-  errors.value = []
-  if (!name.value.trim())
-    errors.value.push('Введите название предмета')
-  const filled = groupIds.value.filter(Boolean)
-  if (filled.length === 0)
-    errors.value.push('Выберите хотя бы одну группу')
-  const unique = new Set(filled)
-  if (unique.size !== filled.length)
-    errors.value.push('Группы не должны повторяться')
-  return errors.value.length === 0
-}
-
-const { loading, submit } = useFormSubmit()
-
-async function handleCreate() {
-  if (!validate())
-    return
-
-  await submit(
-    () => {
-      const body: CreateSubjectRequest = {
-        name: name.value.trim(),
-        description: description.value || undefined,
-        teacherId: teacherId.value,
-        groupIds: groupIds.value.filter(Boolean),
-      }
-      return $backend('/api/subjects', { method: 'POST', body })
-    },
-    {
-      successMessage: 'Предмет создан',
-      onSuccess: result => navigateTo(`/dashboard/subjects/${result.id}`),
-    },
-  )
-}
+const handleCreate = onSubmit(
+  (data) => {
+    const body: CreateSubjectRequest = {
+      name: data.name,
+      description: data.description || undefined,
+      teacherId: myTeacherId!,
+      groupIds: data.groupIds,
+    }
+    return $backend('/api/subjects', { method: 'POST', body })
+  },
+  {
+    onSuccess: result => navigateTo(`/dashboard/subjects/${result.id}`),
+  },
+)
 </script>
 
 <template>
@@ -67,47 +58,43 @@ async function handleCreate() {
       </template>
     </UPageHeader>
 
-    <UAlert
-      v-if="errors.length"
-      color="error"
-      variant="soft"
-      icon="i-lucide-circle-alert"
-      title="Исправьте ошибки"
-      :description="errors.join(' · ')"
-    />
-
-    <div class="flex flex-col gap-4">
-      <UFormField label="Название предмета" required>
+    <UForm
+      ref="formRef"
+      :schema="CreateSubjectRequestSchema"
+      :state="state"
+      class="flex flex-col gap-4"
+      @submit="handleCreate"
+      @error="onError"
+    >
+      <UFormField label="Название предмета" name="name" required>
         <UInput
-          v-model="name"
+          v-model="state.name"
           placeholder="Например: Математический анализ"
           class="w-full"
         />
       </UFormField>
 
-      <UFormField label="Описание">
+      <UFormField label="Описание" name="description">
         <UTextarea
-          v-model="description"
+          v-model="state.description"
           autoresize
-          minlength="3"
           placeholder="Краткое описание предмета (необязательно)"
           class="w-full"
         />
       </UFormField>
 
-      <UFormField label="Группы" required>
-        <GroupsMultiSelectRequest v-model="groupIds" />
+      <UFormField label="Группы" name="groupIds" required>
+        <GroupsMultiSelectRequest v-model="state.groupIds" />
       </UFormField>
 
       <UButton
-        type="button"
+        type="submit"
         icon="i-lucide-check"
         :loading="loading"
         class="ml-auto"
-        @click="handleCreate"
       >
         Создать предмет
       </UButton>
-    </div>
+    </UForm>
   </div>
 </template>

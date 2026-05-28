@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { components } from '#open-fetch-schemas/backend'
 import type { TableColumn } from '@nuxt/ui'
 import type { FetchError } from 'ofetch'
+import type { components } from '#open-fetch-schemas/backend'
 import { useQRCode } from '@vueuse/integrations/useQRCode'
 
 type CheckInSessionResponse = components['schemas']['CheckInSessionResponse']

@@ -15,6 +15,7 @@
   ],
   "security": [{ "bearerAuth": [] }],
   "tags": [
+    { "name": "Lesson scopes", "description": "Операции над scope занятия" },
     { "name": "Grades", "description": "Оценивание" },
     {
       "name": "Teacher Subject Permissions",
@@ -82,6 +83,81 @@
         }
       }
     },
+    "/api/lessons/{id}": {
+      "get": {
+        "tags": ["Lessons"],
+        "summary": "Получить занятие по ID",
+        "operationId": "getLessonById",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID занятия",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/LessonResponse" }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["Lessons"],
+        "summary": "Обновить занятие целиком одним запросом",
+        "description": "В body можно передать любую комбинацию из header / scopes / assignments — null = не трогать. Транзакция атомарная.",
+        "operationId": "updateLesson",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID занятия",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "description": "Данные для обновления занятия",
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateLessonRequest" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/LessonResponse" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Lessons"],
+        "summary": "Удалить занятие",
+        "operationId": "deleteLesson",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID занятия",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
     "/api/grades": {
       "get": {
         "tags": ["Grades"],
@@ -91,12 +167,34 @@
           {
             "name": "permissionId",
             "in": "query",
-            "description": "ID разрешения преподавателя. Вернёт таблицу по предмету разрешения: студенты — объединение по scopes разрешения, занятия — те, у которых allGroups=true или есть scope, пересекающийся хотя бы с одним scope разрешения.",
+            "description": "ID разрешения преподавателя (обязательно — определяет, что видно). Без других фильтров вернёт полную таблицу по предмету разрешения.",
             "required": true,
             "schema": {
               "type": "string",
               "format": "uuid",
-              "description": "ID разрешения преподавателя. Вернёт таблицу по предмету разрешения: студенты — объединение по scopes разрешения, занятия — те, у которых allGroups=true или есть scope, пересекающийся хотя бы с одним scope разрешения."
+              "description": "ID разрешения преподавателя (обязательно — определяет, что видно). Без других фильтров вернёт полную таблицу по предмету разрешения."
+            }
+          },
+          {
+            "name": "lessonId",
+            "in": "query",
+            "description": "ID занятия. Если задан — таблица только по этому занятию",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "ID занятия. Если задан — таблица только по этому занятию"
+            }
+          },
+          {
+            "name": "lessonScopeId",
+            "in": "query",
+            "description": "ID конкретного scope. Если задан — таблица только по уроку этого scope",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "ID конкретного scope. Если задан — таблица только по уроку этого scope"
             }
           }
         ],
@@ -115,13 +213,15 @@
       },
       "put": {
         "tags": ["Grades"],
-        "summary": "Проставить или обновить оценку для пары (студент, занятие [+ задание])",
-        "operationId": "upsertGrade",
+        "summary": "Массовое создание/обновление ячеек оценок",
+        "operationId": "upsertGrades",
         "requestBody": {
-          "description": "Ячейка оценки",
+          "description": "Список ячеек оценок",
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/UpsertGradeRequest" }
+              "schema": {
+                "$ref": "#/components/schemas/BulkUpsertGradesRequest"
+              }
             }
           },
           "required": true
@@ -131,7 +231,10 @@
             "description": "OK",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/GradeCellResponse" }
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/GradeCellResponse" }
+                }
               }
             }
           }
@@ -147,12 +250,34 @@
           {
             "name": "permissionId",
             "in": "query",
-            "description": "ID разрешения преподавателя. Вернёт таблицу по предмету разрешения: студенты — объединение по scopes разрешения, занятия — те, у которых allGroups=true или есть scope, пересекающийся хотя бы с одним scope разрешения.",
+            "description": "ID разрешения преподавателя (обязательно — определяет, что видно). Без других фильтров вернёт полную таблицу по предмету разрешения.",
             "required": true,
             "schema": {
               "type": "string",
               "format": "uuid",
-              "description": "ID разрешения преподавателя. Вернёт таблицу по предмету разрешения: студенты — объединение по scopes разрешения, занятия — те, у которых allGroups=true или есть scope, пересекающийся хотя бы с одним scope разрешения."
+              "description": "ID разрешения преподавателя (обязательно — определяет, что видно). Без других фильтров вернёт полную таблицу по предмету разрешения."
+            }
+          },
+          {
+            "name": "lessonId",
+            "in": "query",
+            "description": "ID занятия. Если задан — таблица только по scope'ам этого занятия (пересечённым с разрешением)",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "ID занятия. Если задан — таблица только по scope'ам этого занятия (пересечённым с разрешением)"
+            }
+          },
+          {
+            "name": "lessonScopeId",
+            "in": "query",
+            "description": "ID конкретного scope. Если задан — таблица только по одному столбцу",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "ID конкретного scope. Если задан — таблица только по одному столбцу"
             }
           }
         ],
@@ -171,14 +296,14 @@
       },
       "put": {
         "tags": ["Attendances"],
-        "summary": "Проставить или обновить отметку для пары (студент, занятие)",
-        "operationId": "upsert",
+        "summary": "Массовое создание/обновление ячеек посещаемости",
+        "operationId": "upsertAll",
         "requestBody": {
-          "description": "Ячейка посещаемости",
+          "description": "Список ячеек",
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpsertAttendanceRequest"
+                "$ref": "#/components/schemas/BulkUpsertAttendanceRequest"
               }
             }
           },
@@ -190,62 +315,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AttendanceCellResponse"
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AttendanceCellResponse"
+                  }
                 }
               }
             }
           }
         }
-      }
-    },
-    "/api/assignments/{id}": {
-      "put": {
-        "tags": ["Assignments"],
-        "summary": "Обновить задание",
-        "operationId": "update",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": { "type": "string", "format": "uuid" }
-          }
-        ],
-        "requestBody": {
-          "description": "Поля задания",
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateAssignmentRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/AssignmentResponse" }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "tags": ["Assignments"],
-        "summary": "Удалить задание (связанные оценки удаляются каскадно)",
-        "operationId": "delete",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": { "type": "string", "format": "uuid" }
-          }
-        ],
-        "responses": { "200": { "description": "OK" } }
       }
     },
     "/api/teacher-subject-permissions": {
@@ -393,17 +471,26 @@
         }
       }
     },
-    "/api/lessons/by-type": {
+    "/api/lessons/{lessonId}/scopes": {
       "post": {
-        "tags": ["Lessons"],
-        "summary": "Создать занятия по количеству типов",
-        "operationId": "createLessonsByType",
+        "tags": ["Lesson scopes"],
+        "summary": "Массовое добавление scope'ов к занятию",
+        "operationId": "addScopes",
+        "parameters": [
+          {
+            "name": "lessonId",
+            "in": "path",
+            "description": "ID занятия",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
         "requestBody": {
-          "description": "Количество занятий по типам",
+          "description": "Список новых scope'ов",
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateLessonsByTypeRequest"
+                "$ref": "#/components/schemas/BulkAddLessonScopesRequest"
               }
             }
           },
@@ -416,7 +503,9 @@
               "application/json": {
                 "schema": {
                   "type": "array",
-                  "items": { "$ref": "#/components/schemas/LessonResponse" }
+                  "items": {
+                    "$ref": "#/components/schemas/LessonScopeResponse"
+                  }
                 }
               }
             }
@@ -424,16 +513,18 @@
         }
       }
     },
-    "/api/lessons/bulk-schedule": {
+    "/api/lessons/bulk": {
       "post": {
         "tags": ["Lessons"],
-        "summary": "Массовое создание занятий по недельному шаблону",
-        "operationId": "bulkScheduleLessons",
+        "summary": "Массовое создание занятий: N лекций + M практик с allGroups-scope",
+        "operationId": "bulkCreate",
         "requestBody": {
-          "description": "Шаблон расписания",
+          "description": "Параметры массового создания",
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/BulkScheduleRequest" }
+              "schema": {
+                "$ref": "#/components/schemas/BulkCreateLessonsRequest"
+              }
             }
           },
           "required": true
@@ -529,17 +620,99 @@
         }
       }
     },
+    "/api/groups/{groupId}/subjects/{subjectId}": {
+      "post": {
+        "tags": ["Groups"],
+        "summary": "Прикрепить группу к предмету",
+        "operationId": "attachToSubject",
+        "parameters": [
+          {
+            "name": "groupId",
+            "in": "path",
+            "description": "ID группы",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "subjectId",
+            "in": "path",
+            "description": "ID предмета",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/GroupResponse" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Groups"],
+        "summary": "Открепить группу от предмета",
+        "operationId": "detachFromSubject",
+        "parameters": [
+          {
+            "name": "groupId",
+            "in": "path",
+            "description": "ID группы",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "subjectId",
+            "in": "path",
+            "description": "ID предмета",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
     "/api/check-in-sessions": {
       "get": {
         "tags": ["Check-in sessions"],
-        "summary": "Список check-in сессий по permissionId (по предмету разрешения)",
+        "summary": "Список check-in сессий с фильтрами по предмету разрешения / занятию / scope",
         "operationId": "list",
         "parameters": [
           {
             "name": "permissionId",
             "in": "query",
+            "description": "ID разрешения преподавателя (обязательно). Без других фильтров вернёт все сессии по предмету разрешения.",
             "required": true,
-            "schema": { "type": "string", "format": "uuid" }
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "ID разрешения преподавателя (обязательно). Без других фильтров вернёт все сессии по предмету разрешения."
+            }
+          },
+          {
+            "name": "lessonId",
+            "in": "query",
+            "description": "ID занятия. Если задан — только сессии scope'ов этого занятия",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "ID занятия. Если задан — только сессии scope'ов этого занятия"
+            }
+          },
+          {
+            "name": "lessonScopeId",
+            "in": "query",
+            "description": "ID конкретного scope. Если задан — только сессии этого scope",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "ID конкретного scope. Если задан — только сессии этого scope"
+            }
           }
         ],
         "responses": {
@@ -741,7 +914,7 @@
       "delete": {
         "tags": ["Teacher Subject Permissions"],
         "summary": "Удалить (архивировать) право преподавателя на предмет",
-        "operationId": "delete_1",
+        "operationId": "delete",
         "parameters": [
           {
             "name": "id",
@@ -755,7 +928,7 @@
       "patch": {
         "tags": ["Teacher Subject Permissions"],
         "summary": "Обновить право преподавателя на предмет",
-        "operationId": "update_1",
+        "operationId": "update",
         "parameters": [
           {
             "name": "id",
@@ -818,56 +991,6 @@
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/SubjectResponse" }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/lessons/{id}": {
-      "delete": {
-        "tags": ["Lessons"],
-        "summary": "Удалить занятие",
-        "operationId": "deleteLesson",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "description": "ID занятия",
-            "required": true,
-            "schema": { "type": "string", "format": "uuid" }
-          }
-        ],
-        "responses": { "200": { "description": "OK" } }
-      },
-      "patch": {
-        "tags": ["Lessons"],
-        "summary": "Частично обновить занятие",
-        "operationId": "updateLesson",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "description": "ID занятия",
-            "required": true,
-            "schema": { "type": "string", "format": "uuid" }
-          }
-        ],
-        "requestBody": {
-          "description": "Данные для обновления занятия",
-          "content": {
-            "application/json": {
-              "schema": { "$ref": "#/components/schemas/UpdateLessonRequest" }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/LessonResponse" }
               }
             }
           }
@@ -1095,6 +1218,37 @@
         }
       }
     },
+    "/api/groups/by-subject": {
+      "get": {
+        "tags": ["Groups"],
+        "summary": "Получить группы, привязанные к предмету (с подгруппами, без студентов)",
+        "operationId": "getGroupsBySubject",
+        "parameters": [
+          {
+            "name": "subjectId",
+            "in": "query",
+            "description": "ID предмета",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GroupWithSubgroupsResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/check-in-sessions/{id}": {
       "get": {
         "tags": ["Check-in sessions"],
@@ -1174,6 +1328,38 @@
             }
           }
         }
+      }
+    },
+    "/api/assignments/{id}": {
+      "delete": {
+        "tags": ["Assignments"],
+        "summary": "Удалить задание (связанные оценки удаляются каскадно)",
+        "operationId": "delete_1",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/api/assignments/lessons/{lessonId}": {
+      "delete": {
+        "tags": ["Assignments"],
+        "summary": "Удалить все задания занятия (связанные оценки удаляются каскадно)",
+        "operationId": "deleteAllOfLesson",
+        "parameters": [
+          {
+            "name": "lessonId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": { "200": { "description": "OK" } }
       }
     }
   },
@@ -1283,6 +1469,234 @@
           }
         }
       },
+      "BulkReplaceLessonScopesRequest": {
+        "type": "object",
+        "description": "Массовая замена scope'ов занятий (PUT).\nКаждый элемент — полное целевое состояние scope с указанным id.\naudience=null означает allGroups=true; иначе — конкретная группа [+ подгруппа].\nВ одном запросе можно править scope'ы разных уроков.\n",
+        "properties": {
+          "items": {
+            "type": "array",
+            "description": "Список целевых состояний",
+            "items": { "$ref": "#/components/schemas/Item" },
+            "minItems": 1
+          }
+        },
+        "required": ["items"]
+      },
+      "BulkUpdateAssignmentsRequest": {
+        "type": "object",
+        "description": "Массовое обновление заданий по id. В одном запросе можно править задания\nнескольких уроков. Внутри одного урока итоговые порядковые номера должны быть уникальны.\n",
+        "properties": {
+          "items": {
+            "type": "array",
+            "description": "Список целевых состояний",
+            "items": { "$ref": "#/components/schemas/Item" },
+            "minItems": 1
+          }
+        },
+        "required": ["items"]
+      },
+      "Item": {
+        "type": "object",
+        "description": "Целевое состояние задания",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID задания"
+          },
+          "order": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Порядковый номер в рамках занятия (1..N)"
+          },
+          "maxPoints": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Максимальное количество баллов (>0)"
+          },
+          "required": {
+            "type": "boolean",
+            "description": "Обязательное ли задание"
+          }
+        },
+        "required": ["id", "maxPoints", "order", "required"]
+      },
+      "UpdateLessonHeaderRequest": {
+        "type": "object",
+        "description": "Частичное обновление шапки занятия. Поле null или отсутствует — не меняется.\nИспользуется как секция `header` внутри UpdateLessonRequest.\n",
+        "properties": {
+          "subjectId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID предмета (null — не менять)"
+          },
+          "type": {
+            "type": "string",
+            "description": "Тип занятия (null — не менять)",
+            "enum": ["LECTURE", "PRACTICE"]
+          },
+          "topic": {
+            "type": "string",
+            "description": "Тема занятия (null — не менять)"
+          },
+          "orderIndex": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Порядковый номер в рамках (предмет, тип). null — не менять"
+          }
+        }
+      },
+      "UpdateLessonRequest": {
+        "type": "object",
+        "description": "Полное обновление занятия одним запросом.\nЛюбая секция null или отсутствует — соответствующая часть не трогается.\nТранзакция атомарная: при ошибке в любой из секций откатываются все.\n",
+        "properties": {
+          "header": {
+            "$ref": "#/components/schemas/UpdateLessonHeaderRequest",
+            "description": "Шапка занятия (subject, type, topic, orderIndex). null — не трогать."
+          },
+          "scopes": {
+            "$ref": "#/components/schemas/BulkReplaceLessonScopesRequest",
+            "description": "Замена scope'ов по id. Все scope'ы должны принадлежать этому уроку. null — не трогать."
+          },
+          "assignments": {
+            "$ref": "#/components/schemas/BulkUpdateAssignmentsRequest",
+            "description": "Обновление заданий по id. Все задания должны принадлежать этому уроку. null — не трогать."
+          }
+        }
+      },
+      "AssignmentResponse": {
+        "type": "object",
+        "description": "Задание в таблице оценок",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID задания"
+          },
+          "lessonId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID занятия"
+          },
+          "order": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Порядковый номер задания"
+          },
+          "maxPoints": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Максимальное количество баллов"
+          },
+          "required": {
+            "type": "boolean",
+            "description": "Обязательное ли задание"
+          }
+        }
+      },
+      "LessonResponse": {
+        "type": "object",
+        "description": "Информация о занятии (шаблон без даты — даты в scopes)",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID занятия"
+          },
+          "subjectId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID предмета"
+          },
+          "subjectName": {
+            "type": "string",
+            "description": "Название предмета"
+          },
+          "type": {
+            "type": "string",
+            "description": "Тип занятия",
+            "enum": ["LECTURE", "PRACTICE"]
+          },
+          "orderIndex": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Порядковый номер занятия в рамках (предмет, тип)"
+          },
+          "topic": { "type": "string", "description": "Тема занятия" },
+          "scopes": {
+            "type": "array",
+            "description": "Список проведений занятия (группа/подгруппа + дата)",
+            "items": { "$ref": "#/components/schemas/LessonScopeResponse" }
+          },
+          "assignments": {
+            "type": "array",
+            "description": "Задания занятия, отсортированы по order (пустой список — заданий нет)",
+            "items": { "$ref": "#/components/schemas/AssignmentResponse" }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Дата создания"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Дата последнего обновления"
+          }
+        }
+      },
+      "LessonScopeResponse": {
+        "type": "object",
+        "description": "Проведение занятия — группа/подгруппа (или все группы) + дата",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID scope"
+          },
+          "groupId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID группы (null = все группы предмета)"
+          },
+          "groupName": {
+            "type": "string",
+            "description": "Название группы (null = все группы предмета)"
+          },
+          "allowedSubgroupId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID разрешённой подгруппы"
+          },
+          "allowedSubgroupIndex": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Индекс разрешённой подгруппы"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date",
+            "description": "Дата проведения занятия"
+          },
+          "allGroups": {
+            "type": "boolean",
+            "description": "true = проведение для всех групп предмета сразу"
+          }
+        }
+      },
+      "BulkUpsertGradesRequest": {
+        "type": "object",
+        "description": "Массовое создание/обновление ячеек оценок.\nКаждый элемент — целевое состояние одной ячейки (studentId, lessonId, assignmentId?, score, comment?).\nТройка (studentId, lessonId, assignmentId) должна быть уникальна в пределах запроса\n(assignmentId=null — отдельная категория «оценка вне задания»).\n",
+        "properties": {
+          "items": {
+            "type": "array",
+            "description": "Список ячеек",
+            "items": { "$ref": "#/components/schemas/UpsertGradeRequest" },
+            "minItems": 1
+          }
+        },
+        "required": ["items"]
+      },
       "UpsertGradeRequest": {
         "type": "object",
         "description": "Создание или обновление одной ячейки оценки",
@@ -1343,6 +1757,19 @@
           "comment": { "type": "string", "description": "Комментарий" }
         }
       },
+      "BulkUpsertAttendanceRequest": {
+        "type": "object",
+        "description": "Массовое создание/обновление ячеек посещаемости.\nКаждый элемент — целевое состояние одной ячейки (studentId, lessonScopeId, status, comment?).\nПара (studentId, lessonScopeId) должна быть уникальна в пределах запроса.\n",
+        "properties": {
+          "items": {
+            "type": "array",
+            "description": "Список ячеек",
+            "items": { "$ref": "#/components/schemas/UpsertAttendanceRequest" },
+            "minItems": 1
+          }
+        },
+        "required": ["items"]
+      },
       "UpsertAttendanceRequest": {
         "type": "object",
         "description": "Создание или обновление одной ячейки посещаемости",
@@ -1393,57 +1820,6 @@
           "comment": { "type": "string", "description": "Комментарий" }
         }
       },
-      "UpdateAssignmentRequest": {
-        "type": "object",
-        "description": "Обновление задания (lessonId менять нельзя — задание привязано к уроку при создании)",
-        "properties": {
-          "order": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Порядковый номер задания в рамках занятия (1..N)"
-          },
-          "maxPoints": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Максимальное количество баллов (>0)"
-          },
-          "required": {
-            "type": "boolean",
-            "description": "Обязательное ли задание"
-          }
-        },
-        "required": ["maxPoints", "order", "required"]
-      },
-      "AssignmentResponse": {
-        "type": "object",
-        "description": "Задание в таблице оценок",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID задания"
-          },
-          "lessonId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID занятия"
-          },
-          "order": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Порядковый номер задания"
-          },
-          "maxPoints": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Максимальное количество баллов"
-          },
-          "required": {
-            "type": "boolean",
-            "description": "Обязательное ли задание"
-          }
-        }
-      },
       "CreateTeacherSubjectPermissionRequest": {
         "type": "object",
         "description": "Запрос на создание права преподавателя на предмет",
@@ -1470,9 +1846,9 @@
         },
         "required": ["allPermissions", "subjectId", "teacherId"]
       },
-      "PermissionScopeRequest": {
+      "PermissionScopeGroupRef": {
         "type": "object",
-        "description": "Один scope права: группа + опциональная подгруппа + опциональный тип занятия",
+        "description": "Группа + опциональная подгруппа",
         "properties": {
           "groupId": {
             "type": "string",
@@ -1483,14 +1859,24 @@
             "type": "string",
             "format": "uuid",
             "description": "ID разрешённой подгруппы (null = вся группа)"
+          }
+        },
+        "required": ["groupId"]
+      },
+      "PermissionScopeRequest": {
+        "type": "object",
+        "description": "Один scope права: группа (или все группы) + опциональный тип занятия. Подгруппа допустима только внутри конкретной группы.",
+        "properties": {
+          "group": {
+            "$ref": "#/components/schemas/PermissionScopeGroupRef",
+            "description": "Группа scope'а; null = все группы предмета (тогда подгруппу указать нельзя)"
           },
           "allowedLessonType": {
             "type": "string",
             "description": "Разрешённый тип занятия (null = все типы)",
             "enum": ["LECTURE", "PRACTICE"]
           }
-        },
-        "required": ["groupId"]
+        }
       },
       "PermissionScopeGroupResponse": {
         "type": "object",
@@ -1648,20 +2034,27 @@
           }
         }
       },
-      "CreateLessonsByTypeRequest": {
+      "BulkAddLessonScopesRequest": {
         "type": "object",
-        "description": "Запрос на создание шаблонов занятий по количеству типов с начальной аудиторией",
+        "description": "Массовое добавление scope'ов к занятию.\nКаждый элемент — новый scope; audience=null означает allGroups=true, иначе — конкретная группа.\nВсе элементы и существующие scope'ы урока проверяются на пересечение в одном проходе.\n",
+        "properties": {
+          "items": {
+            "type": "array",
+            "description": "Список новых scope'ов",
+            "items": { "$ref": "#/components/schemas/Item" },
+            "minItems": 1
+          }
+        },
+        "required": ["items"]
+      },
+      "BulkCreateLessonsRequest": {
+        "type": "object",
+        "description": "Запрос на массовое создание шаблонов занятий. Создаются пустые шаблоны без scope'ов; scope'ы добавляются через POST /api/lessons/{id}/scopes.",
         "properties": {
           "subjectId": {
             "type": "string",
             "format": "uuid",
             "description": "ID предмета"
-          },
-          "scopes": {
-            "type": "array",
-            "description": "Список scopes (группа+опц.подгруппа или allGroups) с датой проведения. К каждому созданному шаблону прикрепляются все указанные scopes.",
-            "items": { "$ref": "#/components/schemas/LessonScopeRequest" },
-            "minItems": 1
           },
           "lectureCount": {
             "type": "integer",
@@ -1674,206 +2067,7 @@
             "description": "Количество практик"
           }
         },
-        "required": ["lectureCount", "practiceCount", "scopes", "subjectId"]
-      },
-      "LessonScopeRequest": {
-        "type": "object",
-        "description": "Проведение занятия: группа (опц. подгруппа) или все группы + дата",
-        "properties": {
-          "groupId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID группы. null допустим только если allGroups=true"
-          },
-          "allowedSubgroupId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID разрешённой подгруппы (null = вся группа)"
-          },
-          "startedAt": {
-            "type": "string",
-            "format": "date",
-            "description": "Дата проведения"
-          },
-          "allGroups": {
-            "type": "boolean",
-            "description": "true = проведение для всех групп предмета сразу (groupId должен быть null)"
-          }
-        },
-        "required": ["startedAt"]
-      },
-      "LessonResponse": {
-        "type": "object",
-        "description": "Информация о занятии (шаблон без даты — даты в scopes)",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID занятия"
-          },
-          "subjectId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID предмета"
-          },
-          "subjectName": {
-            "type": "string",
-            "description": "Название предмета"
-          },
-          "type": {
-            "type": "string",
-            "description": "Тип занятия",
-            "enum": ["LECTURE", "PRACTICE"]
-          },
-          "orderIndex": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Порядковый номер занятия в рамках (предмет, тип)"
-          },
-          "topic": { "type": "string", "description": "Тема занятия" },
-          "scopes": {
-            "type": "array",
-            "description": "Список проведений занятия (группа/подгруппа + дата)",
-            "items": { "$ref": "#/components/schemas/LessonScopeResponse" }
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Дата создания"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Дата последнего обновления"
-          }
-        }
-      },
-      "LessonScopeResponse": {
-        "type": "object",
-        "description": "Проведение занятия — группа/подгруппа (или все группы) + дата",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID scope"
-          },
-          "groupId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID группы (null = все группы предмета)"
-          },
-          "groupName": {
-            "type": "string",
-            "description": "Название группы (null = все группы предмета)"
-          },
-          "allowedSubgroupId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID разрешённой подгруппы"
-          },
-          "allowedSubgroupIndex": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Индекс разрешённой подгруппы"
-          },
-          "startedAt": {
-            "type": "string",
-            "format": "date",
-            "description": "Дата проведения занятия"
-          },
-          "allGroups": {
-            "type": "boolean",
-            "description": "true = проведение для всех групп предмета сразу"
-          }
-        }
-      },
-      "BulkScheduleRequest": {
-        "type": "object",
-        "description": "Запрос на массовое создание шаблонов занятий по недельному шаблону. Для каждой даты создаётся один шаблон занятия и по одному scope на каждую указанную аудиторию.",
-        "properties": {
-          "subjectId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID предмета"
-          },
-          "audiences": {
-            "type": "array",
-            "description": "Аудитории, для которых создавать scope-проведения (группа+опц.подгруппа или allGroups). Должен содержать хотя бы один элемент.",
-            "items": { "$ref": "#/components/schemas/LessonAudienceRequest" },
-            "minItems": 1
-          },
-          "schedules": {
-            "type": "array",
-            "description": "Список шаблонов расписания",
-            "items": { "$ref": "#/components/schemas/Entry" },
-            "minItems": 1
-          }
-        },
-        "required": ["audiences", "schedules", "subjectId"]
-      },
-      "Entry": {
-        "type": "object",
-        "description": "Элемент шаблона расписания",
-        "properties": {
-          "type": {
-            "type": "string",
-            "description": "Тип занятия",
-            "enum": ["LECTURE", "PRACTICE"]
-          },
-          "startDate": {
-            "type": "string",
-            "format": "date",
-            "description": "Дата начала (первая неделя)"
-          },
-          "totalCount": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Общее количество занятий",
-            "minimum": 1
-          },
-          "daysOfWeek": {
-            "type": "array",
-            "description": "Дни недели по неделям. Внешний список — недели, внутренний — дни недели внутри недели",
-            "items": {
-              "type": "array",
-              "items": {
-                "type": "string",
-                "enum": [
-                  "MONDAY",
-                  "TUESDAY",
-                  "WEDNESDAY",
-                  "THURSDAY",
-                  "FRIDAY",
-                  "SATURDAY",
-                  "SUNDAY"
-                ]
-              },
-              "minItems": 1
-            },
-            "minItems": 1
-          }
-        },
-        "required": ["daysOfWeek", "startDate", "totalCount", "type"]
-      },
-      "LessonAudienceRequest": {
-        "type": "object",
-        "description": "Аудитория проведения занятия без даты: группа (опц. подгруппа) или все группы",
-        "properties": {
-          "groupId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID группы. null допустим только если allGroups=true"
-          },
-          "allowedSubgroupId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID разрешённой подгруппы (null = вся группа)"
-          },
-          "allGroups": {
-            "type": "boolean",
-            "description": "true = проведение для всех групп предмета сразу (groupId должен быть null)"
-          }
-        }
+        "required": ["lectureCount", "practiceCount", "subjectId"]
       },
       "CreateGroupRequest": {
         "type": "object",
@@ -2219,22 +2413,6 @@
         },
         "required": ["items", "lessonId"]
       },
-      "Item": {
-        "type": "object",
-        "description": "Описание одного задания в bulk-запросе",
-        "properties": {
-          "maxPoints": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Максимальное количество баллов (>0)"
-          },
-          "required": {
-            "type": "boolean",
-            "description": "Обязательное ли задание"
-          }
-        },
-        "required": ["maxPoints", "required"]
-      },
       "UpdateTeacherSubjectPermissionRequest": {
         "type": "object",
         "description": "Запрос на частичное обновление права преподавателя на предмет (PATCH).\nПоле = null → значение не изменяется.\nscopes (если указан) полностью заменяет текущий набор scope'ов.\n",
@@ -2274,36 +2452,6 @@
           }
         },
         "required": ["name"]
-      },
-      "UpdateLessonRequest": {
-        "type": "object",
-        "description": "Запрос на частичное обновление шаблона занятия (PATCH).\nСемантика: поле = null или отсутствует — значение не изменяется.\nЕсли передан scopes, он должен быть непустым.\n",
-        "properties": {
-          "subjectId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID предмета (null — не менять)"
-          },
-          "type": {
-            "type": "string",
-            "description": "Тип занятия (null — не менять)",
-            "enum": ["LECTURE", "PRACTICE"]
-          },
-          "topic": {
-            "type": "string",
-            "description": "Тема занятия (null — не менять)"
-          },
-          "orderIndex": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Порядковый номер в рамках (предмет, тип). null — не менять"
-          },
-          "scopes": {
-            "type": "array",
-            "description": "Список scopes (null — не менять, иначе полностью замещает существующие).",
-            "items": { "$ref": "#/components/schemas/LessonScopeRequest" }
-          }
-        }
       },
       "StudentPatchRequest": {
         "type": "object",
@@ -2427,6 +2575,23 @@
             "items": { "$ref": "#/components/schemas/GroupPageResponse" }
           },
           "page": { "$ref": "#/components/schemas/PageMetadata" }
+        }
+      },
+      "GroupWithSubgroupsResponse": {
+        "type": "object",
+        "description": "Группа с подгруппами (без студентов)",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID группы"
+          },
+          "name": { "type": "string", "description": "Название группы" },
+          "subgroups": {
+            "type": "array",
+            "description": "Список подгрупп",
+            "items": { "$ref": "#/components/schemas/SubgroupResponse" }
+          }
         }
       },
       "GradingAudienceScope": {

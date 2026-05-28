@@ -19,11 +19,10 @@ const CreateGroupRequestSchema: SchemaFor<CreateGroupRequest> = v.object({
     'Добавьте хотя бы одного студента',
   ),
 })
-type Schema = v.InferOutput<typeof CreateGroupRequestSchema>
 
 const { $backend } = useNuxtApp()
 
-const { state, formRef, loading, handleSubmit } = useResourceForm<typeof CreateGroupRequestSchema, Schema>({
+const { state, formRef, loading, onSubmit, onError } = useResourceForm<typeof CreateGroupRequestSchema>({
   initialState: () => ({ name: '', students: [] }),
   successMessage: 'Группа создана',
 })
@@ -96,14 +95,15 @@ function resetForm() {
   resetCards()
 }
 
-async function handleCreate() {
-  await handleSubmit(async (data) => {
-    const result = await $backend('/api/groups', { method: 'POST', body: data })
-    await navigateTo(`/dashboard/groups/${result.id}`)
-    resetForm()
-    return result
-  })
-}
+const handleCreate = onSubmit(
+  data => $backend('/api/groups', { method: 'POST', body: data }),
+  {
+    onSuccess: async (result) => {
+      await navigateTo(`/dashboard/groups/${result.id}`)
+      resetForm()
+    },
+  },
+)
 </script>
 
 <template>
@@ -125,8 +125,10 @@ async function handleCreate() {
       :schema="CreateGroupRequestSchema"
       :state="state"
       class="flex flex-1 flex-col gap-4 overflow-hidden"
+      @submit="handleCreate"
+      @error="onError"
     >
-      <UFormField label="Название группы" name="groupName" required>
+      <UFormField label="Название группы" name="name" required>
         <UInput
           v-model="state.name"
           placeholder="Например: ИВТ-21"
@@ -222,7 +224,7 @@ async function handleCreate() {
         <UButton color="neutral" variant="ghost" type="button" @click="resetForm">
           Очистить
         </UButton>
-        <UButton type="button" icon="i-lucide-check" :loading="loading" @click="handleCreate">
+        <UButton type="submit" icon="i-lucide-check" :loading="loading">
           Создать группу
         </UButton>
       </div>

@@ -3,29 +3,40 @@ import type { components } from '#open-fetch-schemas/backend'
 
 type TeacherSubjectPermissionResponse
   = components['schemas']['TeacherSubjectPermissionResponse']
-
 type PermissionScopeResponse
   = components['schemas']['PermissionScopeResponse']
 
-export function usePermissions() {
-  const route = useRoute()
+export function usePermissions(subjectIdOverride?: MaybeRefOrGetter<string>) {
   const { user } = useOidcAuth()
 
-  const subjectId = computed(() => String(route.params.uuid ?? ''))
+  const route = subjectIdOverride ? null : useRoute()
+
+  const subjectId = computed(() =>
+    subjectIdOverride
+      ? toValue(subjectIdOverride)
+      : String(route?.params.uuid ?? ''),
+  )
+
   const teacherId = computed(() => (user.value as User | null)?.sub ?? '')
 
-  const { data, pending, error, refresh } = useBackend(
+  const { data, status, error, pending, refresh, execute, clear } = useBackend(
     '/api/teacher-subject-permissions/single',
     {
       method: 'GET',
-      key: computed(
-        () => `permission:${subjectId.value}:${teacherId.value}`,
-      ),
+      key: computed(() => `permission:${subjectId.value}:${teacherId.value}`),
       query: computed(() => ({
         subjectId: subjectId.value,
         teacherId: teacherId.value,
       })),
     },
+  )
+
+  const hasAllPermissions = computed<boolean>(
+    () => data.value?.allPermissions === true,
+  )
+
+  const scopes = computed<PermissionScopeResponse[]>(
+    () => data.value?.scopes ?? [],
   )
 
   const permission = computed<TeacherSubjectPermissionResponse | undefined>(
@@ -34,45 +45,16 @@ export function usePermissions() {
 
   const permissionId = computed<string>(() => permission.value?.id ?? '')
 
-  const scopes = computed<PermissionScopeResponse[]>(
-    () => permission.value?.scopes ?? [],
-  )
-
-  const allPermissions = computed<boolean>(
-    () => permission.value?.allPermissions ?? false,
-  )
-
-  const selectedScopeId = ref<string>('')
-
-  watch(scopes, (list) => {
-    if (list.length === 0) {
-      selectedScopeId.value = ''
-      return
-    }
-    const exists = list.some(s => s.id === selectedScopeId.value)
-    if (!exists)
-      selectedScopeId.value = list[0]?.id ?? ''
-  }, { immediate: true })
-
-  const scope = computed<PermissionScopeResponse | undefined>(() => {
-    if (!selectedScopeId.value)
-      return scopes.value[0]
-    return scopes.value.find(s => s.id === selectedScopeId.value) ?? scopes.value[0]
-  })
-
-  const scopeId = computed<string>(() => scope.value?.id ?? '')
-
   return {
     permission,
     permissionId,
     scopes,
-    scope,
-    scopeId,
-    selectedScopeId,
-    allPermissions,
-
-    pending,
+    hasAllPermissions,
+    status,
     error,
+    pending,
     refresh,
+    execute,
+    clear,
   }
 }

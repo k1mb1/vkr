@@ -1,5 +1,5 @@
-import type { components } from '#open-fetch-schemas/backend'
 import type { FetchError } from 'ofetch'
+import type { components } from '#open-fetch-schemas/backend'
 
 type BackendErrorResponse = components['schemas']['ErrorDto']
 

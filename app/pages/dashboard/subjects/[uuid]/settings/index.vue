@@ -1,4 +1,6 @@
 <script setup lang="ts">
+definePageMeta({ middleware: 'subject-permission' })
+
 const route = useRoute()
 const subjectId = computed(() => String(route.params.uuid ?? ''))
 </script>

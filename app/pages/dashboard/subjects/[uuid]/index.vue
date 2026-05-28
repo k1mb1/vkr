@@ -4,38 +4,45 @@ const subjectId = computed(() => String(route.params.uuid ?? ''))
 
 const { permission, pending, error } = usePermissions()
 
-const cards = computed(() => [
-  {
-    label: 'Занятия',
-    description: 'Расписание и управление занятиями',
-    icon: 'i-lucide-calendar',
-    to: `/dashboard/subjects/${subjectId.value}/lessons`,
-  },
-  {
-    label: 'Check-in',
-    description: 'Запуск и управление отметками присутствия',
-    icon: 'i-lucide-clipboard-list',
-    to: `/dashboard/subjects/${subjectId.value}/check-ins`,
-  },
-  {
-    label: 'Посещаемость',
-    description: 'Просмотр статистики посещаемости',
-    icon: 'i-lucide-clipboard-check',
-    to: `/dashboard/subjects/${subjectId.value}/attendances`,
-  },
-  {
-    label: 'Оценки',
-    description: 'Журнал оценок и задания',
-    icon: 'i-lucide-graduation-cap',
-    to: `/dashboard/subjects/${subjectId.value}/grades`,
-  },
-  {
-    label: 'Настройки',
-    description: 'Назначения преподавателей и права доступа',
-    icon: 'i-lucide-settings',
-    to: `/dashboard/subjects/${subjectId.value}/settings`,
-  },
-])
+const cards = computed(() => {
+  const baseCards = [
+    {
+      label: 'Занятия',
+      description: 'Расписание и управление занятиями',
+      icon: 'i-lucide-calendar',
+      to: `/dashboard/subjects/${subjectId.value}/lessons`,
+    },
+    {
+      label: 'Check-in',
+      description: 'Запуск и управление отметками присутствия',
+      icon: 'i-lucide-clipboard-list',
+      to: `/dashboard/subjects/${subjectId.value}/check-ins`,
+    },
+    {
+      label: 'Посещаемость',
+      description: 'Просмотр статистики посещаемости',
+      icon: 'i-lucide-clipboard-check',
+      to: `/dashboard/subjects/${subjectId.value}/attendances`,
+    },
+    {
+      label: 'Оценки',
+      description: 'Журнал оценок и задания',
+      icon: 'i-lucide-graduation-cap',
+      to: `/dashboard/subjects/${subjectId.value}/grades`,
+    },
+  ]
+
+  if (import.meta.dev) {
+    baseCards.push({
+      label: 'Test',
+      description: 'Dev only страница',
+      icon: 'i-lucide-flask-round',
+      to: `/dashboard/subjects/${subjectId.value}/test`,
+    })
+  }
+
+  return baseCards
+})
 </script>
 
 <template>
@@ -70,6 +77,15 @@ const cards = computed(() => [
         :description="card.description"
         :icon="card.icon"
       />
+
+      <SubjectPermissionGate>
+        <UPageCard
+          :to="`/dashboard/subjects/${subjectId}/settings`"
+          title="Настройки"
+          description="Назначения преподавателей и права доступа"
+          icon="i-lucide-settings"
+        />
+      </SubjectPermissionGate>
     </UPageGrid>
   </div>
 </template>

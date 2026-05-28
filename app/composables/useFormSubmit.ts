@@ -1,8 +1,8 @@
-import type { FetchError } from 'ofetch'
+import { FetchError } from 'ofetch'
 
-interface SubmitOptions<T> {
+export interface SubmitOptions<T> {
   successMessage?: string | ((result: T) => string)
-  onSuccess?: (result: T) => void | Promise<void>
+  onSuccess?: (result: T) => unknown
 }
 
 export function useFormSubmit() {
@@ -30,8 +30,11 @@ export function useFormSubmit() {
       return result
     }
     catch (e) {
-      toastError(e as FetchError)
-      return undefined
+      if (e instanceof FetchError) {
+        toastError(e)
+        return undefined
+      }
+      throw e
     }
     finally {
       loading.value = false

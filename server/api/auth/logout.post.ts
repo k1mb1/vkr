@@ -1,5 +1,5 @@
-import { validateBody } from '#server/utils/validateBody'
 import * as v from 'valibot'
+import { validateBody } from '#server/utils/validateBody'
 
 const LogoutBodySchema = v.strictObject({})
 

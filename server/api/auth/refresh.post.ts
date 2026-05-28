@@ -1,6 +1,6 @@
+import * as v from 'valibot'
 import { getAccessToken } from '#server/utils/getAccessToken'
 import { validateBody } from '#server/utils/validateBody'
-import * as v from 'valibot'
 
 const RefreshBodySchema = v.strictObject({})
 

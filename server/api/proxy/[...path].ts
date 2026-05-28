@@ -1,5 +1,5 @@
-import { getAccessToken } from '#server/utils/getAccessToken'
 import { proxyRequest } from 'h3'
+import { getAccessToken } from '#server/utils/getAccessToken'
 
 const DEFAULT_TIMEOUT_MS = 15_000
 

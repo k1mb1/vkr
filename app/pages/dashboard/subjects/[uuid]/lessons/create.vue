@@ -3,118 +3,53 @@ import type { components } from '#open-fetch-schemas/backend'
 import * as v from 'valibot'
 import { nonNegativeInteger, uuidV4 } from '~/utils/validation'
 
-type CreateLessonsByTypeRequest = components['schemas']['CreateLessonsByTypeRequest']
-type LessonScopeRequest = components['schemas']['LessonScopeRequest']
+definePageMeta({ middleware: 'subject-permission' })
 
-interface ScopeState {
-  groupId: string
-  allowedSubgroupId: string | null
-}
+type BulkCreateLessonsRequest = components['schemas']['BulkCreateLessonsRequest']
 
-const CreateLessonsSchema = v.pipe(
+const CreateLessonsSchema: SchemaFor<BulkCreateLessonsRequest> = v.pipe(
   v.object({
     subjectId: uuidV4(),
-    allGroups: v.boolean(),
-    scopes: v.array(v.object({
-      groupId: uuidV4(),
-      allowedSubgroupId: v.optional(v.nullable(v.pipe(v.string(), v.uuid()))),
-    })),
     lectureCount: nonNegativeInteger(),
     practiceCount: nonNegativeInteger(),
   }),
-  v.check(
-    d => d.lectureCount > 0 || d.practiceCount > 0,
-    'Укажите хотя бы одно занятие',
+  v.forward(
+    v.check(
+      d => d.lectureCount > 0 || d.practiceCount > 0,
+      'Укажите хотя бы одно занятие',
+    ),
+    ['practiceCount'],
+  ),
+  v.forward(
+    v.check(
+      d => d.lectureCount > 0 || d.practiceCount > 0,
+      'Укажите хотя бы одно занятие',
+    ),
+    ['lectureCount'],
   ),
 )
-type Schema = v.InferOutput<typeof CreateLessonsSchema>
 
 const route = useRoute()
 const subjectId = String(route.params.uuid ?? '')
 
 const { $backend } = useNuxtApp()
-const toast = useToast()
 
-// ── My scopes ────────────────────────────────────────────
+const { permission } = usePermissions()
 
-const { permission, scopes: myScopes, pending: loadingScope } = usePermissions()
-
-const teacherAllGroups = computed(() => permission.value?.allPermissions ?? false)
-
-function myScopeForGroup(groupId: string) {
-  return myScopes.value.find(s => s.group?.id === groupId)
-}
-
-const scopeState = reactive<ScopeState>({
-  groupId: '',
-  allowedSubgroupId: null,
-})
-
-const { state, formRef, loading, submit, validate } = useResourceForm<typeof CreateLessonsSchema, Schema>({
+const { state, formRef, loading, onSubmit, onError } = useResourceForm<typeof CreateLessonsSchema>({
   initialState: () => ({
     subjectId,
-    allGroups: teacherAllGroups.value,
-    scopes: [],
     lectureCount: 0,
     practiceCount: 0,
   }),
 })
 
-watch(() => scopeState.groupId, (gid, oldGid) => {
-  if (gid !== oldGid)
-    scopeState.allowedSubgroupId = null
-  if (gid) {
-    state.scopes = [{ groupId: gid, allowedSubgroupId: scopeState.allowedSubgroupId }]
-  }
-  else {
-    state.scopes = []
-  }
-}, { immediate: true })
-
-watch(() => scopeState.allowedSubgroupId, (sid) => {
-  if (state.scopes[0])
-    state.scopes[0].allowedSubgroupId = sid
-})
-
-const selectedScope = computed(() => myScopeForGroup(scopeState.groupId))
-const canLecture = computed(() => !selectedScope.value?.allowedLessonType || selectedScope.value.allowedLessonType === 'LECTURE')
-const canPractice = computed(() => !selectedScope.value?.allowedLessonType || selectedScope.value.allowedLessonType === 'PRACTICE')
-
-// Reset counts of types the teacher can't use
-watch([canLecture, canPractice], ([lec, prac]) => {
-  if (!lec)
-    state.lectureCount = 0
-  if (!prac)
-    state.practiceCount = 0
-})
-
-async function handleCreate() {
-  const data = await validate()
-  if (!data)
-    return
-
-  if (!data.allGroups && data.scopes.length === 0) {
-    toast.add({ title: 'Выберите группу', color: 'error', icon: 'i-lucide-circle-alert' })
-    return
-  }
-
-  await submit(
-    () => {
-      const body: CreateLessonsByTypeRequest = {
-        subjectId: data.subjectId,
-        allGroups: data.allGroups,
-        scopes: data.allGroups ? undefined : data.scopes as LessonScopeRequest[],
-        lectureCount: data.lectureCount,
-        practiceCount: data.practiceCount,
-      }
-      return $backend('/api/lessons/by-type', { method: 'POST', body })
-    },
-    {
-      successMessage: result => `Создано занятий: ${result.length}`,
-      onSuccess: () => navigateTo(`/dashboard/subjects/${subjectId}/lessons`),
-    },
-  )
-}
+const handleCreate = onSubmit(
+  data => $backend('/api/lessons/bulk', { method: 'POST', body: data }),
+  {
+    onSuccess: () => navigateTo(`/dashboard/subjects/${subjectId}/lessons`),
+  },
+)
 </script>
 
 <template>
@@ -131,17 +66,22 @@ async function handleCreate() {
       </template>
     </UPageHeader>
 
-    <div v-if="loadingScope" class="flex flex-col gap-4">
-      <USkeleton v-for="i in 3" :key="i" class="h-12" />
-    </div>
-
     <UAlert
-      v-else-if="!permission"
+      v-if="!permission"
       color="warning"
       variant="soft"
       icon="i-lucide-circle-alert"
       title="Нет назначения"
       description="У вас нет назначения по данному предмету."
+    />
+
+    <UAlert
+      v-else-if="!permission.allPermissions"
+      color="error"
+      variant="soft"
+      icon="i-lucide-circle-alert"
+      title="Недостаточно прав"
+      description="Создавать занятия могут только преподаватели с доступом ко всем группам предмета."
     />
 
     <UForm
@@ -150,53 +90,32 @@ async function handleCreate() {
       :schema="CreateLessonsSchema"
       :state="state"
       class="flex flex-col gap-4"
+      @submit="handleCreate"
+      @error="onError"
     >
-      <UCheckbox v-if="teacherAllGroups" v-model="state.allGroups" label="Все группы предмета" />
+      <UFormField label="Количество лекций" name="lectureCount" required>
+        <UInput
+          v-model.number="state.lectureCount"
+          type="number"
+          :min="0"
+          class="w-full"
+        />
+      </UFormField>
 
-      <template v-if="!state.allGroups">
-        <UFormField label="Группа" required>
-          <GroupsPermissionScopeSelect v-model="scopeState.groupId" />
-        </UFormField>
-
-        <UFormField v-if="scopeState.groupId" label="Подгруппа">
-          <SubgroupsSelect
-            v-model="scopeState.allowedSubgroupId"
-            :group-id="scopeState.groupId"
-            :allowed-subgroup-id="myScopeForGroup(scopeState.groupId)?.allowedSubgroup?.id"
-          />
-        </UFormField>
-      </template>
-
-      <div
-        v-if="canLecture || canPractice"
-        class="grid gap-4"
-        :class="canLecture && canPractice ? 'grid-cols-2' : 'grid-cols-1'"
-      >
-        <UFormField v-if="canLecture" label="Количество лекций" name="lectureCount" required>
-          <UInput
-            v-model.number="state.lectureCount"
-            type="number"
-            :min="0"
-            class="w-full"
-          />
-        </UFormField>
-
-        <UFormField v-if="canPractice" label="Количество практик" name="practiceCount" required>
-          <UInput
-            v-model.number="state.practiceCount"
-            type="number"
-            :min="0"
-            class="w-full"
-          />
-        </UFormField>
-      </div>
+      <UFormField label="Количество практик" name="practiceCount" required>
+        <UInput
+          v-model.number="state.practiceCount"
+          type="number"
+          :min="0"
+          class="w-full"
+        />
+      </UFormField>
 
       <UButton
+        type="submit"
         icon="i-lucide-check"
         :loading="loading"
-        :disabled="(!state.allGroups && state.scopes.length === 0) || (!canLecture && !canPractice)"
         class="ml-auto"
-        @click="handleCreate"
       >
         Создать занятия
       </UButton>

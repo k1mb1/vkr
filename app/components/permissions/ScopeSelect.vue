@@ -1,56 +1,38 @@
 <script setup lang="ts">
-const { permission, scope, scopes, selectedScopeId } = usePermissions()
+const { hasAllPermissions, scopes } = usePermissions()
 
-const allPermissions = computed(() => permission.value?.allPermissions ?? false)
+const selectedScopeId = ref<string | undefined>()
+
+watch(scopes, (val) => {
+  if (val.length === 1 && val[0]?.id)
+    selectedScopeId.value = val[0].id
+}, { immediate: true })
 
 const scopeItems = computed(() =>
-  scopes.value
-    .filter(s => !!s.id)
-    .map((s) => {
-      const parts: string[] = [s.group?.name ?? '—']
-      if (s.allowedSubgroup?.index != null)
-        parts.push(`Подгруппа ${s.allowedSubgroup.index}`)
-      return { value: s.id!, label: parts.join(' · ') }
-    }),
+  scopes.value.filter(s => s.id).map(s => ({
+    value: s.id!,
+    label: [
+      s.group?.name ?? '—',
+      s.allowedSubgroup?.index != null ? `Подгруппа ${s.allowedSubgroup.index}` : null,
+    ].filter(Boolean).join(' · '),
+  })),
 )
+
+const singleLabel = computed(() => {
+  if (scopes.value.length === 1)
+    return scopes.value[0]?.group?.name ?? '—'
+  return hasAllPermissions.value ? 'Все группы' : 'Нет доступов'
+})
 </script>
 
 <template>
   <div class="space-y-2">
-    <!-- Multiple scopes — show selector -->
-    <template v-if="scopes.length > 1">
-      <USelect
-        v-model="selectedScopeId"
-        :items="scopeItems"
-        class="w-full"
-      />
-    </template>
-
-    <!-- Single scope — show group name -->
-    <template v-else-if="scopes.length === 1">
-      <UInput
-        :model-value="scope?.group?.name ?? ''"
-        disabled
-        class="w-full"
-      />
-    </template>
-
-    <!-- No scopes but allPermissions=true -->
-    <template v-else-if="allPermissions">
-      <UInput
-        model-value="Все группы"
-        disabled
-        class="w-full"
-      />
-    </template>
-
-    <!-- No scopes, no allPermissions -->
-    <template v-else>
-      <UInput
-        model-value="Нет доступов"
-        disabled
-        class="w-full"
-      />
-    </template>
+    <USelect
+      v-if="scopes.length > 1"
+      v-model="selectedScopeId"
+      :items="scopeItems"
+      class="w-full"
+    />
+    <UInput v-else :model-value="singleLabel" disabled class="w-full" />
   </div>
 </template>

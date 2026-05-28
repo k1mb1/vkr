@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { components } from '#open-fetch-schemas/backend'
 import type { TableColumn } from '@nuxt/ui'
+import type { components } from '#open-fetch-schemas/backend'
 
 type CheckInSessionResponse = components['schemas']['CheckInSessionResponse']
 type CheckInState = NonNullable<CheckInSessionResponse['state']>
@@ -27,7 +27,7 @@ interface FlatRow {
 const route = useRoute()
 const subjectId = computed(() => String(route.params.uuid ?? ''))
 
-const { permission, scopes: myScopes, permissionId, pending: permissionPending } = usePermissions()
+const { permission, scopes: myScopes, permissionId, pending: permissionPending, hasAllPermissions } = usePermissions()
 
 function myScopeForGroup(groupId: string) {
   return myScopes.value.find(s => s.group?.id === groupId)
@@ -204,7 +204,7 @@ const columns = computed<TableColumn<FlatRow>[]>(() => [
     />
 
     <UAlert
-      v-else-if="!permissionPending && (!permission || myScopes.length === 0)"
+      v-else-if="!permissionPending && (!permission || (!hasAllPermissions && myScopes.length === 0))"
       color="warning"
       variant="soft"
       icon="i-lucide-circle-alert"

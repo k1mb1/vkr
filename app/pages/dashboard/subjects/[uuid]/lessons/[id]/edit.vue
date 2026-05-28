@@ -1,17 +1,30 @@
 <script setup lang="ts">
 import type { components } from '#open-fetch-schemas/backend'
 import * as v from 'valibot'
+import {
+  initialLessonScopeFormState,
+  initLessonScopeGroups,
+  validateLessonScopeForm,
+} from '~/composables/useLessonScopeForm'
+
+definePageMeta({ middleware: 'subject-permission' })
 
 type LessonResponse = components['schemas']['LessonResponse']
 type UpdateLessonRequest = components['schemas']['UpdateLessonRequest']
-type LessonType = NonNullable<UpdateLessonRequest['type']>
+type UpdateLessonHeaderRequest = components['schemas']['UpdateLessonHeaderRequest']
+type LessonType = NonNullable<UpdateLessonHeaderRequest['type']>
+type LessonScopeAudienceRequest = components['schemas']['AttendanceAudienceScope']
+
+interface ScopeReplaceItem {
+  id: string
+  startedAt?: string
+  audience?: LessonScopeAudienceRequest
+}
 
 const UpdateLessonSchema = v.object({
   topic: v.optional(v.string()),
-  startedAt: v.pipe(v.string(), v.isoDate('Введите корректную дату')),
   type: v.picklist(['LECTURE', 'PRACTICE'] as LessonType[], 'Выберите тип занятия'),
 })
-type Schema = v.InferOutput<typeof UpdateLessonSchema>
 
 const route = useRoute()
 const subjectId = String(route.params.uuid ?? '')
@@ -20,12 +33,13 @@ const lessonId = String(route.params.id ?? '')
 // ── Seed from history state (passed by list page) ─────────
 
 const targetLesson = (history.state?.lesson ?? null) as LessonResponse | null
+const existingScopes = targetLesson?.scopes ?? []
+const hasScopes = existingScopes.length > 0
 
 // ── My scopes ────────────────────────────────────────────
 
 const { permission: myPermission, scopes: myScopes, pending: loadingScope } = usePermissions()
 
-// Check if teacher has access to this lesson
 const hasAccess = computed(() => {
   if (!targetLesson)
     return false
@@ -37,7 +51,6 @@ const hasAccess = computed(() => {
   return (targetLesson.scopes ?? []).some(ls => !!ls.groupId && teacherGroupIds.has(ls.groupId))
 })
 
-// Find matching scope for restrictions (first match)
 const matchingScope = computed(() => {
   if (!targetLesson)
     return null
@@ -49,47 +62,156 @@ const matchingScope = computed(() => {
 
 const lessonTypeLocked = computed(() => !!matchingScope.value?.allowedLessonType)
 
-const original = ref({
-  topic: targetLesson?.topic ?? '',
-  startedAt: targetLesson?.startedAt ?? '',
-  type: targetLesson?.type ?? 'LECTURE',
-})
-
 const typeOptions = [
   { value: 'LECTURE' as LessonType, label: 'Лекция' },
   { value: 'PRACTICE' as LessonType, label: 'Практика' },
 ]
 
-// ── Submit ────────────────────────────────────────────────
+// ── Header form ───────────────────────────────────────────
 
 const { $backend } = useNuxtApp()
+const toast = useToast()
 
-const { state, formRef, loading, handleSubmit } = useResourceForm<typeof UpdateLessonSchema, Schema>({
+const { state, formRef, loading, dirtyFields, validate, submit, onError } = useResourceForm<typeof UpdateLessonSchema>({
   initialState: () => ({
     topic: targetLesson?.topic ?? '',
-    startedAt: targetLesson?.startedAt ?? '',
     type: (targetLesson?.type as LessonType) ?? 'LECTURE',
   }),
-  successMessage: 'Занятие обновлено',
-  onSuccess: () => navigateTo(`/dashboard/subjects/${subjectId}/lessons`),
 })
 
-async function handleUpdate() {
-  await handleSubmit((data) => {
-    const body: UpdateLessonRequest = {}
-    if (data.topic !== undefined && data.topic !== original.value.topic)
-      body.topic = data.topic
-    if (data.startedAt !== original.value.startedAt)
-      body.startedAt = data.startedAt
-    if (data.type !== original.value.type)
-      body.type = data.type
+// ── Scope form (only when lesson has existing scopes) ─────
 
-    return $backend('/api/lessons/{id}', {
-      method: 'PATCH',
+const scopeState = reactive(initialLessonScopeFormState())
+
+const { data: groups, pending: groupsPending } = useBackend('/api/groups/by-subject', {
+  method: 'GET',
+  query: { subjectId },
+})
+
+watch(groups, (val) => {
+  if (!val || !hasScopes)
+    return
+  initLessonScopeGroups(scopeState, val)
+
+  if (existingScopes.some(s => s.allGroups)) {
+    scopeState.mode = 'all'
+    scopeState.allGroupsDate = existingScopes.find(s => s.allGroups)?.startedAt ?? ''
+    return
+  }
+
+  scopeState.mode = 'groups'
+  for (const entry of scopeState.groupEntries) {
+    const grouped = existingScopes.filter(s => s.groupId === entry.groupId)
+    if (!grouped.length)
+      continue
+    if (grouped.length === 1 && !grouped[0]?.allowedSubgroupId) {
+      entry.date = grouped[0]?.startedAt ?? ''
+    }
+    else {
+      entry.splitBySubgroups = true
+      for (const sub of entry.subgroupEntries) {
+        const match = grouped.find(s => s.allowedSubgroupId === sub.subgroupId)
+        if (match)
+          sub.date = match.startedAt ?? ''
+      }
+    }
+  }
+}, { immediate: true })
+
+function buildScopeItems(): ScopeReplaceItem[] {
+  const items: ScopeReplaceItem[] = []
+
+  if (scopeState.mode === 'all') {
+    const allScope = existingScopes.find(s => s.allGroups)
+    if (allScope?.id)
+      items.push({ id: allScope.id, startedAt: scopeState.allGroupsDate })
+    return items
+  }
+
+  for (const scope of existingScopes) {
+    if (!scope.id || scope.allGroups)
+      continue
+
+    const entry = scopeState.groupEntries.find(e => e.groupId === scope.groupId)
+    if (!entry)
+      continue
+
+    if (!entry.splitBySubgroups) {
+      const item: ScopeReplaceItem = { id: scope.id, startedAt: entry.date }
+      if (scope.allowedSubgroupId)
+        item.audience = { groupId: entry.groupId }
+      items.push(item)
+    }
+    else {
+      const sub = scope.allowedSubgroupId
+        ? entry.subgroupEntries.find(s => s.subgroupId === scope.allowedSubgroupId)
+        : entry.subgroupEntries[0]
+      if (!sub)
+        continue
+
+      const item: ScopeReplaceItem = { id: scope.id, startedAt: sub.date }
+      if (!scope.allowedSubgroupId)
+        item.audience = { groupId: entry.groupId, allowedSubgroupId: sub.subgroupId }
+      items.push(item)
+    }
+  }
+
+  return items
+}
+
+async function handleUpdate() {
+  const headerData = await validate()
+  if (!headerData)
+    return
+
+  if (hasScopes) {
+    const errs = validateLessonScopeForm(scopeState)
+    if (errs.length) {
+      toast.add({
+        title: 'Исправьте ошибки',
+        description: errs.join(' · '),
+        color: 'error',
+        icon: 'i-lucide-circle-alert',
+      })
+      return
+    }
+  }
+
+  const body: UpdateLessonRequest = {}
+  const headerPatch: UpdateLessonHeaderRequest = {}
+  if (dirtyFields.value.has('topic'))
+    headerPatch.topic = headerData.topic
+  if (dirtyFields.value.has('type'))
+    headerPatch.type = headerData.type
+  if (Object.keys(headerPatch).length)
+    body.header = headerPatch
+
+  if (hasScopes) {
+    const items = buildScopeItems()
+    if (items.length)
+      body.scopes = { items } as UpdateLessonRequest['scopes']
+  }
+
+  if (!body.header && !body.scopes) {
+    toast.add({
+      title: 'Нет изменений',
+      color: 'neutral',
+      icon: 'i-lucide-info',
+    })
+    return
+  }
+
+  await submit(
+    () => $backend('/api/lessons/{id}', {
+      method: 'PUT',
       path: { id: lessonId },
       body,
-    })
-  })
+    }),
+    {
+      successMessage: 'Занятие обновлено',
+      onSuccess: () => navigateTo(`/dashboard/subjects/${subjectId}/lessons`),
+    },
+  )
 }
 
 const isReady = !!targetLesson
@@ -141,46 +263,38 @@ const isReady = !!targetLesson
       ref="formRef"
       :schema="UpdateLessonSchema"
       :state="state"
-      class="flex flex-col gap-4"
+      class="flex flex-col gap-6"
+      @error="onError"
     >
-      <UFormField label="Тема" name="topic">
-        <UInput
-          v-model="state.topic"
-          placeholder="Введите тему занятия"
-          class="w-full"
-        />
-      </UFormField>
+      <div class="flex flex-col gap-4">
+        <UFormField label="Тема" name="topic">
+          <UInput
+            v-model="state.topic"
+            placeholder="Введите тему занятия"
+            class="w-full"
+          />
+        </UFormField>
 
-      <UFormField label="Дата" name="startedAt" required>
-        <UInput
-          v-model="state.startedAt"
-          type="date"
-          class="w-full"
-        />
-      </UFormField>
+        <UFormField label="Тип занятия" name="type" required>
+          <USelect
+            v-if="!lessonTypeLocked"
+            v-model="state.type"
+            :items="typeOptions"
+            class="w-full"
+          />
+          <UInput
+            v-else
+            :model-value="matchingScope?.allowedLessonType === 'LECTURE' ? 'Лекция' : 'Практика'"
+            disabled
+            class="w-full"
+          />
+        </UFormField>
+      </div>
 
-      <UFormField label="Тип занятия" name="type" required>
-        <USelect
-          v-if="!lessonTypeLocked"
-          v-model="state.type"
-          :items="typeOptions"
-          class="w-full"
-        />
-        <UInput
-          v-else
-          :model-value="matchingScope?.allowedLessonType === 'LECTURE' ? 'Лекция' : 'Практика'"
-          disabled
-          class="w-full"
-        />
-      </UFormField>
-
-      <UFormField label="Группы">
-        <UInput
-          :model-value="targetLesson?.allGroups ? 'Все группы' : (targetLesson?.scopes ?? []).map(s => s.groupName ?? '—').join(', ')"
-          disabled
-          class="w-full"
-        />
-      </UFormField>
+      <template v-if="hasScopes">
+        <USeparator label="Проведение" />
+        <LessonsScopeForm :state="scopeState" :loading="groupsPending" />
+      </template>
 
       <div class="flex justify-end gap-2">
         <UButton
@@ -192,8 +306,8 @@ const isReady = !!targetLesson
           Отмена
         </UButton>
         <UButton
-          type="button"
           icon="i-lucide-check"
+          type="button"
           :loading="loading"
           @click="handleUpdate"
         >

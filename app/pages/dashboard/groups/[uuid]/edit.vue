@@ -43,13 +43,10 @@ const { data, pending, error, refresh } = useBackend('/api/groups/{id}', {
 
 const group = computed<GroupResponse | null>(() => data.value ?? null)
 
-const { state, formRef, loading, handleSubmit } = useResourceForm<typeof UpdateGroupRequestSchema, Schema>({
+const { state, formRef, loading, dirtyFields, onSubmit, onError } = useResourceForm<typeof UpdateGroupRequestSchema>({
   initialState: () => ({ name: '', students: [] }),
   successMessage: 'Группа обновлена',
 })
-
-const originalName = ref('')
-const originalStudents = ref<FormSchema['students']>([])
 
 watch(
   group,
@@ -62,23 +59,9 @@ watch(
       username: s.username ?? '',
       subgroupId: s.subgroupId ?? undefined,
     }))
-    originalName.value = state.name
-    originalStudents.value = state.students.map(s => ({ ...s }))
   },
   { immediate: true },
 )
-
-function isStudentsChanged(a: FormSchema['students'], b: FormSchema['students']): boolean {
-  if (a.length !== b.length)
-    return true
-  for (let i = 0; i < a.length; i++) {
-    const sa = a[i]!
-    const sb = b[i]!
-    if (sa.username !== sb.username || sa.subgroupId !== sb.subgroupId || sa.id !== sb.id)
-      return true
-  }
-  return false
-}
 
 const subgroupOptions = computed(() => {
   return (group.value?.subgroups ?? []).map((sg, idx) => ({
@@ -194,24 +177,27 @@ const filteredTabRows = computed(() => {
 })
 
 // Submit
-async function handleSave() {
-  await handleSubmit(async (data) => {
+const handleSave = onSubmit(
+  (data) => {
     const body: UpdateGroupRequest = {}
-    if (data.name !== originalName.value)
+    if (dirtyFields.value.has('name'))
       body.name = data.name
-    if (isStudentsChanged(data.students, originalStudents.value))
+    if (dirtyFields.value.has('students'))
       body.students = data.students
 
-    const result = await $backend('/api/groups/{id}', {
+    return $backend('/api/groups/{id}', {
       method: 'PATCH',
       path: { id: groupId.value },
       body,
     })
-    await refresh()
-    await navigateTo(`/dashboard/groups/${groupId.value}`)
-    return result
-  })
-}
+  },
+  {
+    onSuccess: async () => {
+      await refresh()
+      await navigateTo(`/dashboard/groups/${groupId.value}`)
+    },
+  },
+)
 
 function handleCancel() {
   navigateTo(`/dashboard/groups/${groupId.value}`)
@@ -254,8 +240,7 @@ function handleCancel() {
           <UButton
             icon="i-lucide-check"
             :loading="loading"
-            :disabled="!state.name.trim()"
-            @click="handleSave"
+            @click="() => formRef?.submit()"
           >
             Сохранить
           </UButton>
@@ -267,6 +252,8 @@ function handleCancel() {
         :schema="UpdateGroupRequestSchema"
         :state="state"
         class="flex flex-col gap-4"
+        @submit="handleSave"
+        @error="onError"
       >
         <UFormField name="name">
           <UInput

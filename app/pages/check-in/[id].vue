@@ -147,24 +147,25 @@ const lockedStudent = computed<Student | null>(() => {
 const isLocked = computed(() => !!lockedStudentId.value)
 
 async function handleCheckIn(student: Student) {
-  if (!student.id || !sessionId.value)
+  const studentId = student.id
+  if (!studentId || !sessionId.value)
     return
   if (student.checkedInStatus)
     return
   if (isLocked.value)
     return
 
-  checkingInId.value = student.id
+  checkingInId.value = studentId
   await submit(
     () => $backend('/api/check-in-sessions/public/{id}/check-in', {
       method: 'POST',
       path: { id: sessionId.value },
-      body: { studentId: student.id },
+      body: { studentId },
       headers: { 'x-proxy-auth-optional': 'true' },
     }),
     {
       onSuccess: async (result) => {
-        lockedStudentId.value = student.id
+        lockedStudentId.value = studentId
         toast.add({
           title: result.status === 'LATE' ? 'Отмечено: опоздание' : 'Отмечено: вовремя',
           color: result.status === 'LATE' ? 'warning' : 'success',

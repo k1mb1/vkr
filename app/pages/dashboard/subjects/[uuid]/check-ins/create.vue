@@ -1,8 +1,39 @@
 <script setup lang="ts">
 import type { components } from '#open-fetch-schemas/backend'
+import type { SchemaFor } from '~/utils/validation'
+import * as v from 'valibot'
+import { string } from '~/utils/validation'
 
 type StartCheckInRequest = components['schemas']['StartCheckInRequest']
 type LessonResponse = components['schemas']['LessonResponse']
+type LessonScopeResponse = components['schemas']['LessonScopeResponse']
+
+interface LessonScopeOption {
+  value: string
+  label: string
+  lesson: LessonResponse
+  scope: LessonScopeResponse
+}
+
+interface StartCheckInForm {
+  lessonScopeId: string
+  onTimeMinutes: number
+  lateMinutes: number
+}
+
+const StartCheckInSchema: SchemaFor<StartCheckInForm> = v.object({
+  lessonScopeId: string('Выберите проведение занятия'),
+  onTimeMinutes: v.pipe(
+    v.number('Длительность основного окна — минимум 1 минута'),
+    v.integer('Длительность основного окна — целое число минут'),
+    v.minValue(1, 'Длительность основного окна — минимум 1 минута'),
+  ),
+  lateMinutes: v.pipe(
+    v.number('Окно для опоздавших не может быть отрицательным'),
+    v.integer('Окно для опоздавших — целое число минут'),
+    v.minValue(0, 'Окно для опоздавших не может быть отрицательным'),
+  ),
+})
 
 const route = useRoute()
 const subjectId = String(route.params.uuid ?? '')
@@ -22,99 +53,84 @@ watch(permissionId, (pid) => {
     refresh()
 }, { immediate: true })
 
-const lessons = computed<LessonResponse[]>(() => {
-  const arr = [...(lessonsData.value ?? [])]
-  arr.sort((a, b) => {
-    const at = a.startedAt ? new Date(a.startedAt).getTime() : 0
-    const bt = b.startedAt ? new Date(b.startedAt).getTime() : 0
-    return bt - at
-  })
-  return arr
-})
-
-function formatAudience(l: LessonResponse): string {
-  if (l.allGroups)
+function formatScopeAudience(s: LessonScopeResponse): string {
+  if (s.allGroups)
     return 'Все группы'
-  const list = (l.scopes ?? []).map((s) => {
-    const parts: string[] = [s.groupName ?? '—']
-    if (s.allowedSubgroupIndex != null)
-      parts.push(`Подгруппа ${s.allowedSubgroupIndex}`)
-    return parts.join(' · ')
-  })
-  return list.join(', ') || '—'
+  const parts: string[] = [s.groupName ?? '—']
+  if (s.allowedSubgroupIndex != null)
+    parts.push(`Подгруппа ${s.allowedSubgroupIndex}`)
+  return parts.join(' · ')
 }
 
-function formatLesson(l: LessonResponse): string {
+function formatScopeOption(l: LessonResponse, s: LessonScopeResponse): string {
   const parts: string[] = []
-  if (l.startedAt) {
+  if (s.startedAt) {
     parts.push(new Intl.DateTimeFormat('ru', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
-    }).format(new Date(l.startedAt)))
+    }).format(new Date(s.startedAt)))
   }
   parts.push(l.type === 'LECTURE' ? 'Лекция' : 'Практика')
-  parts.push(formatAudience(l))
+  parts.push(formatScopeAudience(s))
   if (l.topic)
     parts.push(l.topic)
   return parts.join(' · ')
 }
 
-const state = reactive({
-  lessonId: '' as string,
-  onTimeMinutes: 5,
-  lateMinutes: 5,
+const scopeOptions = computed<LessonScopeOption[]>(() => {
+  const out: LessonScopeOption[] = []
+  for (const l of lessonsData.value ?? []) {
+    for (const s of l.scopes ?? []) {
+      if (!s.id)
+        continue
+      out.push({
+        value: s.id,
+        label: formatScopeOption(l, s),
+        lesson: l,
+        scope: s,
+      })
+    }
+  }
+  out.sort((a, b) => {
+    const at = a.scope.startedAt ? new Date(a.scope.startedAt).getTime() : 0
+    const bt = b.scope.startedAt ? new Date(b.scope.startedAt).getTime() : 0
+    return bt - at
+  })
+  return out
 })
 
-const lessonOptions = computed(() =>
-  lessons.value.map(l => ({ value: l.id!, label: formatLesson(l) })),
-)
+const { state, formRef, loading, onSubmit, onError } = useResourceForm<typeof StartCheckInSchema>({
+  initialState: () => ({ lessonScopeId: '', onTimeMinutes: 5, lateMinutes: 5 }),
+  successMessage: 'Опрос запущен',
+})
 
-const selectedLessonOption = computed({
-  get: () => lessonOptions.value.find(o => o.value === state.lessonId),
+const selectedScopeOption = computed({
+  get: () => scopeOptions.value.find(o => o.value === state.lessonScopeId),
   set: (val) => {
-    state.lessonId = val?.value ?? ''
+    state.lessonScopeId = val?.value ?? ''
   },
 })
 
-const selectedLesson = computed<LessonResponse | undefined>(() =>
-  lessons.value.find(l => l.id === state.lessonId),
+const selectedScope = computed<LessonScopeResponse | undefined>(() =>
+  scopeOptions.value.find(o => o.value === state.lessonScopeId)?.scope,
 )
 
-const { loading, submit } = useFormSubmit()
-
-const errors = ref<string[]>([])
-
-function validate(): boolean {
-  errors.value = []
-  if (!state.lessonId)
-    errors.value.push('Выберите занятие')
-  if (state.onTimeMinutes < 1)
-    errors.value.push('Длительность основного окна — минимум 1 минута')
-  if (state.lateMinutes < 0)
-    errors.value.push('Окно для опоздавших не может быть отрицательным')
-  return errors.value.length === 0
-}
-
-async function handleStart() {
-  if (!validate())
-    return
-
-  await submit(
-    () => {
-      const body: StartCheckInRequest = {
-        lessonId: state.lessonId,
-        onTimeSeconds: state.onTimeMinutes * 60,
-        lateSeconds: state.lateMinutes * 60,
-      }
-      return $backend('/api/check-in-sessions', { method: 'POST', body })
+const handleStart = onSubmit(
+  (data) => {
+    const body: StartCheckInRequest = {
+      lessonScopeId: data.lessonScopeId,
+      onTimeSeconds: data.onTimeMinutes * 60,
+      lateSeconds: data.lateMinutes * 60,
+    }
+    return $backend('/api/check-in-sessions', { method: 'POST', body })
+  },
+  {
+    onSuccess: (result) => {
+      navigateTo(`/dashboard/subjects/${subjectId}/check-ins/${result.id}`)
     },
-    {
-      successMessage: 'Опрос запущен',
-      onSuccess: result => navigateTo(`/dashboard/subjects/${subjectId}/check-ins/${result.id}`),
-    },
-  )
-}
+  },
+)
 </script>
 
 <template>
@@ -144,40 +160,39 @@ async function handleStart() {
       description="У вас нет назначения по данному предмету."
     />
 
-    <div v-else class="flex flex-col gap-4">
-      <UAlert
-        v-if="errors.length"
-        color="error"
-        variant="soft"
-        icon="i-lucide-circle-alert"
-        title="Исправьте ошибки"
-        :description="errors.join(' · ')"
-      />
-
-      <UFormField label="Занятие" required>
+    <UForm
+      v-else
+      ref="formRef"
+      :schema="StartCheckInSchema"
+      :state="state"
+      class="flex flex-col gap-4"
+      @submit="handleStart"
+      @error="onError"
+    >
+      <UFormField label="Проведение занятия" name="lessonScopeId" required>
         <USelectMenu
-          v-model="selectedLessonOption"
-          :items="lessonOptions"
+          v-model="selectedScopeOption"
+          :items="scopeOptions"
           :loading="lessonsPending"
-          :disabled="lessonsPending || lessonOptions.length === 0"
-          placeholder="Выберите занятие..."
+          :disabled="lessonsPending || scopeOptions.length === 0"
+          placeholder="Выберите проведение занятия..."
           class="w-full"
         />
       </UFormField>
 
-      <UFormField v-if="selectedLesson" label="Аудитория">
+      <UFormField v-if="selectedScope" label="Аудитория">
         <UInput
-          :model-value="formatAudience(selectedLesson)"
+          :model-value="formatScopeAudience(selectedScope)"
           disabled
           class="w-full"
         />
         <template #help>
-          Аудитория опроса берётся из занятия
+          Аудитория опроса берётся из проведения
         </template>
       </UFormField>
 
       <div class="grid gap-4 sm:grid-cols-2">
-        <UFormField label="Основное окно (минуты)" required>
+        <UFormField label="Основное окно (минуты)" name="onTimeMinutes" required>
           <UInput
             v-model.number="state.onTimeMinutes"
             type="number"
@@ -189,7 +204,7 @@ async function handleStart() {
           </template>
         </UFormField>
 
-        <UFormField label="Окно для опоздавших (минуты)">
+        <UFormField label="Окно для опоздавших (минуты)" name="lateMinutes">
           <UInput
             v-model.number="state.lateMinutes"
             type="number"
@@ -203,14 +218,14 @@ async function handleStart() {
       </div>
 
       <UButton
+        type="submit"
         icon="i-lucide-play"
         :loading="loading"
-        :disabled="lessonOptions.length === 0"
+        :disabled="scopeOptions.length === 0"
         class="ml-auto"
-        @click="handleStart"
       >
         Запустить опрос
       </UButton>
-    </div>
+    </UForm>
   </div>
 </template>

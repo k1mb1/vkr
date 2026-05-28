@@ -1,30 +1,32 @@
 <script setup lang="ts">
 import type { components } from '#open-fetch-schemas/backend'
+import type { SchemaFor } from '~/utils/validation'
+import * as v from 'valibot'
+import { string } from '~/utils/validation'
+
+definePageMeta({ middleware: 'subject-permission' })
 
 type CreateTeacherSubjectPermissionRequest = components['schemas']['CreateTeacherSubjectPermissionRequest']
-type PermissionScopeRequest = components['schemas']['PermissionScopeRequest']
-type LessonType = NonNullable<PermissionScopeRequest['allowedLessonType']>
+type CreatePermissionForm = Omit<CreateTeacherSubjectPermissionRequest, 'subjectId'>
 
-interface ScopeState {
-  groupId: string
-  allowedSubgroupId: string | null
-  allowedLessonType: LessonType | null
-}
-
-function makeEmptyScope(): ScopeState {
-  return { groupId: '', allowedSubgroupId: null, allowedLessonType: null }
-}
+const CreatePermissionSchema: SchemaFor<CreatePermissionForm> = v.object({
+  teacherId: string('Выберите преподавателя'),
+  allPermissions: v.boolean(),
+  scopes: v.optional(v.array(v.object({
+    group: v.object({
+      groupId: string('Выберите группу'),
+      allowedSubgroupId: v.optional(v.string()),
+    }),
+    allowedLessonType: v.optional(v.picklist(['LECTURE', 'PRACTICE'] as const)),
+  }))),
+})
 
 const route = useRoute()
 const subjectId = String(route.params.uuid ?? '')
 
 const { $backend } = useNuxtApp()
 
-const { permission, scopes: myScopes, pending: loadingScope } = usePermissions()
-
-function myScopeForGroup(groupId: string) {
-  return myScopes.value.find(s => s.group?.id === groupId)
-}
+const { permission, pending: loadingScope } = usePermissions()
 
 const { data: subjectPermissions } = useBackend('/api/teacher-subject-permissions', {
   method: 'GET',
@@ -38,67 +40,46 @@ const excludedTeacherIds = computed<string[]>(() =>
     .filter((id): id is string => !!id),
 )
 
-// ── Form state ────────────────────────────────────────────
+const { data: groups, pending: groupsPending } = useBackend('/api/groups/by-subject', {
+  method: 'GET',
+  query: { subjectId },
+})
 
-const teacherId = ref<string>('')
-const allGroups = ref<boolean>(false)
-const scopes = ref<ScopeState[]>([makeEmptyScope()])
+const { state, formRef, loading, onSubmit, onError } = useResourceForm<typeof CreatePermissionSchema>({
+  initialState: () => ({
+    teacherId: '',
+    allPermissions: false,
+    scopes: [{ group: { groupId: '' } }],
+  }),
+  successMessage: 'Назначение создано',
+})
+
+watch(() => state.allPermissions, (val) => {
+  if (val) {
+    state.scopes = undefined
+  }
+  else if (!state.scopes?.length) {
+    state.scopes = [{ group: { groupId: '' } }]
+  }
+})
 
 function addScope() {
-  scopes.value.push(makeEmptyScope())
+  ;(state.scopes ??= []).push({ group: { groupId: '' } })
 }
 
 function removeScope(i: number) {
-  scopes.value.splice(i, 1)
+  state.scopes?.splice(i, 1)
 }
 
-const errors = ref<string[]>([])
-
-function validate(): boolean {
-  errors.value = []
-  if (!teacherId.value)
-    errors.value.push('Выберите преподавателя')
-  if (!allGroups.value && scopes.value.length === 0)
-    errors.value.push('Добавьте хотя бы один доступ')
-  if (!allGroups.value) {
-    for (const [i, s] of scopes.value.entries()) {
-      if (!s.groupId)
-        errors.value.push(`Доступ ${i + 1}: выберите группу`)
-    }
-  }
-  return errors.value.length === 0
-}
-
-// ── Submit ────────────────────────────────────────────────
-
-const { loading, submit } = useFormSubmit()
-
-async function handleCreate() {
-  if (!validate())
-    return
-
-  await submit(
-    () => {
-      const body: CreateTeacherSubjectPermissionRequest = {
-        teacherId: teacherId.value,
-        subjectId,
-        allPermissions: allGroups.value,
-        scopes: allGroups.value
-          ? undefined
-          : scopes.value.map<PermissionScopeRequest>(s => ({
-              groupId: s.groupId,
-              allowedSubgroupId: s.allowedSubgroupId ?? undefined,
-              allowedLessonType: s.allowedLessonType ?? undefined,
-            })),
-      }
-      return $backend('/api/teacher-subject-permissions', { method: 'POST', body })
-    },
-    {
-      successMessage: 'Назначение создано',
-      onSuccess: () => navigateTo(`/dashboard/subjects/${subjectId}/permissions`),
-    },
-  )
-}
+const handleCreate = onSubmit(
+  data => $backend('/api/teacher-subject-permissions', {
+    method: 'POST',
+    body: { ...data, subjectId } satisfies CreateTeacherSubjectPermissionRequest,
+  }),
+  {
+    onSuccess: () => navigateTo(`/dashboard/subjects/${subjectId}/settings/permissions`),
+  },
+)
 </script>
 
 <template>
@@ -106,7 +87,7 @@ async function handleCreate() {
     <UPageHeader title="Новое назначение">
       <template #links>
         <UButton
-          :to="`/dashboard/subjects/${subjectId}/permissions`"
+          :to="`/dashboard/subjects/${subjectId}/settings/permissions`"
           icon="i-lucide-arrow-left"
           color="neutral"
           variant="ghost"
@@ -137,27 +118,26 @@ async function handleCreate() {
       description="Создавать назначения могут только преподаватели с доступом ко всем группам предмета."
     />
 
-    <div v-else class="flex flex-col gap-4">
-      <UAlert
-        v-if="errors.length"
-        color="error"
-        variant="soft"
-        icon="i-lucide-circle-alert"
-        title="Исправьте ошибки"
-        :description="errors.join(' · ')"
-      />
-
-      <UFormField label="Преподаватель" required>
-        <TeachersSelectMenu v-model="teacherId" :exclude-id="excludedTeacherIds" />
+    <UForm
+      v-else
+      ref="formRef"
+      :schema="CreatePermissionSchema"
+      :state="state"
+      class="flex flex-col gap-4"
+      @submit="handleCreate"
+      @error="onError"
+    >
+      <UFormField label="Преподаватель" name="teacherId" required>
+        <TeachersSelectMenu v-model="state.teacherId" :exclude-id="excludedTeacherIds" />
       </UFormField>
 
-      <UCheckbox v-model="allGroups" label="Все группы предмета" />
+      <UCheckbox v-model="state.allPermissions" label="Все группы предмета" />
 
-      <template v-if="!allGroups">
+      <template v-if="!state.allPermissions">
         <USeparator label="Доступы" />
 
         <UCard
-          v-for="(s, i) in scopes"
+          v-for="(s, i) in (state.scopes ?? [])"
           :key="i"
           :ui="{ body: 'flex flex-col gap-3' }"
         >
@@ -165,7 +145,7 @@ async function handleCreate() {
             <div class="flex items-center justify-between">
               <span class="font-medium">Доступ {{ i + 1 }}</span>
               <UButton
-                v-if="scopes.length > 1"
+                v-if="(state.scopes?.length ?? 0) > 1"
                 icon="i-lucide-x"
                 color="neutral"
                 variant="ghost"
@@ -174,20 +154,17 @@ async function handleCreate() {
             </div>
           </template>
 
-          <UFormField label="Группа" required>
-            <GroupsPermissionScopeSelect v-model="s.groupId" />
-          </UFormField>
-
-          <UFormField v-if="s.groupId" label="Подгруппа">
-            <SubgroupsSelect
-              v-model="s.allowedSubgroupId"
-              :group-id="s.groupId"
-              :allowed-subgroup-id="myScopeForGroup(s.groupId)?.allowedSubgroup?.id"
+          <UFormField label="Группа" :name="`scopes.${i}.group.groupId`" required>
+            <GroupsSubgroupSelect
+              :model-value="{ groupId: s.group!.groupId || null, subgroupId: s.group!.allowedSubgroupId ?? null }"
+              :groups="groups ?? []"
+              :loading="groupsPending"
+              @update:model-value="(v) => { s.group = { groupId: v.groupId ?? '', allowedSubgroupId: v.subgroupId ?? undefined } }"
             />
           </UFormField>
 
           <UFormField label="Тип занятия">
-            <LessonTypesPermissionSelect v-model="s.allowedLessonType" :group-id="s.groupId" />
+            <LessonTypesPermissionSelect v-model="s.allowedLessonType" :group-id="s.group!.groupId" />
           </UFormField>
         </UCard>
 
@@ -202,13 +179,13 @@ async function handleCreate() {
       </template>
 
       <UButton
+        type="submit"
         icon="i-lucide-check"
         :loading="loading"
         class="ml-auto"
-        @click="handleCreate"
       >
         Создать назначение
       </UButton>
-    </div>
+    </UForm>
   </div>
 </template>
