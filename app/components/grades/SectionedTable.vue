@@ -260,6 +260,7 @@ function buildAssignmentColumn(
   assignment: AssignmentResponse,
   gradeIndex: Map<string, GradeCellResponse>,
   lesson: GradingTableLesson,
+  sectionStudents: GradingTableStudent[],
 ): TableColumn<GradingTableStudent> {
   return {
     id: assignment.id!,
@@ -289,6 +290,11 @@ function buildAssignmentColumn(
           : undefined,
       })
     },
+    footer: () => h(
+      'span',
+      { class: 'tabular-nums font-semibold text-default' },
+      String(sumAssignmentScores(sectionStudents, assignment.id!)),
+    ),
     meta: { class: { th: 'min-w-[80px] text-center', td: 'min-w-[80px] text-center p-1' } },
   }
 }
@@ -296,6 +302,7 @@ function buildAssignmentColumn(
 function buildExtraColumn(
   lesson: GradingTableLesson,
   gradeIndex: Map<string, GradeCellResponse>,
+  sectionStudents: GradingTableStudent[],
 ): TableColumn<GradingTableStudent> {
   const lessonId = lesson.id!
   return {
@@ -321,6 +328,11 @@ function buildExtraColumn(
           : undefined,
       })
     },
+    footer: () => h(
+      'span',
+      { class: 'tabular-nums font-semibold text-default' },
+      String(sumExtraScores(sectionStudents, lessonId)),
+    ),
     meta: { class: { th: 'min-w-[72px] text-center', td: 'min-w-[72px] text-center p-1' } },
   }
 }
@@ -368,6 +380,144 @@ function buildLessonGroupColumn(
   }
 }
 
+// ─── totals helpers ───────────────────────────────────────────────────────────
+
+function effectiveScoreFor(key: string): number | undefined {
+  return props.pendingChanges[key]?.score ?? gradeIndex.value.get(key)?.score
+}
+
+function sumAssignmentScores(
+  students: GradingTableStudent[],
+  assignmentId: string,
+): number {
+  let total = 0
+  for (const s of students) {
+    if (!s.id)
+      continue
+    const v = effectiveScoreFor(`${s.id}:${assignmentId}`)
+    if (typeof v === 'number')
+      total += v
+  }
+  return total
+}
+
+function sumExtraScores(
+  students: GradingTableStudent[],
+  lessonId: string,
+): number {
+  let total = 0
+  for (const s of students) {
+    if (!s.id)
+      continue
+    const v = effectiveScoreFor(`${s.id}:${lessonId}:extra`)
+    if (typeof v === 'number')
+      total += v
+  }
+  return total
+}
+
+type GradeCategory = 'required' | 'optional' | 'extra'
+
+const categoryMeta: Record<GradeCategory, { label: string, short: string, color: 'primary' | 'neutral' | 'warning' }> = {
+  required: { label: 'Обязательные', short: 'Обяз.', color: 'primary' },
+  optional: { label: 'Необязательные', short: 'Необяз.', color: 'neutral' },
+  extra: { label: 'Дополнительные', short: 'Доп.', color: 'warning' },
+}
+
+function studentCategorySum(
+  student: GradingTableStudent,
+  lessons: GradingTableLesson[],
+  category: GradeCategory,
+): number {
+  const studentId = student.id
+  if (!studentId)
+    return 0
+  let total = 0
+  for (const lesson of lessons) {
+    if (!lesson.id)
+      continue
+    if (category === 'extra') {
+      const v = effectiveScoreFor(`${studentId}:${lesson.id}:extra`)
+      if (typeof v === 'number')
+        total += v
+      continue
+    }
+    const assignments = assignmentsByLesson.value.get(lesson.id) ?? []
+    for (const a of assignments) {
+      if (!a.id)
+        continue
+      const isReq = !!a.required
+      if (category === 'required' && !isReq)
+        continue
+      if (category === 'optional' && isReq)
+        continue
+      const v = effectiveScoreFor(`${studentId}:${a.id}`)
+      if (typeof v === 'number')
+        total += v
+    }
+  }
+  return total
+}
+
+function categoryMaxPerStudent(lessons: GradingTableLesson[], category: GradeCategory): number {
+  if (category === 'extra')
+    return 0
+  let total = 0
+  for (const lesson of lessons) {
+    if (!lesson.id)
+      continue
+    const assignments = assignmentsByLesson.value.get(lesson.id) ?? []
+    for (const a of assignments) {
+      const isReq = !!a.required
+      if (category === 'required' && !isReq)
+        continue
+      if (category === 'optional' && isReq)
+        continue
+      total += a.maxPoints ?? 0
+    }
+  }
+  return total
+}
+
+function buildCategoryTotalColumn(
+  category: GradeCategory,
+  sectionLessons: GradingTableLesson[],
+  sectionStudents: GradingTableStudent[],
+): TableColumn<GradingTableStudent> {
+  const meta = categoryMeta[category]
+  const maxPerStudent = categoryMaxPerStudent(sectionLessons, category)
+  return {
+    id: `student-total-${category}`,
+    header: () =>
+      h('div', { class: 'flex flex-col items-center gap-1 py-0.5' }, [
+        h(UBadge, {
+          variant: 'subtle',
+          color: meta.color,
+          label: meta.short,
+          size: 'sm',
+        }),
+        maxPerStudent > 0
+          ? h('span', { class: 'text-[10px] text-muted tabular-nums' }, `до ${maxPerStudent}`)
+          : null,
+      ]),
+    cell: ({ row }) => {
+      const n = studentCategorySum(row.original, sectionLessons, category)
+      return h(
+        'span',
+        { class: n > 0 ? 'tabular-nums font-semibold text-default' : 'tabular-nums text-muted/50' },
+        String(n),
+      )
+    },
+    footer: () => {
+      let total = 0
+      for (const s of sectionStudents)
+        total += studentCategorySum(s, sectionLessons, category)
+      return h('span', { class: 'tabular-nums font-bold text-highlighted' }, String(total))
+    },
+    meta: { class: { th: 'min-w-[72px] text-center', td: 'min-w-[72px] text-center' } },
+  }
+}
+
 // ─── sections ─────────────────────────────────────────────────────────────────
 
 const sections = computed<GradeSection[]>(() => {
@@ -379,11 +529,15 @@ const sections = computed<GradeSection[]>(() => {
 
   return visible.map(({ meta, items }) => {
     const sectionLessons = lessons.value.filter(l => lessonVisibleForSection(l, meta))
+    const sortedStudents = items.sort((a, b) =>
+      (a.username ?? '').localeCompare(b.username ?? '', 'ru'),
+    )
 
     const cols: TableColumn<GradingTableStudent>[] = [
       {
         accessorKey: 'username',
         header: 'Студент',
+        footer: () => h('span', { class: 'font-semibold text-default' }, 'Итого по группе'),
         meta: {
           class: {
             th: 'min-w-[220px] sticky left-0 z-10 bg-default',
@@ -400,8 +554,8 @@ const sections = computed<GradeSection[]>(() => {
       const childCols: TableColumn<GradingTableStudent>[] = [
         ...assignments
           .filter(a => !!a.id)
-          .map(a => buildAssignmentColumn(a, gradeIndex.value, lesson)),
-        buildExtraColumn(lesson, gradeIndex.value),
+          .map(a => buildAssignmentColumn(a, gradeIndex.value, lesson, sortedStudents)),
+        buildExtraColumn(lesson, gradeIndex.value, sortedStudents),
       ]
 
       if (singleLesson) {
@@ -412,11 +566,13 @@ const sections = computed<GradeSection[]>(() => {
       }
     }
 
+    const categories: GradeCategory[] = ['required', 'optional', 'extra']
+    for (const cat of categories)
+      cols.push(buildCategoryTotalColumn(cat, sectionLessons, sortedStudents))
+
     return {
       ...meta,
-      students: items.sort((a, b) =>
-        (a.username ?? '').localeCompare(b.username ?? '', 'ru'),
-      ),
+      students: sortedStudents,
       columns: cols,
     }
   })
@@ -484,6 +640,7 @@ const hasAnyLessons = computed(() => lessons.value.length > 0)
           class="max-h-[calc(100vh-18rem)] rounded-lg border border-default"
           :ui="{
             thead: 'bg-elevated/60',
+            tfoot: 'bg-elevated/60 border-t border-default',
             th: 'px-3 py-3 text-sm text-highlighted text-left font-semibold border-r border-default last:border-r-0 [&:has([role=checkbox])]:pe-0',
             td: 'p-3 text-sm text-muted whitespace-nowrap border-r border-default last:border-r-0 [&:has([role=checkbox])]:pe-0',
           }"
