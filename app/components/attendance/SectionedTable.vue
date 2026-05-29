@@ -136,10 +136,11 @@ function countPresentForScope(
   return n
 }
 
-function countPresentForStudent(
+function countStatusForStudent(
   student: AttendanceTableStudent,
   scopes: AttendanceTableLesson[],
   cellIndex: Map<string, AttendanceCellResponse>,
+  status: AttendanceStatus,
 ): number {
   const studentId = student.id
   if (!studentId)
@@ -150,10 +151,48 @@ function countPresentForStudent(
       continue
     const key = `${studentId}|${sc.id}`
     const effective = props.pendingChanges[key] ?? cellIndex.get(key)?.status
-    if (isAttended(effective))
+    if (effective === status)
       n++
   }
   return n
+}
+
+function buildStatusTotalColumn(
+  status: AttendanceStatus,
+  sectionScopes: AttendanceTableLesson[],
+  sectionStudents: AttendanceTableStudent[],
+  cellIndex: Map<string, AttendanceCellResponse>,
+): TableColumn<AttendanceTableStudent> {
+  return {
+    id: `student-total-${status.toLowerCase()}`,
+    header: () =>
+      h('div', { class: 'flex justify-center py-0.5' }, [
+        h(UBadge, {
+          variant: 'soft',
+          color: statusColor[status],
+          label: statusShort[status],
+          leadingIcon: statusIcon[status],
+          title: statusLabel[status],
+          size: 'sm',
+          class: 'tabular-nums font-semibold',
+        }),
+      ]),
+    cell: ({ row }) => {
+      const n = countStatusForStudent(row.original, sectionScopes, cellIndex, status)
+      return h(
+        'span',
+        { class: n > 0 ? 'tabular-nums font-semibold text-default' : 'tabular-nums text-muted/50' },
+        String(n),
+      )
+    },
+    footer: () => {
+      let total = 0
+      for (const s of sectionStudents)
+        total += countStatusForStudent(s, sectionScopes, cellIndex, status)
+      return h('span', { class: 'tabular-nums font-bold text-highlighted' }, String(total))
+    },
+    meta: { class: { th: 'min-w-[56px] text-center', td: 'min-w-[56px] text-center' } },
+  }
 }
 
 function buildScopeColumn(
@@ -282,7 +321,7 @@ const sections = computed<AttSection[]>(() => {
       {
         accessorKey: 'username',
         header: 'Студент',
-        footer: () => h('span', { class: 'font-semibold text-default' }, 'Посещено'),
+        footer: () => h('span', { class: 'font-semibold text-default' }, 'Итого по группе'),
         meta: {
           class: {
             th: 'min-w-[220px] sticky left-0 z-10 bg-default',
@@ -298,22 +337,8 @@ const sections = computed<AttSection[]>(() => {
       cols.push(buildScopeColumn(scope, cellIndex.value, sortedStudents))
     }
 
-    cols.push({
-      id: 'student-total',
-      header: () => h('span', { class: 'font-semibold text-highlighted' }, 'Итого'),
-      cell: ({ row }) => h(
-        'span',
-        { class: 'tabular-nums font-semibold text-default' },
-        String(countPresentForStudent(row.original, sectionScopes, cellIndex.value)),
-      ),
-      footer: () => {
-        let total = 0
-        for (const s of sortedStudents)
-          total += countPresentForStudent(s, sectionScopes, cellIndex.value)
-        return h('span', { class: 'tabular-nums font-bold text-highlighted' }, String(total))
-      },
-      meta: { class: { th: 'min-w-[72px] text-center', td: 'min-w-[72px] text-center' } },
-    })
+    for (const status of STATUSES)
+      cols.push(buildStatusTotalColumn(status, sectionScopes, sortedStudents, cellIndex.value))
 
     return {
       ...meta,
