@@ -179,6 +179,24 @@ async function saveGrades() {
   }
 }
 
+// ── Tabs ────────────────────────────────────────────────────────────────────
+const activeTab = ref<'attendance' | 'grades'>('attendance')
+
+const tabItems = computed(() => [
+  {
+    label: 'Посещаемость',
+    value: 'attendance' as const,
+    icon: 'i-lucide-clipboard-check',
+    badge: attendanceDirty.value > 0 ? attendanceDirty.value : undefined,
+  },
+  {
+    label: 'Оценки',
+    value: 'grades' as const,
+    icon: 'i-lucide-graduation-cap',
+    badge: gradeDirty.value > 0 ? gradeDirty.value : undefined,
+  },
+])
+
 // ── Leave guard (shared) ────────────────────────────────────────────────────
 const hasUnsaved = computed(() => attendanceDirty.value > 0 || gradeDirty.value > 0)
 
@@ -340,35 +358,61 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnloadHan
           </UPageCard>
         </UPageGrid>
 
-        <UPageSection
-          title="Посещаемость"
-          orientation="vertical"
-          :ui="{ container: 'py-0 sm:py-0', wrapper: 'gap-2' }"
-        >
-          <template #links>
-            <template v-if="hasAllPermissions">
-              <UButton
-                v-if="attendanceDirty > 0"
-                color="neutral"
-                variant="ghost"
-                icon="i-lucide-undo-2"
-                label="Сбросить"
-                :disabled="attendanceSaving"
-                @click="resetAttendance"
-              />
-              <UButton
-                color="primary"
-                variant="solid"
-                icon="i-lucide-save"
-                :label="attendanceDirty > 0 ? `Сохранить (${attendanceDirty})` : 'Сохранить'"
-                :loading="attendanceSaving"
-                :disabled="attendanceDirty === 0"
-                @click="saveAttendance"
-              />
-            </template>
-          </template>
+        <div class="flex flex-col gap-4">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <UTabs
+              v-model="activeTab"
+              :items="tabItems"
+              :content="false"
+              class="flex-1"
+            />
+
+            <div v-if="hasAllPermissions" class="flex items-center gap-2">
+              <template v-if="activeTab === 'attendance'">
+                <UButton
+                  v-if="attendanceDirty > 0"
+                  color="neutral"
+                  variant="ghost"
+                  icon="i-lucide-undo-2"
+                  label="Сбросить"
+                  :disabled="attendanceSaving"
+                  @click="resetAttendance"
+                />
+                <UButton
+                  color="primary"
+                  variant="solid"
+                  icon="i-lucide-save"
+                  :label="attendanceDirty > 0 ? `Сохранить (${attendanceDirty})` : 'Сохранить'"
+                  :loading="attendanceSaving"
+                  :disabled="attendanceDirty === 0"
+                  @click="saveAttendance"
+                />
+              </template>
+              <template v-else>
+                <UButton
+                  v-if="gradeDirty > 0"
+                  color="neutral"
+                  variant="ghost"
+                  icon="i-lucide-undo-2"
+                  label="Сбросить"
+                  :disabled="gradeSaving"
+                  @click="resetGrades"
+                />
+                <UButton
+                  color="primary"
+                  variant="solid"
+                  icon="i-lucide-save"
+                  :label="gradeDirty > 0 ? `Сохранить (${gradeDirty})` : 'Сохранить'"
+                  :loading="gradeSaving"
+                  :disabled="gradeDirty === 0"
+                  @click="saveGrades"
+                />
+              </template>
+            </div>
+          </div>
 
           <AttendanceSectionedTable
+            v-show="activeTab === 'attendance'"
             :data="attData"
             :pending="attPending"
             :editable="hasAllPermissions"
@@ -376,37 +420,9 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnloadHan
             empty-description="Для этого занятия нет проведений или назначенных студентов."
             @change="onAttendanceChange"
           />
-        </UPageSection>
-
-        <UPageSection
-          title="Оценки"
-          orientation="vertical"
-          :ui="{ container: 'py-0 sm:py-0', wrapper: 'gap-2' }"
-        >
-          <template #links>
-            <template v-if="hasAllPermissions">
-              <UButton
-                v-if="gradeDirty > 0"
-                color="neutral"
-                variant="ghost"
-                icon="i-lucide-undo-2"
-                label="Сбросить"
-                :disabled="gradeSaving"
-                @click="resetGrades"
-              />
-              <UButton
-                color="primary"
-                variant="solid"
-                icon="i-lucide-save"
-                :label="gradeDirty > 0 ? `Сохранить (${gradeDirty})` : 'Сохранить'"
-                :loading="gradeSaving"
-                :disabled="gradeDirty === 0"
-                @click="saveGrades"
-              />
-            </template>
-          </template>
 
           <GradesSectionedTable
+            v-show="activeTab === 'grades'"
             :data="gradesData"
             :pending="gradesPending"
             :lesson-id="lessonId"
@@ -415,7 +431,7 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnloadHan
             empty-description="К занятию не привязаны задания или нет студентов."
             @change="onGradeChange"
           />
-        </UPageSection>
+        </div>
       </template>
     </div>
 
