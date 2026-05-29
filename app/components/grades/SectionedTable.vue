@@ -303,7 +303,7 @@ function buildExtraColumn(
     header: () =>
       h('div', { class: 'flex flex-col items-center gap-1 py-0.5' }, [
         h('span', { class: 'text-sm font-bold text-highlighted' }, '+'),
-        h('span', { class: 'text-[10px] text-muted' }, 'extra'),
+        h('span', { class: 'text-[10px] text-muted' }, 'Доп.'),
       ]),
     cell: ({ row }) => {
       const student = row.original as GradingTableStudent
@@ -331,7 +331,8 @@ function buildLessonGroupColumn(
 ): TableColumn<GradingTableStudent> {
   const typeColor = lesson.type === 'LECTURE' ? 'primary' : 'secondary'
   const typeIcon = lesson.type ? lessonTypeIcon[lesson.type] : undefined
-  const typeLabel = lesson.type ? lessonTypeLabel[lesson.type] : '—'
+  const baseLabel = lesson.type ? lessonTypeLabel[lesson.type] : '—'
+  const typeLabel = lesson.orderIndex ? `${baseLabel} №${lesson.orderIndex}` : baseLabel
 
   return {
     id: `lesson-${lesson.id}`,
@@ -437,7 +438,7 @@ const hasAnyLessons = computed(() => lessons.value.length > 0)
       <UBadge variant="soft" color="neutral" label="3" class="tabular-nums" />
       <span class="text-muted">/ необязательное</span>
       <UBadge variant="soft" color="warning" label="2" class="tabular-nums" />
-      <span class="text-muted">/ extra</span>
+      <span class="text-muted">/ дополнительные</span>
     </div>
 
     <!-- Empty state -->
@@ -503,7 +504,7 @@ const hasAnyLessons = computed(() => lessons.value.length > 0)
       :open="editTarget !== null"
       :title="editTarget?.assignment
         ? `Оценка · задание №${editTarget.assignment.order}`
-        : 'Доп. оценка (extra)'"
+        : 'Дополнительная оценка'"
       @update:open="(v: boolean) => { if (!v) closeEdit() }"
     >
       <template #body>
