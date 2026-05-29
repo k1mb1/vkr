@@ -112,9 +112,54 @@ function formatLessonType(scope: AttendanceTableLesson): string {
 
 // ─── column builders ──────────────────────────────────────────────────────────
 
+function isAttended(status: AttendanceStatus | undefined): boolean {
+  return status === 'PRESENT' || status === 'LATE' || status === 'EXCUSED'
+}
+
+function countPresentForScope(
+  scope: AttendanceTableLesson,
+  students: AttendanceTableStudent[],
+  cellIndex: Map<string, AttendanceCellResponse>,
+): number {
+  const scopeId = scope.id
+  if (!scopeId)
+    return 0
+  let n = 0
+  for (const s of students) {
+    if (!s.id)
+      continue
+    const key = `${s.id}|${scopeId}`
+    const effective = props.pendingChanges[key] ?? cellIndex.get(key)?.status
+    if (isAttended(effective))
+      n++
+  }
+  return n
+}
+
+function countPresentForStudent(
+  student: AttendanceTableStudent,
+  scopes: AttendanceTableLesson[],
+  cellIndex: Map<string, AttendanceCellResponse>,
+): number {
+  const studentId = student.id
+  if (!studentId)
+    return 0
+  let n = 0
+  for (const sc of scopes) {
+    if (!sc.id)
+      continue
+    const key = `${studentId}|${sc.id}`
+    const effective = props.pendingChanges[key] ?? cellIndex.get(key)?.status
+    if (isAttended(effective))
+      n++
+  }
+  return n
+}
+
 function buildScopeColumn(
   scope: AttendanceTableLesson,
   cellIndex: Map<string, AttendanceCellResponse>,
+  sectionStudents: AttendanceTableStudent[],
 ): TableColumn<AttendanceTableStudent> {
   const typeColor = scope.type === 'LECTURE' ? 'primary' : 'secondary'
   const typeIcon = scope.type ? lessonTypeIcon[scope.type] : undefined
@@ -204,6 +249,11 @@ function buildScopeColumn(
         },
       )
     },
+    footer: () => h(
+      'span',
+      { class: 'tabular-nums font-semibold text-default' },
+      String(countPresentForScope(scope, sectionStudents, cellIndex)),
+    ),
     meta: { class: { th: 'min-w-[120px] text-center', td: 'min-w-[120px] text-center p-1' } },
   }
 }
@@ -224,10 +274,15 @@ const sections = computed<AttSection[]>(() => {
   return visible.map(({ meta, items }) => {
     const sectionScopes = lessons.value.filter(sc => scopeVisibleForSection(sc, meta))
 
+    const sortedStudents = items.sort((a, b) =>
+      (a.username ?? '').localeCompare(b.username ?? '', 'ru'),
+    )
+
     const cols: TableColumn<AttendanceTableStudent>[] = [
       {
         accessorKey: 'username',
         header: 'Студент',
+        footer: () => h('span', { class: 'font-semibold text-default' }, 'Посещено'),
         meta: {
           class: {
             th: 'min-w-[220px] sticky left-0 z-10 bg-default',
@@ -240,14 +295,29 @@ const sections = computed<AttSection[]>(() => {
     for (const scope of sectionScopes) {
       if (!scope.id)
         continue
-      cols.push(buildScopeColumn(scope, cellIndex.value))
+      cols.push(buildScopeColumn(scope, cellIndex.value, sortedStudents))
     }
+
+    cols.push({
+      id: 'student-total',
+      header: () => h('span', { class: 'font-semibold text-highlighted' }, 'Итого'),
+      cell: ({ row }) => h(
+        'span',
+        { class: 'tabular-nums font-semibold text-default' },
+        String(countPresentForStudent(row.original, sectionScopes, cellIndex.value)),
+      ),
+      footer: () => {
+        let total = 0
+        for (const s of sortedStudents)
+          total += countPresentForStudent(s, sectionScopes, cellIndex.value)
+        return h('span', { class: 'tabular-nums font-bold text-highlighted' }, String(total))
+      },
+      meta: { class: { th: 'min-w-[72px] text-center', td: 'min-w-[72px] text-center' } },
+    })
 
     return {
       ...meta,
-      students: items.sort((a, b) =>
-        (a.username ?? '').localeCompare(b.username ?? '', 'ru'),
-      ),
+      students: sortedStudents,
       columns: cols,
     }
   })
@@ -315,6 +385,7 @@ const hasAnyLessons = computed(() => lessons.value.length > 0)
           class="max-h-[calc(100vh-18rem)] rounded-lg border border-default"
           :ui="{
             thead: 'bg-elevated/60',
+            tfoot: 'bg-elevated/60 border-t border-default',
             th: 'px-3 py-3 text-sm text-highlighted text-left font-semibold border-r border-default last:border-r-0 [&:has([role=checkbox])]:pe-0',
             td: 'p-3 text-sm text-muted whitespace-nowrap border-r border-default last:border-r-0 [&:has([role=checkbox])]:pe-0',
           }"
