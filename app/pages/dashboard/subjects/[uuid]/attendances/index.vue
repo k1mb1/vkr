@@ -32,9 +32,9 @@ watch(permissionId, (pid) => {
 const typeFilter = ref<'ALL' | LessonType>('ALL')
 
 const typeTabItems = [
-  { label: 'Все', value: 'ALL' },
-  { label: 'Лекции', value: 'LECTURE' },
-  { label: 'Практики', value: 'PRACTICE' },
+  { label: 'Все', value: 'ALL' as const },
+  { label: 'Лекции', value: 'LECTURE' as const },
+  { label: 'Практики', value: 'PRACTICE' as const },
 ]
 
 const sectionOptions = computed(() =>
@@ -44,9 +44,15 @@ const sectionOptions = computed(() =>
 const selectedSections = ref<string[]>([])
 
 watch(sectionOptions, (opts) => {
+  const valid = new Set(opts.map(o => o.value))
+  selectedSections.value = selectedSections.value.filter(v => valid.has(v))
   if (selectedSections.value.length === 0 && opts.length > 0)
     selectedSections.value = opts.map(o => o.value)
 }, { immediate: true })
+
+const allSectionsDeselected = computed(() =>
+  sectionOptions.value.length > 0 && selectedSections.value.length === 0,
+)
 
 const filteredData = computed<AttendanceTableResponse | null>(() => {
   if (!data.value)
@@ -103,7 +109,19 @@ const filteredData = computed<AttendanceTableResponse | null>(() => {
         />
       </div>
 
+      <USkeleton v-if="pending && !data" class="h-64 w-full" />
+
+      <UEmpty
+        v-else-if="allSectionsDeselected"
+        icon="i-lucide-filter-x"
+        title="Группы не выбраны"
+        description="Выберите хотя бы одну группу в фильтре, чтобы увидеть таблицу."
+        variant="naked"
+        class="py-6"
+      />
+
       <AttendanceSectionedTable
+        v-else
         :data="filteredData"
         :pending="pending"
         :sections-filter="selectedSections"

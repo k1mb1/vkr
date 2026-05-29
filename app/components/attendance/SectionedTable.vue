@@ -253,7 +253,8 @@ const sections = computed<AttSection[]>(() => {
   })
 })
 
-const isEmpty = computed(() => sections.value.length === 0 || lessons.value.length === 0)
+const isEmpty = computed(() => sections.value.length === 0)
+const hasAnyLessons = computed(() => lessons.value.length > 0)
 </script>
 
 <template>
@@ -295,7 +296,16 @@ const isEmpty = computed(() => sections.value.length === 0 || lessons.value.leng
           <UBadge variant="subtle" color="neutral" :label="`${section.students.length}`" />
         </div>
 
+        <UAlert
+          v-if="section.columns.length <= 1"
+          color="neutral"
+          variant="soft"
+          icon="i-lucide-info"
+          :title="hasAnyLessons ? 'Нет занятий по выбранному фильтру' : 'Для этой группы пока нет занятий'"
+        />
+
         <UTable
+          v-else
           :data="section.students"
           :columns="section.columns"
           :loading="pending && section.students.length === 0"

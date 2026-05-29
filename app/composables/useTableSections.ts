@@ -1,7 +1,7 @@
 export interface SectionKey {
   key: string
   label: string
-  groupId?: string
+  groupId: string
   subgroupId?: string
   subgroupIndex?: number
 }
@@ -14,11 +14,13 @@ interface SectionInput {
 }
 
 export function sectionKeyOf(s: SectionInput): SectionKey {
-  const key = `${s.groupName ?? 'Без группы'}|${s.subgroupIndex ?? ''}`
+  const groupId = s.groupId!
+  const groupName = s.groupName!
+  const key = `${groupId}|${s.subgroupIndex ?? ''}`
   const label = s.subgroupIndex
-    ? `${s.groupName ?? 'Без группы'} — Подгруппа ${s.subgroupIndex}`
-    : `${s.groupName ?? 'Без группы'} — Вся группа`
-  return { key, label, groupId: s.groupId, subgroupId: s.subgroupId, subgroupIndex: s.subgroupIndex }
+    ? `${groupName} — Подгруппа ${s.subgroupIndex}`
+    : `${groupName} — Вся группа`
+  return { key, label, groupId, subgroupId: s.subgroupId, subgroupIndex: s.subgroupIndex }
 }
 
 interface ScopeLike {
@@ -30,9 +32,7 @@ interface ScopeLike {
 export function scopeVisibleForSection(scope: ScopeLike, section: SectionKey): boolean {
   if (scope.allGroups)
     return true
-  if (!section.groupId || !scope.groupId)
-    return false
-  if (scope.groupId !== section.groupId)
+  if (!scope.groupId || scope.groupId !== section.groupId)
     return false
   if (scope.allowedSubgroupId == null)
     return true
