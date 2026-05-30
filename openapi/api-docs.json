@@ -15,8 +15,6 @@
   ],
   "security": [{ "bearerAuth": [] }],
   "tags": [
-    { "name": "Lesson scopes", "description": "Операции над scope занятия" },
-    { "name": "Grades", "description": "Оценивание" },
     {
       "name": "Teacher Subject Permissions",
       "description": "Права преподавателей на предметы"
@@ -29,12 +27,18 @@
       "name": "Check-in sessions",
       "description": "Опросы по посещаемости (преподавательская сторона)"
     },
-    { "name": "Subgroups", "description": "Управление подгруппами" },
     { "name": "Groups", "description": "Управление группами и их составом" },
+    { "name": "Assignments", "description": "Задания для оценивания" },
+    {
+      "name": "Subject penalty policy",
+      "description": "Политика понижения балла за просрочку (расчёт на фронте)"
+    },
+    { "name": "Lesson scopes", "description": "Операции над scope занятия" },
+    { "name": "Grades", "description": "Оценивание" },
+    { "name": "Subgroups", "description": "Управление подгруппами" },
     { "name": "Subjects", "description": "Управление предметами" },
     { "name": "Lessons", "description": "Управление занятиями и расписанием" },
     { "name": "Teachers", "description": "Управление преподавателями" },
-    { "name": "Assignments", "description": "Задания для оценивания" },
     { "name": "Attendances", "description": "Посещаемость" }
   ],
   "paths": {
@@ -77,6 +81,70 @@
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/ErrorDto" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/penalty-policy/subjects/{subjectId}": {
+      "get": {
+        "tags": ["Subject penalty policy"],
+        "summary": "Получить политику понижения балла предмета",
+        "operationId": "getPenaltyPolicy",
+        "parameters": [
+          {
+            "name": "subjectId",
+            "in": "path",
+            "description": "ID предмета",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PenaltyPolicyResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["Subject penalty policy"],
+        "summary": "Задать/обновить политику понижения балла предмета",
+        "description": "enabled=false выключает фичу. При enabled=true обязательны все параметры.",
+        "operationId": "updatePenaltyPolicy",
+        "parameters": [
+          {
+            "name": "subjectId",
+            "in": "path",
+            "description": "ID предмета",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "description": "Параметры политики понижения",
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/PenaltyPolicyRequest" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PenaltyPolicyResponse"
+                }
               }
             }
           }
@@ -997,6 +1065,44 @@
         }
       }
     },
+    "/api/lessons/{id}/active": {
+      "patch": {
+        "tags": ["Lessons"],
+        "summary": "Пометить занятие активным (текущим) или снять отметку",
+        "description": "Активное занятие — точка отсчёта для понижения балла. Не более одного активного на предмет.",
+        "operationId": "setActive",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID занятия",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "description": "Флаг активности занятия",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetActiveLessonRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/LessonResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/groups/{id}": {
       "get": {
         "tags": ["Groups"],
@@ -1469,6 +1575,79 @@
           }
         }
       },
+      "PenaltyPolicyRequest": {
+        "type": "object",
+        "description": "Параметры понижения балла за просрочку.\nЕсли enabled = true — остальные поля обязательны (проверяется на сервисе).\nВсе вычисления итогового балла делает фронт, бэкенд только хранит параметры.\n",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Включена ли фича понижения балла"
+          },
+          "operation": {
+            "type": "string",
+            "description": "Операция понижения: SUBTRACT (вычитание) или MULTIPLY (умножение)",
+            "enum": ["SUBTRACT", "MULTIPLY"]
+          },
+          "step": {
+            "type": "number",
+            "description": "Шаг понижения: вычитаемые баллы (SUBTRACT) либо множитель, напр. 0.5 (MULTIPLY)",
+            "minimum": 0.0
+          },
+          "gracePeriodLessons": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Через сколько занятий после активного начинается первое понижение",
+            "minimum": 0
+          },
+          "intervalLessons": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Через сколько занятий применяется каждое следующее понижение",
+            "minimum": 1
+          },
+          "maxReductions": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Максимальное число понижений",
+            "minimum": 1
+          }
+        },
+        "required": ["enabled"]
+      },
+      "PenaltyPolicyResponse": {
+        "type": "object",
+        "description": "Параметры понижения балла за просрочку (расчёт выполняется на фронте)",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Включена ли фича понижения балла"
+          },
+          "operation": {
+            "type": "string",
+            "description": "Операция понижения: SUBTRACT или MULTIPLY",
+            "enum": ["SUBTRACT", "MULTIPLY"]
+          },
+          "step": {
+            "type": "number",
+            "description": "Шаг понижения: вычитаемые баллы или множитель"
+          },
+          "gracePeriodLessons": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Через сколько занятий после активного начинается первое понижение"
+          },
+          "intervalLessons": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Через сколько занятий применяется каждое следующее понижение"
+          },
+          "maxReductions": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Максимальное число понижений"
+          }
+        }
+      },
       "BulkReplaceLessonScopesRequest": {
         "type": "object",
         "description": "Массовая замена scope'ов занятий (PUT).\nКаждый элемент — полное целевое состояние scope с указанным id.\naudience=null означает allGroups=true; иначе — конкретная группа [+ подгруппа].\nВ одном запросе можно править scope'ы разных уроков.\n",
@@ -1623,6 +1802,10 @@
             "description": "Порядковый номер занятия в рамках (предмет, тип)"
           },
           "topic": { "type": "string", "description": "Тема занятия" },
+          "active": {
+            "type": "boolean",
+            "description": "Активное (текущее) занятие — точка отсчёта для понижения балла. Не более одного на предмет"
+          },
           "scopes": {
             "type": "array",
             "description": "Список проведений занятия (группа/подгруппа + дата)",
@@ -1749,10 +1932,15 @@
             "format": "uuid",
             "description": "ID задания (null = оценка вне задания)"
           },
+          "awardedLessonId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Занятие, на момент которого выставлена оценка (точка отсчёта понижения). null — активного занятия не было. Снижение фронт считает по этой ячейке отдельно."
+          },
           "score": {
             "type": "integer",
             "format": "int32",
-            "description": "Балл"
+            "description": "Балл (сырой, без понижения — понижение применяет фронт)"
           },
           "comment": { "type": "string", "description": "Комментарий" }
         }
@@ -2453,6 +2641,17 @@
         },
         "required": ["name"]
       },
+      "SetActiveLessonRequest": {
+        "type": "object",
+        "description": "Пометить занятие как активное (текущее) или снять отметку.\nactive = true делает занятие активным и снимает флаг с остальных занятий предмета.\n",
+        "properties": {
+          "active": {
+            "type": "boolean",
+            "description": "true — сделать активным, false — снять отметку"
+          }
+        },
+        "required": ["active"]
+      },
       "StudentPatchRequest": {
         "type": "object",
         "description": "Данные студента для обновления состава группы",
@@ -2636,6 +2835,10 @@
             "description": "Порядковый номер занятия в рамках (предмет, тип)"
           },
           "topic": { "type": "string", "description": "Тема" },
+          "active": {
+            "type": "boolean",
+            "description": "Активное (текущее) занятие — точка отсчёта для понижения балла"
+          },
           "scopes": {
             "type": "array",
             "description": "Проведения этого занятия для соответствующих групп",
@@ -2647,6 +2850,10 @@
         "type": "object",
         "description": "Таблица оценок: студенты × (задания + extra-колонка) с существующими ячейками",
         "properties": {
+          "penaltyPolicy": {
+            "$ref": "#/components/schemas/PenaltyPolicyResponse",
+            "description": "Политика понижения балла предмета. Если enabled=true — фронт по каждой ячейке считает снижение от awardedLessonId до занятия задания."
+          },
           "audience": {
             "type": "array",
             "description": "Аудитория таблицы — группы/подгруппы из scope'ов разрешения. Пустой список при allPermissions=true: клиент должен взять группы из subject.groups.",
