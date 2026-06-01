@@ -425,6 +425,22 @@ async function handleConfirm() {
         </template>
 
         <div class="grid gap-4 sm:grid-cols-2">
+          <div class="col-span-full flex flex-col gap-1">
+            <span class="text-muted text-xs uppercase tracking-wide">Аудитория</span>
+            <div v-if="session.audience?.length" class="flex flex-wrap gap-1">
+              <UBadge
+                v-for="scope in session.audience"
+                :key="`${scope.groupId}-${scope.allowedSubgroupId ?? 'all'}`"
+                color="neutral"
+                variant="subtle"
+                :label="scope.allowedSubgroupIndex
+                  ? `${scope.groupName} / п.${scope.allowedSubgroupIndex}`
+                  : scope.groupName ?? '—'"
+              />
+            </div>
+            <span v-else class="text-sm text-muted">—</span>
+          </div>
+
           <div class="flex flex-col gap-1">
             <span class="text-muted text-xs uppercase tracking-wide">Основное окно</span>
             <div class="flex items-center gap-2">

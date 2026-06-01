@@ -27,6 +27,11 @@ watch(permissionId, (pid) => {
     refresh()
 }, { immediate: true })
 
+const { data: attendancePolicy } = useBackend('/api/attendance-policy/subjects/{subjectId}', {
+  method: 'GET',
+  path: computed(() => ({ subjectId: subjectId.value })),
+})
+
 // ── Filters ──────────────────────────────────────────────
 
 const typeFilter = ref<'ALL' | LessonType>('ALL')
@@ -125,6 +130,7 @@ const filteredData = computed<AttendanceTableResponse | null>(() => {
         :data="filteredData"
         :pending="pending"
         :sections-filter="selectedSections"
+        :attendance-policy="attendancePolicy"
         empty-description="Для отображения посещаемости нужны и студенты, и занятия."
       />
     </div>

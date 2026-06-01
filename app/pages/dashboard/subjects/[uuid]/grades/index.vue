@@ -123,6 +123,7 @@ const filteredData = computed<GradingTableResponse | null>(() => {
       <GradesSectionedTable
         v-else
         :data="filteredData"
+        :all-lessons="data?.lessons"
         :pending="pending"
         :sections-filter="selectedSections"
         empty-description="Для отображения оценок нужны и студенты, и занятия."

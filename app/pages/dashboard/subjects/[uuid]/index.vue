@@ -30,6 +30,12 @@ const cards = computed(() => {
       icon: 'i-lucide-graduation-cap',
       to: `/dashboard/subjects/${subjectId.value}/grades`,
     },
+    {
+      label: 'Итоговые оценки',
+      description: 'Сводная таблица итоговых баллов по студентам',
+      icon: 'i-lucide-trophy',
+      to: `/dashboard/subjects/${subjectId.value}/final`,
+    },
   ]
 
   if (import.meta.dev) {

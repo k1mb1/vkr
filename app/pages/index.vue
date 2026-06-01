@@ -313,7 +313,7 @@ const faqItems = computed(() => [
       :description="t('faq.description')"
       orientation="horizontal"
     >
-      <UPageAccordion :items="faqItems" />
+      <UAccordion :items="faqItems" />
     </UPageSection>
 
     <UPageSection>

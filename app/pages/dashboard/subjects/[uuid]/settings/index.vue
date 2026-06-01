@@ -15,9 +15,15 @@ const cards = computed<PageCardProps[]>(() => [
   },
   {
     to: `/dashboard/subjects/${subjectId.value}/settings/penalty-policy`,
-    title: 'Политика понижения балла за просрочку',
-    description: 'Настройка правил начисления штрафов за просроченные задания',
+    title: 'Политика понижения / повышения балла',
+    description: 'Настройка штрафов за просрочку и бонусов за досрочную сдачу',
     icon: 'i-lucide-gavel',
+  },
+  {
+    to: `/dashboard/subjects/${subjectId.value}/settings/attendance-policy`,
+    title: 'Политика учёта посещаемости',
+    description: 'Баллы за присутствие, опоздание и отсутствие на занятиях',
+    icon: 'i-lucide-calendar-check',
   },
 ])
 </script>

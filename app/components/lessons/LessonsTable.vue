@@ -17,7 +17,7 @@ const emit = defineEmits<{
 }>()
 
 function shouldSpan(lesson: LessonResponse) {
-  return !lesson.scopes?.length || !!lesson.scopes[0]?.allGroups
+  return !lesson.scopes?.length
 }
 
 const { hasAllPermissions } = usePermissions()
@@ -124,9 +124,50 @@ async function handleDeleteAssignments() {
   )
 }
 
+const { loading: settingActive, submit: submitSetActive } = useFormSubmit()
+const setActiveModal = ref(false)
+const setActiveTarget = ref<LessonResponse | null>(null)
+
+function openSetActiveModal(lesson: LessonResponse) {
+  setActiveTarget.value = lesson
+  setActiveModal.value = true
+}
+
+function closeSetActiveModal() {
+  setActiveModal.value = false
+  setActiveTarget.value = null
+}
+
+async function handleSetActive() {
+  if (!setActiveTarget.value?.id)
+    return
+  const isActive = setActiveTarget.value.active
+  await submitSetActive(
+    () => $backend('/api/lessons/{id}/active', {
+      method: 'PATCH',
+      path: { id: setActiveTarget.value!.id! },
+      body: { active: !isActive },
+    }),
+    {
+      successMessage: isActive ? 'Активное занятие снято' : 'Занятие отмечено как активное',
+      onSuccess: () => {
+        closeSetActiveModal()
+        emit('refresh')
+      },
+    },
+  )
+}
+
 function lessonActions(lesson: LessonResponse): DropdownMenuItem[][] {
   return [
     [
+      ...(lesson.type === 'PRACTICE'
+        ? [{
+            label: lesson.active ? 'Снять активное' : 'Сделать активным',
+            icon: lesson.active ? 'i-lucide-circle-minus' : 'i-lucide-circle-play',
+            onSelect: () => openSetActiveModal(lesson),
+          }]
+        : []),
       {
         label: 'Редактировать',
         icon: 'i-lucide-square-pen',
@@ -181,7 +222,19 @@ function lessonActions(lesson: LessonResponse): DropdownMenuItem[][] {
       :loading="loading && data.length === 0"
       sticky
       class="w-full"
+      :ui="{ tr: 'hover:bg-elevated/50 transition-colors' }"
+      :row-class="(row: LessonResponse) => row.active ? 'bg-primary/5 !hover:bg-primary/10' : ''"
     >
+      <!-- orderIndex — показываем иконку активного -->
+      <template #orderIndex-cell="{ row }">
+        <div class="flex items-center gap-1.5">
+          <span class="tabular-nums text-sm">{{ row.original.orderIndex }}</span>
+          <UTooltip v-if="row.original.active" text="Активное занятие (точка отсчёта штрафа)">
+            <span class="i-lucide-circle-play w-3.5 h-3.5 text-primary shrink-0" />
+          </UTooltip>
+        </div>
+      </template>
+
       <!-- Тип -->
       <template #type-cell="{ row }">
         <UBadge
@@ -193,26 +246,26 @@ function lessonActions(lesson: LessonResponse): DropdownMenuItem[][] {
 
       <!-- Группы -->
       <template #scopes-cell="{ row }">
-        <template v-if="shouldSpan(row.original)">
+        <span v-if="shouldSpan(row.original)" class="text-sm text-muted">—</span>
+
+        <div v-else class="flex flex-col gap-1">
           <UBadge
             v-if="row.original.scopes?.[0]?.allGroups"
             label="Все группы"
             color="primary"
             variant="outline"
           />
-          <span v-else class="text-sm text-muted">—</span>
-        </template>
-
-        <div v-else class="flex flex-col gap-1">
-          <UBadge
-            v-for="scope in row.original.scopes"
-            :key="scope.id"
-            :label="scope.allowedSubgroupIndex
-              ? `${scope.groupName} / п.${scope.allowedSubgroupIndex}`
-              : scope.groupName ?? ''"
-            color="neutral"
-            variant="subtle"
-          />
+          <template v-else>
+            <UBadge
+              v-for="scope in row.original.scopes"
+              :key="scope.id"
+              :label="scope.allowedSubgroupIndex
+                ? `${scope.groupName} / п.${scope.allowedSubgroupIndex}`
+                : scope.groupName ?? ''"
+              color="neutral"
+              variant="subtle"
+            />
+          </template>
         </div>
       </template>
 
@@ -283,6 +336,20 @@ function lessonActions(lesson: LessonResponse): DropdownMenuItem[][] {
         />
       </template>
     </UTable>
+
+    <ConfirmModal
+      :open="setActiveModal"
+      :title="setActiveTarget?.active ? 'Снять активное занятие' : 'Сделать занятие активным'"
+      :description="setActiveTarget?.active
+        ? `Занятие «${setActiveTarget?.topic ?? `№${setActiveTarget?.orderIndex}`}» больше не будет точкой отсчёта штрафа. Штрафы будут пересчитаны.`
+        : `Занятие «${setActiveTarget?.topic ?? `№${setActiveTarget?.orderIndex}`}» станет точкой отсчёта для расчёта штрафа. Предыдущее активное занятие того же типа будет снято.`"
+      :confirm-label="setActiveTarget?.active ? 'Снять' : 'Сделать активным'"
+      :confirm-color="setActiveTarget?.active ? 'neutral' : 'primary'"
+      :confirm-icon="setActiveTarget?.active ? 'i-lucide-circle-minus' : 'i-lucide-circle-play'"
+      :pending="settingActive"
+      @close="closeSetActiveModal"
+      @confirm="handleSetActive"
+    />
 
     <ConfirmModal
       :open="deleteLessonModal"

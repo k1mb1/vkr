@@ -3,6 +3,8 @@ import type { TableColumn } from '@nuxt/ui'
 import type { components } from '#open-fetch-schemas/backend'
 import type { SectionKey } from '~/composables/useTableSections'
 import { h, resolveComponent } from 'vue'
+import { useGridCellNav } from '~/composables/useGridCellNav'
+import { applyBonus, applyPenalty, computeBonusCount, computePenaltyCount } from '~/composables/usePenalty'
 import { groupBySection } from '~/composables/useTableSections'
 
 type GradingTableResponse = components['schemas']['GradingTableResponse']
@@ -26,12 +28,15 @@ const props = withDefaults(defineProps<{
   emptyDescription?: string
   editable?: boolean
   pendingChanges?: Record<string, PendingGrade>
+  allLessons?: GradingTableLesson[]
+  tableMaxHeight?: string
 }>(), {
   pending: false,
   showLegend: true,
   emptyDescription: 'Для отображения оценок нужны и студенты, и занятия.',
   editable: false,
   pendingChanges: () => ({}),
+  tableMaxHeight: 'calc(100vh - 18rem)',
 })
 
 const emit = defineEmits<{
@@ -41,6 +46,16 @@ const emit = defineEmits<{
 const UBadge = resolveComponent('UBadge')
 const UButton = resolveComponent('UButton')
 const UTooltip = resolveComponent('UTooltip')
+
+const { onKeydown } = useGridCellNav()
+
+const tableUi = {
+  thead: 'bg-elevated/60',
+  tfoot: 'bg-elevated/60 border-t border-default',
+  tr: 'group hover:bg-elevated/50 transition-colors',
+  th: 'px-3 py-3 text-sm text-highlighted text-center font-semibold border-r border-default last:border-r-0 [&:has([role=checkbox])]:pe-0',
+  td: 'p-3 text-sm text-muted whitespace-nowrap text-center border-r border-default last:border-r-0 [&:has([role=checkbox])]:pe-0',
+} as const
 
 const students = computed<GradingTableStudent[]>(() => props.data?.students ?? [])
 
@@ -88,6 +103,38 @@ const gradeIndex = computed<Map<string, GradeCellResponse>>(() => {
   return map
 })
 
+const penaltyCountMap = computed<Map<string, number>>(() => {
+  const map = new Map<string, number>()
+  const policy = props.data?.penaltyPolicy
+  if (!policy?.enabled)
+    return map
+  for (const grade of props.data?.grades ?? []) {
+    if (!grade.studentId)
+      continue
+    const key = grade.assignmentId
+      ? `${grade.studentId}:${grade.assignmentId}`
+      : `${grade.studentId}:${grade.lessonId}:extra`
+    map.set(key, computePenaltyCount(policy, grade.lessonsOffset))
+  }
+  return map
+})
+
+const bonusCountMap = computed<Map<string, number>>(() => {
+  const map = new Map<string, number>()
+  const policy = props.data?.penaltyPolicy
+  if (!policy?.bonusEnabled)
+    return map
+  for (const grade of props.data?.grades ?? []) {
+    if (!grade.studentId)
+      continue
+    const key = grade.assignmentId
+      ? `${grade.studentId}:${grade.assignmentId}`
+      : `${grade.studentId}:${grade.lessonId}:extra`
+    map.set(key, computeBonusCount(policy, grade.lessonsOffset))
+  }
+  return map
+})
+
 // ─── edit modal ───────────────────────────────────────────────────────────────
 
 interface EditTarget {
@@ -103,6 +150,7 @@ interface EditTarget {
   serverComment?: string
   score: number | null
   comment: string
+  lessonsOffset?: number | null
 }
 
 const editTarget = ref<EditTarget | null>(null)
@@ -133,6 +181,7 @@ function openEdit(params: {
     serverComment: server?.comment,
     score: draft?.score ?? server?.score ?? assignment?.maxPoints ?? null,
     comment: draft?.comment ?? server?.comment ?? '',
+    lessonsOffset: server?.lessonsOffset,
   }
 }
 
@@ -157,6 +206,30 @@ function saveEdit() {
   closeEdit()
 }
 
+const editTargetPenaltyCount = computed(() => {
+  const policy = props.data?.penaltyPolicy
+  if (!policy?.enabled || editTarget.value?.lessonsOffset == null)
+    return 0
+  return computePenaltyCount(policy, editTarget.value.lessonsOffset)
+})
+
+const editTargetBonusCount = computed(() => {
+  const policy = props.data?.penaltyPolicy
+  if (!policy?.bonusEnabled || editTarget.value?.lessonsOffset == null)
+    return 0
+  return computeBonusCount(policy, editTarget.value.lessonsOffset)
+})
+
+const editTargetFinalScore = computed(() => {
+  if (!editTarget.value || editTarget.value.score == null)
+    return null
+  const policy = props.data?.penaltyPolicy
+  if (!policy)
+    return editTarget.value.score
+  const afterPenalty = applyPenalty(editTarget.value.score, editTargetPenaltyCount.value, policy)
+  return applyBonus(afterPenalty, editTargetBonusCount.value, policy)
+})
+
 const editInvalid = computed(() => {
   const t = editTarget.value
   if (!t || t.score == null || t.score <= 0 || !Number.isInteger(t.score))
@@ -169,11 +242,6 @@ const editInvalid = computed(() => {
 const lessonTypeLabel: Record<NonNullable<GradingTableLesson['type']>, string> = {
   LECTURE: 'Лекция',
   PRACTICE: 'Практика',
-}
-
-const lessonTypeIcon: Record<NonNullable<GradingTableLesson['type']>, string> = {
-  LECTURE: 'i-lucide-presentation',
-  PRACTICE: 'i-lucide-flask-conical',
 }
 
 function formatLessonDate(lesson: GradingTableLesson): string {
@@ -212,43 +280,99 @@ function renderScoreCell(opts: {
   serverComment: string | undefined
   draftComment: string | undefined
   baseColor: 'primary' | 'neutral' | 'warning'
+  penaltyCount?: number
+  bonusCount?: number
+  required?: boolean
+  maxPoints?: number
   onClick?: () => void
 }) {
-  const { serverScore, draftScore, serverComment, draftComment, baseColor, onClick } = opts
-  const effective = draftScore ?? serverScore
+  const { serverScore, draftScore, serverComment, draftComment, baseColor, penaltyCount, bonusCount, required, maxPoints, onClick } = opts
+  const original = draftScore ?? serverScore
   const isDirty = draftScore != null && draftScore !== serverScore
   const effectiveComment = (draftComment ?? serverComment)?.trim() || undefined
+  const policy = props.data?.penaltyPolicy
+
+  // Обязательное задание не выполнено полностью: нет оценки или меньше максимума.
+  const requiredMissing = required && original == null
+  const requiredPartial = required && original != null && maxPoints != null && original < maxPoints
+
+  let adjusted = original
+  if (original != null && policy) {
+    const afterPenalty = applyPenalty(original, penaltyCount ?? 0, policy)
+    adjusted = applyBonus(afterPenalty, bonusCount ?? 0, policy)
+  }
+
+  const hasAdjustment = original != null && adjusted != null && adjusted !== original
 
   const tooltipParts: string[] = []
   if (isDirty)
     tooltipParts.push('Не сохранено')
+  if (hasAdjustment) {
+    tooltipParts.push(`Исходный: ${original}`)
+    if (penaltyCount && penaltyCount > 0)
+      tooltipParts.push(`Понижений: ${penaltyCount}`)
+    if (bonusCount && bonusCount > 0)
+      tooltipParts.push(`Бонусов: ${bonusCount}`)
+  }
+  if (requiredMissing)
+    tooltipParts.push('Обязательное не выполнено')
+  else if (requiredPartial)
+    tooltipParts.push(`Обязательное выполнено не полностью (${original}/${maxPoints})`)
   if (effectiveComment)
     tooltipParts.push(effectiveComment)
   const tooltipText = tooltipParts.length ? tooltipParts.join(' · ') : undefined
 
-  const badge = effective == null
-    ? h('span', { class: 'text-muted/50 text-xs select-none' }, effectiveComment ? '💬' : '·')
-    : h(UBadge, {
-        variant: isDirty ? 'solid' : 'soft',
-        color: baseColor,
-        label: String(effective),
-        trailingIcon: effectiveComment ? 'i-lucide-message-square' : undefined,
-        class: 'tabular-nums font-semibold',
-      })
+  const adjustedLabel = String(Math.round((adjusted ?? 0) * 10) / 10)
+  const isBonus = (bonusCount ?? 0) > 0 && (penaltyCount ?? 0) === 0
+
+  const badge = original == null
+    ? requiredMissing
+      ? h('span', { class: 'i-lucide-circle-alert w-4 h-4 text-error/70' })
+      : h('span', { class: 'text-muted/50 text-xs select-none' }, effectiveComment ? '💬' : '·')
+    : hasAdjustment
+      ? h('div', { class: 'flex flex-col items-center leading-tight gap-0.5' }, [
+          h('span', { class: 'text-sm font-semibold tabular-nums text-default' }, String(original)),
+          h('span', { class: `text-[10px] font-medium tabular-nums ${isBonus ? 'text-success' : 'text-error'}` }, adjustedLabel),
+        ])
+      : isDirty
+        ? h(UBadge, {
+            variant: 'solid',
+            color: requiredPartial ? 'warning' : baseColor,
+            label: String(original),
+            leadingIcon: requiredPartial ? 'i-lucide-triangle-alert' : undefined,
+            trailingIcon: effectiveComment ? 'i-lucide-message-square' : undefined,
+            class: 'tabular-nums font-semibold',
+          })
+        : h('div', { class: 'flex items-center justify-center gap-0.5' }, [
+            requiredPartial ? h('span', { class: 'i-lucide-triangle-alert w-3.5 h-3.5 text-warning shrink-0' }) : null,
+            h('span', { class: `tabular-nums font-semibold ${requiredPartial ? 'text-warning' : 'text-default'}` }, String(original)),
+            effectiveComment ? h('span', { class: 'i-lucide-message-square w-3 h-3 text-muted/60 shrink-0' }) : null,
+          ])
+
+  // Подсветка обязательного, выполненного не полностью — в любом режиме.
+  const highlightClass = requiredMissing
+    ? 'ring-1 ring-error/40 rounded bg-error/5'
+    : requiredPartial
+      ? 'ring-1 ring-warning/40 rounded bg-warning/5'
+      : ''
 
   const trigger = onClick
     ? h(UButton, {
-        variant: 'ghost',
-        color: 'neutral',
-        size: 'xs',
-        square: effective == null,
-        class: [
+        'variant': 'ghost',
+        'color': 'neutral',
+        'size': 'xs',
+        'square': original == null,
+        'data-cell-nav': 'true',
+        'class': [
           'min-h-[28px] min-w-[40px] justify-center',
           isDirty ? 'ring-1 ring-primary/60 ring-offset-1 ring-offset-default rounded' : '',
+          highlightClass,
         ],
         onClick,
       }, () => badge)
-    : badge
+    : highlightClass
+      ? h('div', { class: ['inline-flex min-h-[28px] min-w-[40px] items-center justify-center', highlightClass] }, [badge])
+      : badge
 
   if (!tooltipText)
     return trigger
@@ -265,14 +389,14 @@ function buildAssignmentColumn(
   return {
     id: assignment.id!,
     header: () =>
-      h('div', { class: 'flex flex-col items-center gap-1 py-0.5' }, [
-        h('span', { class: 'text-sm font-bold text-highlighted' }, `№${assignment.order}`),
+      h('div', { class: 'flex flex-col items-center gap-0.5 py-0.5' }, [
         h('div', { class: 'flex items-center gap-1' }, [
-          h('span', { class: 'text-[10px] text-muted tabular-nums' }, `${assignment.maxPoints} б`),
+          h('span', { class: 'text-sm font-semibold text-highlighted' }, `№${assignment.order}`),
           assignment.required
-            ? h(UBadge, { size: 'xs', variant: 'solid', color: 'error', label: 'req' })
+            ? h('span', { class: 'text-error font-semibold', title: 'Обязательное задание' }, '*')
             : null,
         ]),
+        h('span', { class: 'text-[10px] text-muted tabular-nums' }, `${assignment.maxPoints} б`),
       ]),
     cell: ({ row }) => {
       const student = row.original as GradingTableStudent
@@ -285,16 +409,23 @@ function buildAssignmentColumn(
         serverComment: g?.comment,
         draftComment: draft?.comment,
         baseColor: assignment.required ? 'primary' : 'neutral',
+        penaltyCount: penaltyCountMap.value.get(key),
+        bonusCount: bonusCountMap.value.get(key),
+        required: assignment.required,
+        maxPoints: assignment.maxPoints,
         onClick: props.editable
           ? () => openEdit({ student, lesson, assignment })
           : undefined,
       })
     },
-    footer: () => h(
-      'span',
-      { class: 'tabular-nums font-semibold text-default' },
-      String(sumAssignmentScores(sectionStudents, assignment.id!)),
-    ),
+    footer: () => {
+      const sum = sumAssignmentScores(sectionStudents, assignment.id!)
+      const max = (assignment.maxPoints ?? 0) * sectionStudents.filter(s => !!s.id).length
+      return h('span', { class: 'tabular-nums', title: 'Сумма / максимум по группе' }, [
+        h('span', { class: 'font-semibold text-default' }, String(sum)),
+        max > 0 ? h('span', { class: 'text-muted/70' }, `/${max}`) : null,
+      ])
+    },
     meta: { class: { th: 'min-w-[80px] text-center', td: 'min-w-[80px] text-center p-1' } },
   }
 }
@@ -323,6 +454,8 @@ function buildExtraColumn(
         serverComment: g?.comment,
         draftComment: draft?.comment,
         baseColor: 'warning',
+        penaltyCount: penaltyCountMap.value.get(key),
+        bonusCount: bonusCountMap.value.get(key),
         onClick: props.editable
           ? () => openEdit({ student, lesson })
           : undefined,
@@ -341,28 +474,25 @@ function buildLessonGroupColumn(
   lesson: GradingTableLesson,
   childCols: TableColumn<GradingTableStudent>[],
 ): TableColumn<GradingTableStudent> {
-  const typeColor = lesson.type === 'LECTURE' ? 'primary' : 'secondary'
-  const typeIcon = lesson.type ? lessonTypeIcon[lesson.type] : undefined
   const baseLabel = lesson.type ? lessonTypeLabel[lesson.type] : '—'
   const typeLabel = lesson.orderIndex ? `${baseLabel} №${lesson.orderIndex}` : baseLabel
 
   return {
     id: `lesson-${lesson.id}`,
     header: () =>
-      h('div', { class: 'flex flex-col items-center gap-1.5 py-1' }, [
-        // Тип занятия
-        h(UBadge, {
-          variant: 'subtle',
-          color: typeColor,
-          label: typeLabel,
-          ...(typeIcon ? { leadingIcon: typeIcon } : {}),
-          size: 'md',
-        }),
-        // Дата
-        h('div', { class: 'flex items-center gap-1 text-muted text-xs' }, [
-          h('span', { class: 'i-lucide-calendar-days w-3 h-3 shrink-0' }),
-          h('span', { class: 'tabular-nums font-medium' }, formatLessonDate(lesson)),
+      h('div', { class: 'flex flex-col items-center gap-1 py-1' }, [
+        // Тип занятия + метка активного
+        h('div', { class: 'flex items-center gap-1' }, [
+          h('span', { class: 'text-sm font-semibold text-highlighted' }, typeLabel),
+          lesson.active
+            ? h('span', {
+                class: 'i-lucide-circle-play w-3.5 h-3.5 text-primary shrink-0',
+                title: 'Активное занятие — точка отсчёта штрафа',
+              })
+            : null,
         ]),
+        // Дата
+        h('span', { class: 'text-xs text-muted tabular-nums' }, formatLessonDate(lesson)),
         // Тема
         lesson.topic
           ? h(
@@ -376,7 +506,7 @@ function buildLessonGroupColumn(
           : null,
       ]),
     columns: childCols,
-    meta: { class: { th: 'text-center border-x border-default' } },
+    meta: { class: { th: `text-center border-x border-default${lesson.active ? ' bg-primary/5' : ''}` } },
   }
 }
 
@@ -384,6 +514,17 @@ function buildLessonGroupColumn(
 
 function effectiveScoreFor(key: string): number | undefined {
   return props.pendingChanges[key]?.score ?? gradeIndex.value.get(key)?.score
+}
+
+function effectivePenalizedScoreFor(key: string): number | undefined {
+  const original = effectiveScoreFor(key)
+  if (original == null)
+    return undefined
+  const count = penaltyCountMap.value.get(key) ?? 0
+  const policy = props.data?.penaltyPolicy
+  if (!policy?.enabled || count <= 0)
+    return original
+  return applyPenalty(original, count, policy)
 }
 
 function sumAssignmentScores(
@@ -394,7 +535,7 @@ function sumAssignmentScores(
   for (const s of students) {
     if (!s.id)
       continue
-    const v = effectiveScoreFor(`${s.id}:${assignmentId}`)
+    const v = effectivePenalizedScoreFor(`${s.id}:${assignmentId}`)
     if (typeof v === 'number')
       total += v
   }
@@ -409,7 +550,7 @@ function sumExtraScores(
   for (const s of students) {
     if (!s.id)
       continue
-    const v = effectiveScoreFor(`${s.id}:${lessonId}:extra`)
+    const v = effectivePenalizedScoreFor(`${s.id}:${lessonId}:extra`)
     if (typeof v === 'number')
       total += v
   }
@@ -418,13 +559,48 @@ function sumExtraScores(
 
 type GradeCategory = 'required' | 'optional' | 'extra'
 
-const categoryMeta: Record<GradeCategory, { label: string, short: string, color: 'primary' | 'neutral' | 'warning' }> = {
-  required: { label: 'Обязательные', short: 'Обяз.', color: 'primary' },
-  optional: { label: 'Необязательные', short: 'Необяз.', color: 'neutral' },
-  extra: { label: 'Дополнительные', short: 'Доп.', color: 'warning' },
+const categoryMeta: Record<GradeCategory, { label: string, short: string }> = {
+  required: { label: 'Обязательные', short: 'Обяз.' },
+  optional: { label: 'Необязательные', short: 'Необяз.' },
+  extra: { label: 'Дополнительные', short: 'Доп.' },
 }
 
 function studentCategorySum(
+  student: GradingTableStudent,
+  lessons: GradingTableLesson[],
+  category: GradeCategory,
+): number {
+  const studentId = student.id
+  if (!studentId)
+    return 0
+  let total = 0
+  for (const lesson of lessons) {
+    if (!lesson.id)
+      continue
+    if (category === 'extra') {
+      const v = effectivePenalizedScoreFor(`${studentId}:${lesson.id}:extra`)
+      if (typeof v === 'number')
+        total += v
+      continue
+    }
+    const assignments = assignmentsByLesson.value.get(lesson.id) ?? []
+    for (const a of assignments) {
+      if (!a.id)
+        continue
+      const isReq = !!a.required
+      if (category === 'required' && !isReq)
+        continue
+      if (category === 'optional' && isReq)
+        continue
+      const v = effectivePenalizedScoreFor(`${studentId}:${a.id}`)
+      if (typeof v === 'number')
+        total += v
+    }
+  }
+  return total
+}
+
+function rawCategorySum(
   student: GradingTableStudent,
   lessons: GradingTableLesson[],
   category: GradeCategory,
@@ -489,32 +665,75 @@ function buildCategoryTotalColumn(
   return {
     id: `student-total-${category}`,
     header: () =>
-      h('div', { class: 'flex flex-col items-center gap-1 py-0.5' }, [
-        h(UBadge, {
-          variant: 'subtle',
-          color: meta.color,
-          label: meta.short,
-          size: 'sm',
-        }),
+      h('div', { class: 'flex flex-col items-center py-0.5' }, [
+        h('span', { class: 'font-semibold text-highlighted' }, meta.short),
         maxPerStudent > 0
           ? h('span', { class: 'text-[10px] text-muted tabular-nums' }, `до ${maxPerStudent}`)
           : null,
       ]),
     cell: ({ row }) => {
       const n = studentCategorySum(row.original, sectionLessons, category)
-      return h(
-        'span',
-        { class: n > 0 ? 'tabular-nums font-semibold text-default' : 'tabular-nums text-muted/50' },
-        String(n),
-      )
+      const rawN = rawCategorySum(row.original, sectionLessons, category)
+      const r = (v: number) => Math.round(v * 10) / 10
+      const incomplete = category === 'required' && maxPerStudent > 0 && rawN < maxPerStudent
+      const hasAdjustment = r(n) !== r(rawN)
+
+      const scoreEl = hasAdjustment
+        ? h('div', { class: 'flex flex-col items-center leading-tight gap-0.5' }, [
+            h('span', { class: 'tabular-nums font-semibold text-default' }, String(r(rawN))),
+            h('span', { class: `text-[10px] font-medium tabular-nums ${n > rawN ? 'text-success' : 'text-error'}` }, String(r(n))),
+          ])
+        : h('span', { class: n > 0 ? 'tabular-nums font-semibold text-default' : 'tabular-nums text-muted/50' }, String(r(n)))
+
+      if (!incomplete)
+        return scoreEl
+
+      return h('div', {
+        class: 'flex items-center justify-center gap-1',
+        title: `Обязательное выполнено не полностью (${r(rawN)}/${maxPerStudent})`,
+      }, [
+        h('span', { class: 'i-lucide-triangle-alert w-3.5 h-3.5 text-warning shrink-0' }),
+        scoreEl,
+      ])
     },
     footer: () => {
       let total = 0
       for (const s of sectionStudents)
         total += studentCategorySum(s, sectionLessons, category)
-      return h('span', { class: 'tabular-nums font-bold text-highlighted' }, String(total))
+      return h('span', { class: 'tabular-nums font-bold text-highlighted' }, String(Math.round(total * 10) / 10))
     },
     meta: { class: { th: 'min-w-[72px] text-center', td: 'min-w-[72px] text-center' } },
+  }
+}
+
+function studentGrandTotal(student: GradingTableStudent, lessons: GradingTableLesson[]): number {
+  return (
+    studentCategorySum(student, lessons, 'required')
+    + studentCategorySum(student, lessons, 'optional')
+    + studentCategorySum(student, lessons, 'extra')
+  )
+}
+
+function buildGrandTotalColumn(
+  sectionLessons: GradingTableLesson[],
+  sectionStudents: GradingTableStudent[],
+): TableColumn<GradingTableStudent> {
+  return {
+    id: 'student-grand-total',
+    header: () => h('span', { class: 'font-bold text-highlighted' }, 'Итого'),
+    cell: ({ row }) => {
+      const n = studentGrandTotal(row.original, sectionLessons)
+      return h(
+        'span',
+        { class: 'tabular-nums font-bold text-default' },
+        String(Math.round(n * 10) / 10),
+      )
+    },
+    footer: () => {
+      const total = sectionStudents.reduce((sum, s) => sum + studentGrandTotal(s, sectionLessons), 0)
+      return h('span', { class: 'tabular-nums font-bold text-default' }, String(Math.round(total * 10) / 10))
+    },
+    meta: { class: { th: 'min-w-[80px] text-center', td: 'min-w-[80px] text-center' } },
   }
 }
 
@@ -540,8 +759,8 @@ const sections = computed<GradeSection[]>(() => {
         footer: () => h('span', { class: 'font-semibold text-default' }, 'Итого по группе'),
         meta: {
           class: {
-            th: 'min-w-[220px] sticky left-0 z-10 bg-default',
-            td: 'min-w-[220px] sticky left-0 z-10 bg-default',
+            th: 'min-w-[220px] sticky left-0 z-10 bg-default text-left',
+            td: 'min-w-[220px] sticky left-0 z-10 bg-default text-left group-hover:bg-elevated/50 transition-colors',
           },
         },
       },
@@ -570,6 +789,8 @@ const sections = computed<GradeSection[]>(() => {
     for (const cat of categories)
       cols.push(buildCategoryTotalColumn(cat, sectionLessons, sortedStudents))
 
+    cols.push(buildGrandTotalColumn(sectionLessons, sortedStudents))
+
     return {
       ...meta,
       students: sortedStudents,
@@ -580,21 +801,29 @@ const sections = computed<GradeSection[]>(() => {
 
 const isEmpty = computed(() => sections.value.length === 0)
 const hasAnyLessons = computed(() => lessons.value.length > 0)
+
+const fullscreenSectionKey = ref<string | null>(null)
+const fullscreenSection = computed(() =>
+  sections.value.find(s => s.key === fullscreenSectionKey.value) ?? null,
+)
 </script>
 
 <template>
   <div class="flex flex-col gap-4">
     <!-- Legend -->
-    <div v-if="showLegend" class="flex flex-wrap items-center gap-2 text-xs text-muted">
-      <span class="font-medium">Легенда:</span>
-      <UBadge variant="subtle" color="error" label="req" size="xs" />
-      <span class="text-muted">— обязательное задание</span>
-      <UBadge variant="soft" color="primary" label="5" class="tabular-nums" />
-      <span class="text-muted">/ обязательное</span>
-      <UBadge variant="soft" color="neutral" label="3" class="tabular-nums" />
-      <span class="text-muted">/ необязательное</span>
-      <UBadge variant="soft" color="warning" label="2" class="tabular-nums" />
-      <span class="text-muted">/ дополнительные</span>
+    <div v-if="showLegend" class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
+      <span><span class="text-error font-semibold">*</span> — обязательное задание</span>
+      <span><span class="text-warning font-semibold">8</span> <span class="line-through">10</span> — с понижением</span>
+      <span><span class="text-success font-semibold">12</span> <span class="line-through">10</span> — с бонусом</span>
+      <span class="flex items-center gap-1"><span class="i-lucide-circle-alert w-3.5 h-3.5 text-error/70" /> — обязательное не выполнено</span>
+      <span class="flex items-center gap-1"><span class="i-lucide-triangle-alert w-3.5 h-3.5 text-warning" /> — выполнено не полностью</span>
+      <span v-if="editable" class="flex items-center gap-1 ml-auto">
+        <UKbd value="←" />
+        <UKbd value="↑" />
+        <UKbd value="↓" />
+        <UKbd value="→" />
+        — навигация по ячейкам
+      </span>
     </div>
 
     <!-- Empty state -->
@@ -619,6 +848,16 @@ const hasAnyLessons = computed(() => lessons.value.length > 0)
             {{ section.label }}
           </h3>
           <UBadge variant="subtle" color="neutral" :label="`${section.students.length}`" />
+          <UButton
+            v-if="section.columns.length > 1"
+            icon="i-lucide-maximize-2"
+            color="neutral"
+            variant="ghost"
+            size="xs"
+            title="На весь экран"
+            class="ml-auto"
+            @click="fullscreenSectionKey = section.key"
+          />
         </div>
 
         <UAlert
@@ -637,13 +876,10 @@ const hasAnyLessons = computed(() => lessons.value.length > 0)
           loading-color="primary"
           loading-animation="carousel"
           sticky
-          class="max-h-[calc(100vh-18rem)] rounded-lg border border-default"
-          :ui="{
-            thead: 'bg-elevated/60',
-            tfoot: 'bg-elevated/60 border-t border-default',
-            th: 'px-3 py-3 text-sm text-highlighted text-left font-semibold border-r border-default last:border-r-0 [&:has([role=checkbox])]:pe-0',
-            td: 'p-3 text-sm text-muted whitespace-nowrap border-r border-default last:border-r-0 [&:has([role=checkbox])]:pe-0',
-          }"
+          :style="{ maxHeight: props.tableMaxHeight }"
+          class="rounded-lg border border-default"
+          :ui="tableUi"
+          @keydown.capture="onKeydown"
         >
           <template #username-cell="{ row }">
             <span
@@ -656,6 +892,38 @@ const hasAnyLessons = computed(() => lessons.value.length > 0)
         </UTable>
       </section>
     </template>
+
+    <UModal
+      :open="fullscreenSection !== null"
+      fullscreen
+      :title="fullscreenSection?.label ?? ''"
+      @update:open="(v) => { if (!v) fullscreenSectionKey = null }"
+    >
+      <template #body>
+        <UTable
+          v-if="fullscreenSection"
+          :data="fullscreenSection.students"
+          :columns="fullscreenSection.columns"
+          :loading="pending && fullscreenSection.students.length === 0"
+          loading-color="primary"
+          loading-animation="carousel"
+          sticky
+          style="max-height: calc(100vh - 8rem)"
+          class="rounded-lg border border-default"
+          :ui="tableUi"
+          @keydown.capture="onKeydown"
+        >
+          <template #username-cell="{ row }">
+            <span
+              :title="(row.original as GradingTableStudent).username ?? ''"
+              class="line-clamp-1 font-medium text-highlighted"
+            >
+              {{ (row.original as GradingTableStudent).username ?? '—' }}
+            </span>
+          </template>
+        </UTable>
+      </template>
+    </UModal>
 
     <UModal
       :open="editTarget !== null"
@@ -693,6 +961,21 @@ const hasAnyLessons = computed(() => lessons.value.length > 0)
               <span class="text-muted">Сохранённый балл</span>
               <span class="tabular-nums text-default">{{ editTarget.serverScore }}</span>
             </div>
+            <div v-if="editTargetPenaltyCount > 0" class="flex justify-between gap-2">
+              <span class="text-muted">Понижений</span>
+              <span class="tabular-nums text-default">{{ editTargetPenaltyCount }}</span>
+            </div>
+            <div v-if="editTargetBonusCount > 0" class="flex justify-between gap-2">
+              <span class="text-muted">Бонусов</span>
+              <span class="tabular-nums text-default">{{ editTargetBonusCount }}</span>
+            </div>
+            <div v-if="editTargetFinalScore != null && (editTargetPenaltyCount > 0 || editTargetBonusCount > 0)" class="flex justify-between gap-2">
+              <span class="text-muted">Итоговый балл</span>
+              <span
+                class="tabular-nums font-semibold"
+                :class="editTargetBonusCount > 0 && editTargetPenaltyCount === 0 ? 'text-success' : 'text-warning'"
+              >{{ Math.round(editTargetFinalScore * 10) / 10 }}</span>
+            </div>
           </div>
 
           <UFormField
@@ -704,17 +987,28 @@ const hasAnyLessons = computed(() => lessons.value.length > 0)
               : undefined"
             required
           >
-            <UInput
-              v-model.number="editTarget.score"
-              type="number"
-              :min="1"
-              :max="editTarget.maxPoints"
-              step="1"
-              placeholder="Балл"
-              autofocus
-              class="w-full"
-              @keydown.enter="saveEdit"
-            />
+            <div class="flex items-center gap-2">
+              <UInput
+                v-model.number="editTarget.score"
+                type="number"
+                :min="1"
+                :max="editTarget.maxPoints"
+                step="1"
+                placeholder="Балл"
+                autofocus
+                class="flex-1"
+                @keydown.enter="saveEdit"
+              />
+              <UButton
+                v-if="editTarget.maxPoints != null"
+                color="neutral"
+                variant="soft"
+                size="sm"
+                :label="`Макс. ${editTarget.maxPoints}`"
+                :disabled="editTarget.score === editTarget.maxPoints"
+                @click="editTarget.score = editTarget.maxPoints ?? null"
+              />
+            </div>
           </UFormField>
 
           <UFormField label="Комментарий">

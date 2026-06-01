@@ -39,6 +39,10 @@
     { "name": "Subjects", "description": "Управление предметами" },
     { "name": "Lessons", "description": "Управление занятиями и расписанием" },
     { "name": "Teachers", "description": "Управление преподавателями" },
+    {
+      "name": "Subject attendance policy",
+      "description": "Связка посещаемости с баллом (расчёт на фронте)"
+    },
     { "name": "Attendances", "description": "Посещаемость" }
   ],
   "paths": {
@@ -387,6 +391,72 @@
                   "items": {
                     "$ref": "#/components/schemas/AttendanceCellResponse"
                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/attendance-policy/subjects/{subjectId}": {
+      "get": {
+        "tags": ["Subject attendance policy"],
+        "summary": "Получить связку посещаемости с баллом предмета",
+        "operationId": "getAttendancePolicy",
+        "parameters": [
+          {
+            "name": "subjectId",
+            "in": "path",
+            "description": "ID предмета",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttendancePolicyResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["Subject attendance policy"],
+        "summary": "Задать/обновить связку посещаемости с баллом",
+        "description": "enabled=false выключает фичу. При enabled=true обязательны все коэффициенты.",
+        "operationId": "updateAttendancePolicy",
+        "parameters": [
+          {
+            "name": "subjectId",
+            "in": "path",
+            "description": "ID предмета",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "description": "Коэффициенты посещаемости",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttendancePolicyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttendancePolicyResponse"
                 }
               }
             }
@@ -1069,7 +1139,7 @@
       "patch": {
         "tags": ["Lessons"],
         "summary": "Пометить занятие активным (текущим) или снять отметку",
-        "description": "Активное занятие — точка отсчёта для понижения балла. Не более одного активного на предмет.",
+        "description": "Активное занятие — точка отсчёта для понижения балла. Не более одного активного на (предмет, тип).",
         "operationId": "setActive",
         "parameters": [
           {
@@ -1577,7 +1647,7 @@
       },
       "PenaltyPolicyRequest": {
         "type": "object",
-        "description": "Параметры понижения балла за просрочку.\nЕсли enabled = true — остальные поля обязательны (проверяется на сервисе).\nВсе вычисления итогового балла делает фронт, бэкенд только хранит параметры.\n",
+        "description": "Параметры понижения балла за просрочку и бонуса за раннюю сдачу.\nЕсли enabled = true — поля понижения обязательны; если bonusEnabled = true — поля бонуса\nобязательны (проверяется на сервисе). Все вычисления итогового балла делает фронт.\n",
         "properties": {
           "enabled": {
             "type": "boolean",
@@ -1610,13 +1680,45 @@
             "format": "int32",
             "description": "Максимальное число понижений",
             "minimum": 1
+          },
+          "bonusEnabled": {
+            "type": "boolean",
+            "description": "Включён ли бонус за раннюю сдачу"
+          },
+          "bonusOperation": {
+            "type": "string",
+            "description": "Операция бонуса: ADD (прибавить) или MULTIPLY (умножить)",
+            "enum": ["ADD", "MULTIPLY"]
+          },
+          "bonusStep": {
+            "type": "number",
+            "description": "Шаг бонуса: прибавляемые баллы (ADD) либо множитель, напр. 1.1 (MULTIPLY)",
+            "minimum": 0.0
+          },
+          "bonusGracePeriodLessons": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Насколько занятий раньше срока нужно сдать, чтобы пошёл бонус",
+            "minimum": 0
+          },
+          "bonusIntervalLessons": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Через сколько занятий раньше применяется каждый следующий бонус",
+            "minimum": 1
+          },
+          "bonusMaxIncreases": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Максимальное число бонусов",
+            "minimum": 1
           }
         },
-        "required": ["enabled"]
+        "required": ["bonusEnabled", "enabled"]
       },
       "PenaltyPolicyResponse": {
         "type": "object",
-        "description": "Параметры понижения балла за просрочку (расчёт выполняется на фронте)",
+        "description": "Параметры понижения за просрочку и бонуса за раннюю сдачу (расчёт на фронте)",
         "properties": {
           "enabled": {
             "type": "boolean",
@@ -1645,6 +1747,34 @@
             "type": "integer",
             "format": "int32",
             "description": "Максимальное число понижений"
+          },
+          "bonusEnabled": {
+            "type": "boolean",
+            "description": "Включён ли бонус за раннюю сдачу"
+          },
+          "bonusOperation": {
+            "type": "string",
+            "description": "Операция бонуса: ADD или MULTIPLY",
+            "enum": ["ADD", "MULTIPLY"]
+          },
+          "bonusStep": {
+            "type": "number",
+            "description": "Шаг бонуса: прибавляемые баллы или множитель"
+          },
+          "bonusGracePeriodLessons": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Насколько занятий раньше срока нужно сдать, чтобы пошёл бонус"
+          },
+          "bonusIntervalLessons": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Через сколько занятий раньше применяется каждый следующий бонус"
+          },
+          "bonusMaxIncreases": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Максимальное число бонусов"
           }
         }
       },
@@ -1804,7 +1934,7 @@
           "topic": { "type": "string", "description": "Тема занятия" },
           "active": {
             "type": "boolean",
-            "description": "Активное (текущее) занятие — точка отсчёта для понижения балла. Не более одного на предмет"
+            "description": "Активное (текущее) занятие — точка отсчёта для понижения балла. Не более одного на (предмет, тип)"
           },
           "scopes": {
             "type": "array",
@@ -1935,7 +2065,12 @@
           "awardedLessonId": {
             "type": "string",
             "format": "uuid",
-            "description": "Занятие, на момент которого выставлена оценка (точка отсчёта понижения). null — активного занятия не было. Снижение фронт считает по этой ячейке отдельно."
+            "description": "Активное занятие (того же типа, что и занятие задания) на момент выставления — для отображения. null — оценка вне задания или активного занятия не было."
+          },
+          "lessonsOffset": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Знаковое смещение сдачи в занятиях своего типа (>0 — позже срока/штраф, <0 — раньше/бонус, 0 — вовремя), зафиксировано при выставлении. null — оценка вне задания или активного занятия не было. Фронт по нему применяет понижение/бонус."
           },
           "score": {
             "type": "integer",
@@ -2006,6 +2141,59 @@
             "enum": ["PRESENT", "ABSENT", "LATE", "EXCUSED"]
           },
           "comment": { "type": "string", "description": "Комментарий" }
+        }
+      },
+      "AttendancePolicyRequest": {
+        "type": "object",
+        "description": "Связка посещаемости с баллом: сколько баллов даёт каждый статус.\nЕсли enabled = true — коэффициенты обязательны (проверяется на сервисе).\nКоэффициенты могут быть отрицательными (штраф). Вклад в итог считает фронт.\n",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Учитывается ли посещаемость в балле"
+          },
+          "pointsPresent": {
+            "type": "number",
+            "description": "Баллы за присутствие (PRESENT)"
+          },
+          "pointsLate": {
+            "type": "number",
+            "description": "Баллы за опоздание (LATE)"
+          },
+          "pointsAbsent": {
+            "type": "number",
+            "description": "Баллы за пропуск без уважительной причины (ABSENT), обычно отрицательные"
+          },
+          "pointsExcused": {
+            "type": "number",
+            "description": "Баллы за пропуск по уважительной причине (EXCUSED)"
+          }
+        },
+        "required": ["enabled"]
+      },
+      "AttendancePolicyResponse": {
+        "type": "object",
+        "description": "Связка посещаемости с баллом (расчёт вклада выполняется на фронте)",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Учитывается ли посещаемость в балле"
+          },
+          "pointsPresent": {
+            "type": "number",
+            "description": "Баллы за присутствие (PRESENT)"
+          },
+          "pointsLate": {
+            "type": "number",
+            "description": "Баллы за опоздание (LATE)"
+          },
+          "pointsAbsent": {
+            "type": "number",
+            "description": "Баллы за пропуск без уважительной причины (ABSENT)"
+          },
+          "pointsExcused": {
+            "type": "number",
+            "description": "Баллы за пропуск по уважительной причине (EXCUSED)"
+          }
         }
       },
       "CreateTeacherSubjectPermissionRequest": {
@@ -2643,7 +2831,7 @@
       },
       "SetActiveLessonRequest": {
         "type": "object",
-        "description": "Пометить занятие как активное (текущее) или снять отметку.\nactive = true делает занятие активным и снимает флаг с остальных занятий предмета.\n",
+        "description": "Пометить занятие как активное (текущее) или снять отметку.\nactive = true делает занятие активным и снимает флаг с остальных занятий того же типа.\n",
         "properties": {
           "active": {
             "type": "boolean",
@@ -2852,7 +3040,18 @@
         "properties": {
           "penaltyPolicy": {
             "$ref": "#/components/schemas/PenaltyPolicyResponse",
-            "description": "Политика понижения балла предмета. Если enabled=true — фронт по каждой ячейке считает снижение от awardedLessonId до занятия задания."
+            "description": "Политика понижения за просрочку и бонуса за раннюю сдачу. Если включена — фронт применяет её к каждой ячейке по её lessonsOffset."
+          },
+          "attendancePolicy": {
+            "$ref": "#/components/schemas/AttendancePolicyResponse",
+            "description": "Связка посещаемости с баллом. Если enabled=true — фронт считает вклад посещаемости по сводке attendance ниже."
+          },
+          "attendance": {
+            "type": "array",
+            "description": "Сводка посещаемости по студентам (по занятиям этой таблицы) для расчёта вклада",
+            "items": {
+              "$ref": "#/components/schemas/StudentAttendanceResponse"
+            }
           },
           "audience": {
             "type": "array",
@@ -2939,6 +3138,37 @@
           "allGroups": {
             "type": "boolean",
             "description": "true = проведение для всех групп"
+          }
+        }
+      },
+      "StudentAttendanceResponse": {
+        "type": "object",
+        "description": "Сводка посещаемости студента по занятиям таблицы (для расчёта вклада на фронте)",
+        "properties": {
+          "studentId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID студента"
+          },
+          "present": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Кол-во присутствий (PRESENT)"
+          },
+          "late": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Кол-во опозданий (LATE)"
+          },
+          "absent": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Кол-во пропусков без причины (ABSENT)"
+          },
+          "excused": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Кол-во пропусков по уважительной причине (EXCUSED)"
           }
         }
       },
@@ -3106,6 +3336,10 @@
             "description": "Порядковый номер занятия в рамках (предмет, тип)"
           },
           "topic": { "type": "string", "description": "Тема" },
+          "active": {
+            "type": "boolean",
+            "description": "Активное (текущее) занятие — точка отсчёта для понижения/бонуса. Не более одного на (предмет, тип)"
+          },
           "groupId": {
             "type": "string",
             "format": "uuid",

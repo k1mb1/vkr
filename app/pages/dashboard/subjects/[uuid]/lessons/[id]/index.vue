@@ -246,6 +246,13 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnloadHan
       :description="lesson?.subjectName ? `Предмет: ${lesson.subjectName}` : undefined"
     >
       <template #links>
+        <UBadge
+          v-if="lesson?.active"
+          label="Активное"
+          icon="i-lucide-circle-play"
+          color="primary"
+          variant="subtle"
+        />
         <UButton
           :to="`/dashboard/subjects/${subjectId}/lessons`"
           icon="i-lucide-arrow-left"

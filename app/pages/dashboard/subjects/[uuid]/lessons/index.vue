@@ -28,6 +28,10 @@ const sortedData = computed<LessonResponse[]>(() =>
 const lectures = computed(() => sortedData.value.filter(l => l.type === 'LECTURE'))
 const practices = computed(() => sortedData.value.filter(l => l.type === 'PRACTICE'))
 
+const activeLesson = computed(() =>
+  sortedData.value.find(l => l.active) ?? null,
+)
+
 const activeTab = ref('all')
 
 const tabs = computed(() => [
@@ -69,7 +73,16 @@ const tabs = computed(() => [
       :description="error.message"
     />
 
-    <ClientOnly v-else>
+    <UAlert
+      v-if="!pending && activeLesson"
+      color="primary"
+      variant="subtle"
+      icon="i-lucide-circle-play"
+      :title="`Активное занятие: ${activeLesson.topic ?? `Практика №${activeLesson.orderIndex}`}`"
+      description="Это занятие — точка отсчёта для расчёта штрафа / бонуса за сроки сдачи."
+    />
+
+    <ClientOnly>
       <UTabs v-model="activeTab" :items="tabs">
         <template #content>
           <LessonsTable

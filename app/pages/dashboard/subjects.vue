@@ -67,6 +67,9 @@ const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
     else if (route.path.includes('/grades')) {
       items.push({ label: 'Оценки', to: `/dashboard/subjects/${uuid.value}/grades` })
     }
+    else if (route.path.includes('/final')) {
+      items.push({ label: 'Итоговые оценки', to: `/dashboard/subjects/${uuid.value}/final` })
+    }
   }
 
   return items
@@ -103,6 +106,12 @@ const toolbarItems = computed<NavigationMenuItem[][]>(() => uuid.value
         icon: 'i-lucide-graduation-cap',
         to: `/dashboard/subjects/${uuid.value}/grades`,
         active: route.path.startsWith(`/dashboard/subjects/${uuid.value}/grades`),
+      },
+      {
+        label: 'Итоговые оценки',
+        icon: 'i-lucide-trophy',
+        to: `/dashboard/subjects/${uuid.value}/final`,
+        active: route.path.startsWith(`/dashboard/subjects/${uuid.value}/final`),
       },
       {
         label: 'Настройки',
