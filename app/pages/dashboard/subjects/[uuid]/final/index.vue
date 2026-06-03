@@ -4,6 +4,8 @@ import type { components } from '#open-fetch-schemas/backend'
 import { h } from 'vue'
 import { applyBonus, applyPenalty, computeBonusCount, computePenaltyCount } from '~/composables/usePenalty'
 import { groupBySection } from '~/composables/useTableSections'
+import type { StudentSummaryRow, SummarySection } from '~/composables/useFinalGradesExport'
+import { useFinalGradesExport } from '~/composables/useFinalGradesExport'
 
 type GradingTableLesson = components['schemas']['GradingTableLesson']
 type AssignmentResponse = components['schemas']['AssignmentResponse']
@@ -12,6 +14,8 @@ type GradeCellResponse = components['schemas']['GradeCellResponse']
 const route = useRoute()
 const subjectId = computed(() => String(route.params.uuid ?? ''))
 const { permissionId } = usePermissions()
+
+const { exportLoading: finalExportLoading, downloadExcel: downloadFinalExcel } = useFinalGradesExport()
 
 const { data, pending, error, refresh } = useBackend('/api/grades', {
   method: 'GET',
@@ -73,25 +77,6 @@ const sortedLessons = computed(() =>
 )
 
 // ─── per-student computation ──────────────────────────────────────────────────
-
-interface StudentSummaryRow {
-  id: string
-  username: string
-  required: number
-  rawRequired: number
-  optional: number
-  rawOptional: number
-  extra: number
-  rawExtra: number
-  attendance: number
-  attPresent: number
-  attLate: number
-  attAbsent: number
-  attExcused: number
-  total: number
-  rawTotal: number
-  rank: number
-}
 
 function effectiveScore(key: string): { score: number, offset: number | null | undefined } {
   const g = gradeIndex.value.get(key)
@@ -201,16 +186,6 @@ function maxRequired(sectionLessons: GradingTableLesson[]): number {
 
 // ─── sections ─────────────────────────────────────────────────────────────────
 
-interface SummarySection {
-  key: string
-  label: string
-  rows: StudentSummaryRow[]
-  maxRequired: number
-  avgTotal: number
-  maxTotal: number
-  minTotal: number
-  hasAttendance: boolean
-}
 
 const sectionOptions = computed(() =>
   groupBySection(data.value?.students ?? []).map(g => ({ label: g.meta.label, value: g.meta.key })),
@@ -445,6 +420,16 @@ function buildColumns(section: SummarySection): TableColumn<StudentSummaryRow>[]
   <div class="flex flex-col gap-6">
     <UPageHeader title="Итоговые оценки">
       <template #links>
+        <UButton
+          icon="i-lucide-file-spreadsheet"
+          color="neutral"
+          variant="ghost"
+          :loading="finalExportLoading"
+          :disabled="!sections.length"
+          @click="downloadFinalExcel(sections)"
+        >
+          Export Excel
+        </UButton>
         <UButton
           icon="i-lucide-refresh-cw"
           color="neutral"
