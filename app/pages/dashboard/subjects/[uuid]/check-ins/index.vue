@@ -28,6 +28,7 @@ const route = useRoute()
 const subjectId = computed(() => String(route.params.uuid ?? ''))
 
 const { permission, scopes: myScopes, permissionId, pending: permissionPending, hasAllPermissions } = usePermissions()
+const { d } = useI18n()
 
 function myScopeForGroup(groupId: string) {
   return myScopes.value.find(s => s.group?.id === groupId)
@@ -136,13 +137,7 @@ const stateColor: Record<CheckInState, 'success' | 'warning' | 'info' | 'neutral
 function formatDateTime(dt: string | undefined): string {
   if (!dt)
     return '—'
-  return new Intl.DateTimeFormat('ru', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(dt))
+  return d(new Date(dt), 'datetime')
 }
 
 function formatMinutes(sec: number | undefined): string {

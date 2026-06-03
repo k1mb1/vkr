@@ -21,8 +21,21 @@ watch(permissionId, (pid) => {
 
 const pending = computed(() => permissionPending.value || lessonsPending.value)
 
+function lessonDate(l: LessonResponse): string | undefined {
+  const dates = (l.scopes ?? [])
+    .map(s => s.startedAt)
+    .filter((d): d is string => !!d)
+  if (!dates.length)
+    return undefined
+  return dates.reduce((min, d) => (d < min ? d : min), dates[0]!)
+}
+
 const sortedData = computed<LessonResponse[]>(() =>
-  [...(data.value ?? [])].sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0)),
+  [...(data.value ?? [])].sort((a, b) => {
+    const at = lessonDate(a) ? new Date(lessonDate(a)!).getTime() : Number.POSITIVE_INFINITY
+    const bt = lessonDate(b) ? new Date(lessonDate(b)!).getTime() : Number.POSITIVE_INFINITY
+    return at - bt || (a.orderIndex ?? 0) - (b.orderIndex ?? 0)
+  }),
 )
 
 const lectures = computed(() => sortedData.value.filter(l => l.type === 'LECTURE'))

@@ -48,6 +48,7 @@ const UButton = resolveComponent('UButton')
 const UTooltip = resolveComponent('UTooltip')
 
 const { onKeydown } = useGridCellNav()
+const { d } = useI18n()
 
 const tableUi = {
   thead: 'bg-elevated/60',
@@ -70,9 +71,9 @@ function lessonDate(l: GradingTableLesson): string | undefined {
 
 const lessons = computed<GradingTableLesson[]>(() =>
   [...(props.data?.lessons ?? [])].sort((a, b) => {
-    const at = lessonDate(a) ? new Date(lessonDate(a)!).getTime() : 0
-    const bt = lessonDate(b) ? new Date(lessonDate(b)!).getTime() : 0
-    return at - bt
+    const at = lessonDate(a) ? new Date(lessonDate(a)!).getTime() : Number.POSITIVE_INFINITY
+    const bt = lessonDate(b) ? new Date(lessonDate(b)!).getTime() : Number.POSITIVE_INFINITY
+    return at - bt || (a.orderIndex ?? 0) - (b.orderIndex ?? 0)
   }),
 )
 
@@ -245,10 +246,10 @@ const lessonTypeLabel: Record<NonNullable<GradingTableLesson['type']>, string> =
 }
 
 function formatLessonDate(lesson: GradingTableLesson): string {
-  const d = lessonDate(lesson)
-  if (!d)
+  const date = lessonDate(lesson)
+  if (!date)
     return '—'
-  return new Intl.DateTimeFormat('ru', { day: '2-digit', month: 'short' }).format(new Date(d))
+  return d(new Date(date), 'dayMonth')
 }
 
 function lessonVisibleForSection(lesson: GradingTableLesson, section: SectionKey): boolean {

@@ -17,6 +17,11 @@ const emit = defineEmits<{
 
 const { $backend } = useNuxtApp()
 const { loading: deleting, submit } = useFormSubmit()
+const { d } = useI18n()
+
+function formatDate(value: string | undefined): string {
+  return value ? d(new Date(value), 'numeric') : '—'
+}
 
 const deleteModal = ref(false)
 const deleteTarget = ref<LessonScopeResponse | null>(null)
@@ -112,7 +117,7 @@ function scopeActions(scope: LessonScopeResponse): DropdownMenuItem[][] {
     </template>
 
     <template #startedAt-cell="{ getValue }">
-      {{ getValue() }}
+      {{ formatDate(getValue<string | undefined>()) }}
     </template>
 
     <template #empty>
@@ -148,7 +153,7 @@ function scopeActions(scope: LessonScopeResponse): DropdownMenuItem[][] {
   <ConfirmModal
     :open="deleteModal"
     title="Удалить проведение"
-    :description="`Проведение от ${deleteTarget?.startedAt ?? ''} будет удалено безвозвратно.`"
+    :description="`Проведение от ${formatDate(deleteTarget?.startedAt)} будет удалено безвозвратно.`"
     confirm-label="Удалить"
     confirm-color="error"
     confirm-icon="i-lucide-trash-2"

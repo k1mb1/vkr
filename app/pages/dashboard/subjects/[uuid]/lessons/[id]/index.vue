@@ -12,6 +12,7 @@ const lessonId = computed(() => String(route.params.id ?? ''))
 const { permissionId, hasAllPermissions } = usePermissions()
 const { $backend } = useNuxtApp()
 const toast = useToast()
+const { d } = useI18n()
 
 // ── Data ────────────────────────────────────────────────────────────────────
 const { data: lesson, pending: lessonPending, error: lessonError } = useBackend('/api/lessons/{id}', {
@@ -50,10 +51,7 @@ const scopeDates = computed<string[]>(() => {
     .map(s => s.startedAt)
     .filter((d): d is string => !!d)
     .sort()
-  if (!dates.length)
-    return []
-  const fmt = new Intl.DateTimeFormat('ru', { day: '2-digit', month: '2-digit', year: 'numeric' })
-  return dates.map(d => fmt.format(new Date(d)))
+  return dates.map(date => d(new Date(date), 'numeric'))
 })
 
 const totalPoints = computed(() =>
@@ -333,11 +331,11 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnloadHan
             <template #description>
               <div v-if="scopeDates.length" class="flex flex-col gap-1">
                 <span
-                  v-for="d in scopeDates"
-                  :key="d"
+                  v-for="date in scopeDates"
+                  :key="date"
                   class="text-default text-sm"
                 >
-                  {{ d }}
+                  {{ date }}
                 </span>
               </div>
               <span v-else class="text-muted text-sm">—</span>

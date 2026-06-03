@@ -16,6 +16,7 @@ const sessionId = computed(() => String(route.params.id ?? ''))
 const { $backend } = useNuxtApp()
 const toast = useToast()
 const { submit } = useFormSubmit()
+const { d } = useI18n()
 
 const {
   data: session,
@@ -366,7 +367,7 @@ function studentStatusLabel(s: Student): string | null {
                 </p>
                 <p v-if="studentStatusLabel(student)" class="text-muted text-xs">
                   {{ studentStatusLabel(student) }}
-                  · {{ student.checkedInAt ? new Date(student.checkedInAt).toLocaleTimeString('ru') : '' }}
+                  · {{ student.checkedInAt ? d(new Date(student.checkedInAt), 'time') : '' }}
                 </p>
               </div>
             </div>

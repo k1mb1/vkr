@@ -66,9 +66,9 @@ function lessonDate(l: GradingTableLesson): string | undefined {
 
 const sortedLessons = computed(() =>
   [...(data.value?.lessons ?? [])].sort((a, b) => {
-    const at = lessonDate(a) ? new Date(lessonDate(a)!).getTime() : 0
-    const bt = lessonDate(b) ? new Date(lessonDate(b)!).getTime() : 0
-    return at - bt
+    const at = lessonDate(a) ? new Date(lessonDate(a)!).getTime() : Number.POSITIVE_INFINITY
+    const bt = lessonDate(b) ? new Date(lessonDate(b)!).getTime() : Number.POSITIVE_INFINITY
+    return at - bt || (a.orderIndex ?? 0) - (b.orderIndex ?? 0)
   }),
 )
 

@@ -21,6 +21,7 @@ function shouldSpan(lesson: LessonResponse) {
 }
 
 const { hasAllPermissions } = usePermissions()
+const { d } = useI18n()
 
 const columns = computed<TableColumn<LessonResponse>[]>(() => {
   const base: TableColumn<LessonResponse>[] = [
@@ -277,7 +278,7 @@ function lessonActions(lesson: LessonResponse): DropdownMenuItem[][] {
             :key="scope.id"
             class="text-sm text-muted"
           >
-            {{ scope.startedAt }}
+            {{ scope.startedAt ? d(new Date(scope.startedAt), 'numeric') : '—' }}
           </span>
         </div>
       </template>

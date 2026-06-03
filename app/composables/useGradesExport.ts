@@ -22,13 +22,6 @@ function lessonDate(l: GradingTableLesson): string | undefined {
   return dates.reduce((min, d) => (d < min ? d : min), dates[0]!)
 }
 
-function formatLessonDate(lesson: GradingTableLesson): string {
-  const d = lessonDate(lesson)
-  if (!d)
-    return '—'
-  return new Intl.DateTimeFormat('ru', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(d))
-}
-
 function formatLessonType(lesson: GradingTableLesson): string {
   const type = lesson.type ? lessonTypeLabel[lesson.type] : '—'
   return lesson.orderIndex ? `${type} №${lesson.orderIndex}` : type
@@ -55,6 +48,14 @@ function lessonVisibleForSection(lesson: GradingTableLesson, section: SectionKey
 
 export function useGradesExport() {
   const exportLoading = ref(false)
+  const { d } = useI18n()
+
+  function formatLessonDate(lesson: GradingTableLesson): string {
+    const date = lessonDate(lesson)
+    if (!date)
+      return '—'
+    return d(new Date(date), 'numeric')
+  }
 
   async function downloadExcel(
     data: GradingTableResponse | null | undefined,
@@ -70,9 +71,9 @@ export function useGradesExport() {
       wb.Props = { Title: 'Оценки', Subject: 'Оценки' }
 
       const lessons = [...data.lessons].sort((a, b) => {
-        const at = lessonDate(a) ? new Date(lessonDate(a)!).getTime() : 0
-        const bt = lessonDate(b) ? new Date(lessonDate(b)!).getTime() : 0
-        return at - bt
+        const at = lessonDate(a) ? new Date(lessonDate(a)!).getTime() : Number.POSITIVE_INFINITY
+        const bt = lessonDate(b) ? new Date(lessonDate(b)!).getTime() : Number.POSITIVE_INFINITY
+        return at - bt || (a.orderIndex ?? 0) - (b.orderIndex ?? 0)
       })
 
       const assignmentsByLesson = new Map<string, AssignmentResponse[]>()

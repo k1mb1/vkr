@@ -20,6 +20,7 @@ const sessionId = computed(() => String(route.params.id ?? ''))
 const { $backend } = useNuxtApp()
 const { toastError } = useApiError()
 const toast = useToast()
+const { d } = useI18n()
 
 const {
   data: session,
@@ -55,14 +56,7 @@ const isAwaiting = computed(() => state.value === 'AWAITING_CONFIRMATION')
 function formatDateTime(dt: string | undefined): string {
   if (!dt)
     return '—'
-  return new Intl.DateTimeFormat('ru', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  }).format(new Date(dt))
+  return d(new Date(dt), 'datetimeSeconds')
 }
 
 // ── Countdown ──────────────────────────────────────────────

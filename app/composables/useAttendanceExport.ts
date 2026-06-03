@@ -20,11 +20,12 @@ const lessonTypeLabel: Record<NonNullable<AttendanceTableLesson['type']>, string
 
 export function useAttendanceExport() {
   const exportLoading = ref(false)
+  const { d } = useI18n()
 
   function formatScopeDate(scope: AttendanceTableLesson): string {
     if (!scope.startedAt)
       return '—'
-    return new Intl.DateTimeFormat('ru', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(scope.startedAt))
+    return d(new Date(scope.startedAt), 'numeric')
   }
 
   function formatLessonType(scope: AttendanceTableLesson): string {
@@ -46,9 +47,9 @@ export function useAttendanceExport() {
       wb.Props = { Title: 'Посещаемость', Subject: 'Посещаемость' }
 
       const lessons = [...data.lessons].sort((a, b) => {
-        const at = a.startedAt ? new Date(a.startedAt).getTime() : 0
-        const bt = b.startedAt ? new Date(b.startedAt).getTime() : 0
-        return at - bt
+        const at = a.startedAt ? new Date(a.startedAt).getTime() : Number.POSITIVE_INFINITY
+        const bt = b.startedAt ? new Date(b.startedAt).getTime() : Number.POSITIVE_INFINITY
+        return at - bt || (a.orderIndex ?? 0) - (b.orderIndex ?? 0)
       })
 
       const cellMap = new Map<string, AttendanceCellResponse>()

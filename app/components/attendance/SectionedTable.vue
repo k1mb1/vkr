@@ -45,6 +45,7 @@ const UDropdownMenu = resolveComponent('UDropdownMenu')
 const UButton = resolveComponent('UButton')
 
 const { onKeydown } = useGridCellNav()
+const { d } = useI18n()
 
 const tableUi = {
   thead: 'bg-elevated/60',
@@ -102,9 +103,9 @@ const students = computed<AttendanceTableStudent[]>(() => props.data?.students ?
 
 const lessons = computed<AttendanceTableLesson[]>(() =>
   [...(props.data?.lessons ?? [])].sort((a, b) => {
-    const at = a.startedAt ? new Date(a.startedAt).getTime() : 0
-    const bt = b.startedAt ? new Date(b.startedAt).getTime() : 0
-    return at - bt
+    const at = a.startedAt ? new Date(a.startedAt).getTime() : Number.POSITIVE_INFINITY
+    const bt = b.startedAt ? new Date(b.startedAt).getTime() : Number.POSITIVE_INFINITY
+    return at - bt || (a.orderIndex ?? 0) - (b.orderIndex ?? 0)
   }),
 )
 
@@ -122,7 +123,7 @@ const cellIndex = computed(() => {
 function formatScopeDate(scope: AttendanceTableLesson): string {
   if (!scope.startedAt)
     return '—'
-  return new Intl.DateTimeFormat('ru', { day: '2-digit', month: 'short' }).format(new Date(scope.startedAt))
+  return d(new Date(scope.startedAt), 'dayMonth')
 }
 
 function formatLessonType(scope: AttendanceTableLesson): string {

@@ -39,6 +39,7 @@ const route = useRoute()
 const subjectId = String(route.params.uuid ?? '')
 
 const { $backend } = useNuxtApp()
+const { d } = useI18n()
 
 const { permission, permissionId, pending: permissionPending } = usePermissions()
 
@@ -64,13 +65,8 @@ function formatScopeAudience(s: LessonScopeResponse): string {
 
 function formatScopeOption(l: LessonResponse, s: LessonScopeResponse): string {
   const parts: string[] = []
-  if (s.startedAt) {
-    parts.push(new Intl.DateTimeFormat('ru', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    }).format(new Date(s.startedAt)))
-  }
+  if (s.startedAt)
+    parts.push(d(new Date(s.startedAt), 'numeric'))
   parts.push(l.type === 'LECTURE' ? 'Лекция' : 'Практика')
   parts.push(formatScopeAudience(s))
   if (l.topic)
