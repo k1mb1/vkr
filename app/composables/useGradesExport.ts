@@ -1,5 +1,6 @@
 import type { components } from '#open-fetch-schemas/backend'
 import type { SectionKey } from '~/composables/useTableSections'
+import { applyBonus, applyPenalty, computeBonusCount, computePenaltyCount } from '~/composables/usePenalty'
 import { groupBySection } from '~/composables/useTableSections'
 
 type GradingTableResponse = components['schemas']['GradingTableResponse']
@@ -97,6 +98,8 @@ export function useGradesExport() {
         gradeMap.set(key, g)
       }
 
+      const policy = data.penaltyPolicy
+
       const grouped = groupBySection(data.students)
       const visibleSections = sectionsFilter
         ? grouped.filter(g => sectionsFilter.includes(g.meta.key))
@@ -143,6 +146,8 @@ export function useGradesExport() {
         }
 
         const rows: (string | number)[][] = []
+        const comments: { r: number, c: number, text: string }[] = []
+
         for (const student of sortedStudents) {
           const row: (string | number)[] = [student.username ?? '']
           for (const lesson of sectionLessons) {
@@ -151,10 +156,42 @@ export function useGradesExport() {
             const assignments = assignmentsByLesson.get(lesson.id) ?? []
             for (const a of assignments) {
               const g = gradeMap.get(`${student.id}:${a.id}`)
-              row.push(g?.score ?? '')
+              let val: string | number = g?.score ?? ''
+              if (g?.score != null && policy) {
+                const penaltyCount = computePenaltyCount(policy, g.lessonsOffset)
+                const bonusCount = computeBonusCount(policy, g.lessonsOffset)
+                const afterPenalty = applyPenalty(g.score, penaltyCount, policy)
+                const finalScore = applyBonus(afterPenalty, bonusCount, policy)
+                if (finalScore !== g.score) {
+                  val = Math.round(finalScore * 10) / 10
+                  const parts: string[] = [`Исходный: ${g.score}`]
+                  if (penaltyCount > 0)
+                    parts.push(`Понижений: ${penaltyCount}`)
+                  if (bonusCount > 0)
+                    parts.push(`Бонусов: ${bonusCount}`)
+                  comments.push({ r: 5 + rows.length, c: row.length, text: parts.join(' · ') })
+                }
+              }
+              row.push(val)
             }
             const extra = gradeMap.get(`${student.id}:${lesson.id}:extra`)
-            row.push(extra?.score ?? '')
+            let extraVal: string | number = extra?.score ?? ''
+            if (extra?.score != null && policy) {
+              const penaltyCount = computePenaltyCount(policy, extra.lessonsOffset)
+              const bonusCount = computeBonusCount(policy, extra.lessonsOffset)
+              const afterPenalty = applyPenalty(extra.score, penaltyCount, policy)
+              const finalScore = applyBonus(afterPenalty, bonusCount, policy)
+              if (finalScore !== extra.score) {
+                extraVal = Math.round(finalScore * 10) / 10
+                const parts: string[] = [`Исходный: ${extra.score}`]
+                if (penaltyCount > 0)
+                  parts.push(`Понижений: ${penaltyCount}`)
+                if (bonusCount > 0)
+                  parts.push(`Бонусов: ${bonusCount}`)
+                comments.push({ r: 5 + rows.length, c: row.length, text: parts.join(' · ') })
+              }
+            }
+            row.push(extraVal)
           }
           rows.push(row)
         }
@@ -169,6 +206,13 @@ export function useGradesExport() {
         ]
 
         const ws = XLSX.utils.aoa_to_sheet(wsData)
+
+        for (const { r, c, text } of comments) {
+          const cellRef = XLSX.utils.encode_cell({ r, c })
+          if (!ws[cellRef])
+            ws[cellRef] = { t: 'n', v: '' }
+          ws[cellRef].c = [{ a: 'Система', t: text }]
+        }
 
         const colWidths = [{ wch: 32 }]
         for (let i = 1; i < assignmentHeaderRow.length; i++)

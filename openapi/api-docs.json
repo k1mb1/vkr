@@ -3271,7 +3271,10 @@
             "format": "uuid",
             "description": "ID студента"
           },
-          "username": { "type": "string", "description": "Имя студента" },
+          "username": {
+            "type": "string",
+            "description": "Маскированное ФИО студента (фамилия + инициалы, напр. «Иванов И. И.») — публичный эндпоинт не отдаёт полное имя в целях защиты персональных данных"
+          },
           "checkedInStatus": {
             "type": "string",
             "description": "Уже отметившийся статус, либо null если ещё не отмечен",
