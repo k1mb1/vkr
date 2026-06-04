@@ -1,35 +1,75 @@
-export interface StudentSummaryRow {
-  id: string
-  username: string
+export interface TypeBreakdown {
   required: number
   rawRequired: number
   optional: number
   rawOptional: number
   extra: number
   rawExtra: number
-  attendance: number
   attPresent: number
   attLate: number
   attAbsent: number
   attExcused: number
+  attendance: number
+  subtotal: number
+  rawSubtotal: number
+}
+
+export interface StudentSummaryRow {
+  id: string
+  username: string
+  lecture: TypeBreakdown
+  practice: TypeBreakdown
   total: number
   rawTotal: number
   rank: number
+}
+
+export interface TypeMaxes {
+  maxRequired: number
+  maxOptional: number
+  maxAttendance: number
+  maxSubtotal: number
+  lessonCount: number
 }
 
 export interface SummarySection {
   key: string
   label: string
   rows: StudentSummaryRow[]
-  maxRequired: number
+  lecture: TypeMaxes
+  practice: TypeMaxes
+  maxPossibleTotal: number
   avgTotal: number
   maxTotal: number
   minTotal: number
   hasAttendance: boolean
 }
 
+interface LeafDesc {
+  label: string
+  sub: string
+  get: (b: TypeBreakdown) => number
+  rawGet?: (b: TypeBreakdown) => number
+}
+
 export function useFinalGradesExport() {
   const exportLoading = ref(false)
+
+  function leafDescriptors(m: TypeMaxes, hasAttendance: boolean): LeafDesc[] {
+    const cols: LeafDesc[] = [
+      { label: 'Обяз.', sub: m.maxRequired > 0 ? `до ${m.maxRequired}` : '', get: b => b.required, rawGet: b => b.rawRequired },
+      { label: 'Необяз.', sub: m.maxOptional > 0 ? `до ${m.maxOptional}` : '', get: b => b.optional, rawGet: b => b.rawOptional },
+      { label: 'Доп.', sub: '', get: b => b.extra, rawGet: b => b.rawExtra },
+      { label: 'П', sub: '', get: b => b.attPresent },
+      { label: 'О', sub: '', get: b => b.attLate },
+      { label: 'Н', sub: '', get: b => b.attAbsent },
+      { label: 'У', sub: '', get: b => b.attExcused },
+    ]
+    if (hasAttendance)
+      cols.push({ label: 'Посещ.', sub: m.maxAttendance > 0 ? `до ${m.maxAttendance}` : '', get: b => b.attendance })
+    cols.push({ label: 'Подитог', sub: m.maxSubtotal > 0 ? `до ${m.maxSubtotal}` : '', get: b => b.subtotal })
+    return cols
+  }
 
   async function downloadExcel(sections: SummarySection[]) {
     if (!sections.length)
@@ -42,56 +82,43 @@ export function useFinalGradesExport() {
       wb.Props = { Title: 'Итоговые оценки', Subject: 'Итоговые оценки' }
 
       for (const section of sections) {
-        const headers: string[] = ['Студент']
-        const subHeaders: (string | number)[] = ['']
+        const lecCols = leafDescriptors(section.lecture, section.hasAttendance)
+        const praCols = leafDescriptors(section.practice, section.hasAttendance)
 
-        headers.push('Обяз.')
-        subHeaders.push(section.maxRequired > 0 ? `до ${section.maxRequired}` : '')
+        // Row 0: title · 1: blank · 2: group row · 3: header · 4: subheader · 5+: data
+        const HEADER_ROWS = 5
+        const pad = (n: number): string[] => Array.from<string>({ length: n }).fill('')
+        const groupRow: string[] = ['']
+        groupRow.push('Лекции', ...pad(lecCols.length - 1))
+        groupRow.push('Практики', ...pad(praCols.length - 1))
+        groupRow.push('Итого')
 
-        headers.push('Необяз.', 'Доп.')
-        subHeaders.push('', '')
-
-        headers.push('П', 'О', 'Н', 'У')
-        subHeaders.push('', '', '', '')
-
-        if (section.hasAttendance) {
-          headers.push('Балл')
-          subHeaders.push('')
-        }
-
-        headers.push('Итого')
-        subHeaders.push('')
+        const headerRow: string[] = ['Студент', ...lecCols.map(c => c.label), ...praCols.map(c => c.label), 'Итого']
+        const subRow: string[] = [
+          '',
+          ...lecCols.map(c => c.sub),
+          ...praCols.map(c => c.sub),
+          section.maxPossibleTotal > 0 ? `до ${section.maxPossibleTotal}` : '',
+        ]
 
         const rows: (string | number)[][] = []
         const comments: { r: number, c: number, text: string }[] = []
 
         for (const student of section.rows) {
           const row: (string | number)[] = [student.username]
-
-          const pushVal = (adjusted: number, raw: number) => {
-            const rounded = Math.round(adjusted * 10) / 10
-            if (adjusted !== raw) {
-              row.push(rounded)
-              comments.push({
-                r: 4 + rows.length,
-                c: row.length - 1,
-                text: `Исходный: ${raw}`,
-              })
-            }
-            else {
-              row.push(rounded)
+          const pushGroup = (b: TypeBreakdown, cols: LeafDesc[]) => {
+            for (const c of cols) {
+              const val = c.get(b)
+              row.push(val)
+              if (c.rawGet) {
+                const raw = c.rawGet(b)
+                if (val !== raw)
+                  comments.push({ r: HEADER_ROWS + rows.length, c: row.length - 1, text: `Исходный: ${raw}` })
+              }
             }
           }
-
-          pushVal(student.required, student.rawRequired)
-          pushVal(student.optional, student.rawOptional)
-          pushVal(student.extra, student.rawExtra)
-
-          row.push(student.attPresent, student.attLate, student.attAbsent, student.attExcused)
-
-          if (section.hasAttendance)
-            row.push(student.attendance)
-
+          pushGroup(student.lecture, lecCols)
+          pushGroup(student.practice, praCols)
           row.push(student.total)
           rows.push(row)
         }
@@ -99,8 +126,9 @@ export function useFinalGradesExport() {
         const wsData: (string | number)[][] = [
           [section.label],
           [],
-          headers,
-          subHeaders,
+          groupRow,
+          headerRow,
+          subRow,
           ...rows,
         ]
 
@@ -113,22 +141,32 @@ export function useFinalGradesExport() {
           ws[cellRef].c = [{ a: 'Система', t: text }]
         }
 
+        const lecStart = 1
+        const lecEnd = lecStart + lecCols.length - 1
+        const praStart = lecEnd + 1
+        const praEnd = praStart + praCols.length - 1
+        const lastCol = praEnd + 1
         ws['!merges'] = [
-          { s: { r: 0, c: 0 }, e: { r: 0, c: headers.length - 1 } },
+          { s: { r: 0, c: 0 }, e: { r: 0, c: lastCol } },
+          { s: { r: 2, c: lecStart }, e: { r: 2, c: lecEnd } },
+          { s: { r: 2, c: praStart }, e: { r: 2, c: praEnd } },
         ]
 
         const colWidths = [{ wch: 32 }]
-        for (let i = 1; i < headers.length; i++)
-          colWidths.push({ wch: 10 })
+        for (let i = 1; i <= lastCol; i++)
+          colWidths.push({ wch: 9 })
         ws['!cols'] = colWidths
 
-        const rowHeights = [{ hpt: 20 }, { hpt: 8 }, { hpt: 18 }, { hpt: 16 }]
+        const rowHeights = [{ hpt: 20 }, { hpt: 8 }, { hpt: 18 }, { hpt: 16 }, { hpt: 14 }]
         for (let i = 0; i < rows.length; i++)
           rowHeights.push({ hpt: 18 })
         ws['!rows'] = rowHeights
 
         XLSX.utils.book_append_sheet(wb, ws, section.label.substring(0, 31))
       }
+
+      if (wb.SheetNames.length === 0)
+        return
 
       const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
       const blob = new Blob([wbout], { type: 'application/octet-stream' })

@@ -1,10 +1,13 @@
 import type { components } from '#open-fetch-schemas/backend'
+import type { SectionKey } from '~/composables/useTableSections'
 import { groupBySection, scopeVisibleForSection } from '~/composables/useTableSections'
 
 type AttendanceTableResponse = components['schemas']['AttendanceTableResponse']
 type AttendanceTableLesson = components['schemas']['AttendanceTableLesson']
 type AttendanceCellResponse = components['schemas']['AttendanceCellResponse']
 type AttendanceStatus = NonNullable<AttendanceCellResponse['status']>
+type LessonType = NonNullable<AttendanceTableLesson['type']>
+type LessonTypeFilter = 'ALL' | LessonType
 
 const statusShort: Record<AttendanceStatus, string> = {
   PRESENT: 'П',
@@ -13,14 +16,19 @@ const statusShort: Record<AttendanceStatus, string> = {
   EXCUSED: 'У',
 }
 
-const lessonTypeLabel: Record<NonNullable<AttendanceTableLesson['type']>, string> = {
+const lessonTypeLabel: Record<LessonType, string> = {
   LECTURE: 'Лекция',
   PRACTICE: 'Практика',
+}
+
+function subgroupLabel(section: SectionKey): string {
+  return section.subgroupIndex ? `Подгруппа ${section.subgroupIndex}` : 'Вся группа'
 }
 
 export function useAttendanceExport() {
   const exportLoading = ref(false)
   const { d } = useI18n()
+  const toast = useToast()
 
   function formatScopeDate(scope: AttendanceTableLesson): string {
     if (!scope.startedAt)
@@ -36,6 +44,7 @@ export function useAttendanceExport() {
   async function downloadExcel(
     data: AttendanceTableResponse | null | undefined,
     sectionsFilter?: string[],
+    lessonType: LessonTypeFilter = 'ALL',
   ) {
     if (!data || !data.students?.length || !data.lessons?.length)
       return
@@ -46,11 +55,13 @@ export function useAttendanceExport() {
       const wb = XLSX.utils.book_new()
       wb.Props = { Title: 'Посещаемость', Subject: 'Посещаемость' }
 
-      const lessons = [...data.lessons].sort((a, b) => {
-        const at = a.startedAt ? new Date(a.startedAt).getTime() : Number.POSITIVE_INFINITY
-        const bt = b.startedAt ? new Date(b.startedAt).getTime() : Number.POSITIVE_INFINITY
-        return at - bt || (a.orderIndex ?? 0) - (b.orderIndex ?? 0)
-      })
+      const lessons = [...data.lessons]
+        .filter(l => lessonType === 'ALL' || l.type === lessonType)
+        .sort((a, b) => {
+          const at = a.startedAt ? new Date(a.startedAt).getTime() : Number.POSITIVE_INFINITY
+          const bt = b.startedAt ? new Date(b.startedAt).getTime() : Number.POSITIVE_INFINITY
+          return at - bt || (a.orderIndex ?? 0) - (b.orderIndex ?? 0)
+        })
 
       const cellMap = new Map<string, AttendanceCellResponse>()
       for (const c of data.attendances ?? []) {
@@ -62,6 +73,36 @@ export function useAttendanceExport() {
       const visibleSections = sectionsFilter
         ? grouped.filter(g => sectionsFilter.includes(g.meta.key))
         : grouped
+
+      // ── Сводный лист «Темы»: тема + группа + подгруппа + дата ──
+      const summaryRows: (string | number)[][] = []
+      for (const { meta } of visibleSections) {
+        const sectionLessons = lessons.filter(sc => scopeVisibleForSection(sc, meta))
+        for (const lesson of sectionLessons) {
+          summaryRows.push([
+            meta.groupName,
+            subgroupLabel(meta),
+            formatLessonType(lesson),
+            formatScopeDate(lesson),
+            lesson.topic ?? '—',
+          ])
+        }
+      }
+      if (summaryRows.length) {
+        const summaryHeader = ['Группа', 'Подгруппа', 'Тип занятия', 'Дата', 'Тема']
+        const summaryData: (string | number)[][] = [
+          ['Темы занятий'],
+          [],
+          summaryHeader,
+          ...summaryRows,
+        ]
+        const summaryWs = XLSX.utils.aoa_to_sheet(summaryData)
+        summaryWs['!cols'] = [{ wch: 22 }, { wch: 16 }, { wch: 16 }, { wch: 12 }, { wch: 50 }]
+        summaryWs['!merges'] = [
+          { s: { r: 0, c: 0 }, e: { r: 0, c: summaryHeader.length - 1 } },
+        ]
+        XLSX.utils.book_append_sheet(wb, summaryWs, 'Темы')
+      }
 
       for (const { meta, items } of visibleSections) {
         const sectionLessons = lessons.filter(sc => scopeVisibleForSection(sc, meta))
@@ -109,6 +150,16 @@ export function useAttendanceExport() {
         ]
 
         XLSX.utils.book_append_sheet(wb, ws, meta.label.substring(0, 31))
+      }
+
+      if (wb.SheetNames.length === 0) {
+        toast.add({
+          title: 'Нет данных для экспорта',
+          description: 'Для выбранных групп и типа занятий нет занятий.',
+          color: 'warning',
+          icon: 'i-lucide-info',
+        })
+        return
       }
 
       const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })

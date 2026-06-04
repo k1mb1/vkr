@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { DropdownMenuItem } from '@nuxt/ui'
 import type { components } from '#open-fetch-schemas/backend'
 import { useGradesExport } from '~/composables/useGradesExport'
 import { groupBySection } from '~/composables/useTableSections'
@@ -62,22 +63,44 @@ const filteredData = computed<GradingTableResponse | null>(() => {
     : (data.value.lessons ?? []).filter(l => l.type === typeFilter.value)
   return { ...data.value, lessons }
 })
+
+// ── Export ───────────────────────────────────────────────
+
+const exportItems = computed<DropdownMenuItem[]>(() => [
+  {
+    label: 'Все занятия',
+    icon: 'i-lucide-layers',
+    onSelect: () => downloadExcel(data.value, selectedSections.value, 'ALL'),
+  },
+  {
+    label: 'Только лекции',
+    icon: 'i-lucide-book-open',
+    onSelect: () => downloadExcel(data.value, selectedSections.value, 'LECTURE'),
+  },
+  {
+    label: 'Только практики',
+    icon: 'i-lucide-pen-line',
+    onSelect: () => downloadExcel(data.value, selectedSections.value, 'PRACTICE'),
+  },
+])
 </script>
 
 <template>
   <div class="flex h-full flex-col gap-6">
     <UPageHeader title="Оценки">
       <template #links>
-        <UButton
-          icon="i-lucide-file-spreadsheet"
-          color="neutral"
-          variant="ghost"
-          :loading="exportLoading"
-          :disabled="!filteredData"
-          @click="downloadExcel(filteredData, selectedSections)"
-        >
-          Export Excel
-        </UButton>
+        <UDropdownMenu :items="exportItems" :ui="{ content: 'w-48' }">
+          <UButton
+            icon="i-lucide-file-spreadsheet"
+            trailing-icon="i-lucide-chevron-down"
+            color="neutral"
+            variant="ghost"
+            :loading="exportLoading"
+            :disabled="!data"
+          >
+            Export Excel
+          </UButton>
+        </UDropdownMenu>
         <UButton
           icon="i-lucide-refresh-cw"
           color="neutral"

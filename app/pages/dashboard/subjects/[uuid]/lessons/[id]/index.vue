@@ -9,7 +9,7 @@ const route = useRoute()
 const subjectId = computed(() => String(route.params.uuid ?? ''))
 const lessonId = computed(() => String(route.params.id ?? ''))
 
-const { permissionId, hasAllPermissions } = usePermissions()
+const { permissionId, hasAllPermissions, scopes } = usePermissions()
 const { $backend } = useNuxtApp()
 const toast = useToast()
 const { d } = useI18n()
@@ -45,6 +45,17 @@ function refreshAll() {
 }
 
 const lessonTypeLabel = (t?: LessonResponse['type']) => t === 'LECTURE' ? 'Лекция' : t === 'PRACTICE' ? 'Практика' : '—'
+
+// Полный доступ либо хотя бы один scope, разрешающий тип этого занятия.
+// Фильтрация по группе/подгруппе уже выполнена бэкендом для текущего permissionId,
+// а сохранение он проверяет повторно, поэтому scoped-преподавателю можно
+// редактировать видимые ему ячейки.
+const canEdit = computed<boolean>(() => {
+  if (hasAllPermissions.value)
+    return true
+  const type = lesson.value?.type
+  return scopes.value.some(s => !s.allowedLessonType || s.allowedLessonType === type)
+})
 
 const scopeDates = computed<string[]>(() => {
   const dates = (lesson.value?.scopes ?? [])
@@ -323,7 +334,18 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnloadHan
                   class="self-start"
                 />
               </div>
-              <span v-else class="text-muted text-sm">—</span>
+              <div v-else class="flex flex-col items-start gap-2">
+                <span class="text-warning text-sm">Проведение не назначено.</span>
+                <UButton
+                  v-if="hasAllPermissions"
+                  size="xs"
+                  color="primary"
+                  variant="subtle"
+                  icon="i-lucide-calendar-plus"
+                  label="Назначить проведение"
+                  @click="navigateTo(`/dashboard/subjects/${subjectId}/lessons/${lessonId}/scopes-create`)"
+                />
+              </div>
             </template>
           </UPageCard>
 
@@ -338,7 +360,7 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnloadHan
                   {{ date }}
                 </span>
               </div>
-              <span v-else class="text-muted text-sm">—</span>
+              <span v-else class="text-warning text-sm">Проведение не назначено.</span>
             </template>
           </UPageCard>
 
@@ -358,7 +380,21 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnloadHan
                 </UTooltip>
                 <span class="text-muted text-xs">Σ {{ totalPoints }}</span>
               </div>
-              <span v-else class="text-muted text-sm">Нет</span>
+              <div v-else class="flex flex-col items-start gap-2">
+                <span class="text-warning text-sm">Задания не назначены — добавьте хотя бы одно задание.</span>
+                <UButton
+                  v-if="hasAllPermissions && lesson"
+                  size="xs"
+                  color="primary"
+                  variant="subtle"
+                  icon="i-lucide-clipboard-list"
+                  label="Добавить задания"
+                  @click="navigateTo({
+                    path: `/dashboard/subjects/${subjectId}/lessons/${lessonId}/assignments-create`,
+                    state: { lesson: JSON.parse(JSON.stringify(lesson)) },
+                  })"
+                />
+              </div>
             </template>
           </UPageCard>
         </UPageGrid>
@@ -372,7 +408,7 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnloadHan
               class="flex-1"
             />
 
-            <div v-if="hasAllPermissions" class="flex items-center gap-2">
+            <div v-if="canEdit" class="flex items-center gap-2">
               <template v-if="activeTab === 'attendance'">
                 <UButton
                   v-if="attendanceDirty > 0"
@@ -420,7 +456,7 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnloadHan
             v-show="activeTab === 'attendance'"
             :data="attData"
             :pending="attPending"
-            :editable="hasAllPermissions"
+            :editable="canEdit"
             :pending-changes="attendanceChanges"
             empty-description="Для этого занятия нет проведений или назначенных студентов."
             @change="onAttendanceChange"
@@ -431,7 +467,7 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnloadHan
             :data="gradesData"
             :pending="gradesPending"
             :lesson-id="lessonId"
-            :editable="hasAllPermissions"
+            :editable="canEdit"
             :pending-changes="gradePendingView"
             empty-description="К занятию не привязаны задания или нет студентов."
             @change="onGradeChange"

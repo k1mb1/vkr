@@ -8,10 +8,16 @@ type GradingTableLesson = components['schemas']['GradingTableLesson']
 type AssignmentResponse = components['schemas']['AssignmentResponse']
 type GradeCellResponse = components['schemas']['GradeCellResponse']
 type Scope = components['schemas']['Scope']
+type LessonType = NonNullable<GradingTableLesson['type']>
+type LessonTypeFilter = 'ALL' | LessonType
 
-const lessonTypeLabel: Record<NonNullable<GradingTableLesson['type']>, string> = {
+const lessonTypeLabel: Record<LessonType, string> = {
   LECTURE: 'Лекция',
   PRACTICE: 'Практика',
+}
+
+function subgroupLabel(section: SectionKey): string {
+  return section.subgroupIndex ? `Подгруппа ${section.subgroupIndex}` : 'Вся группа'
 }
 
 function lessonDate(l: GradingTableLesson): string | undefined {
@@ -50,6 +56,7 @@ function lessonVisibleForSection(lesson: GradingTableLesson, section: SectionKey
 export function useGradesExport() {
   const exportLoading = ref(false)
   const { d } = useI18n()
+  const toast = useToast()
 
   function formatLessonDate(lesson: GradingTableLesson): string {
     const date = lessonDate(lesson)
@@ -61,6 +68,7 @@ export function useGradesExport() {
   async function downloadExcel(
     data: GradingTableResponse | null | undefined,
     sectionsFilter?: string[],
+    lessonType: LessonTypeFilter = 'ALL',
   ) {
     if (!data || !data.students?.length || !data.lessons?.length)
       return
@@ -71,11 +79,13 @@ export function useGradesExport() {
       const wb = XLSX.utils.book_new()
       wb.Props = { Title: 'Оценки', Subject: 'Оценки' }
 
-      const lessons = [...data.lessons].sort((a, b) => {
-        const at = lessonDate(a) ? new Date(lessonDate(a)!).getTime() : Number.POSITIVE_INFINITY
-        const bt = lessonDate(b) ? new Date(lessonDate(b)!).getTime() : Number.POSITIVE_INFINITY
-        return at - bt || (a.orderIndex ?? 0) - (b.orderIndex ?? 0)
-      })
+      const lessons = [...data.lessons]
+        .filter(l => lessonType === 'ALL' || l.type === lessonType)
+        .sort((a, b) => {
+          const at = lessonDate(a) ? new Date(lessonDate(a)!).getTime() : Number.POSITIVE_INFINITY
+          const bt = lessonDate(b) ? new Date(lessonDate(b)!).getTime() : Number.POSITIVE_INFINITY
+          return at - bt || (a.orderIndex ?? 0) - (b.orderIndex ?? 0)
+        })
 
       const assignmentsByLesson = new Map<string, AssignmentResponse[]>()
       for (const a of data.assignments ?? []) {
@@ -104,6 +114,36 @@ export function useGradesExport() {
       const visibleSections = sectionsFilter
         ? grouped.filter(g => sectionsFilter.includes(g.meta.key))
         : grouped
+
+      // ── Сводный лист «Темы»: тема + группа + подгруппа + дата ──
+      const summaryRows: (string | number)[][] = []
+      for (const { meta } of visibleSections) {
+        const sectionLessons = lessons.filter(l => lessonVisibleForSection(l, meta))
+        for (const lesson of sectionLessons) {
+          summaryRows.push([
+            meta.groupName,
+            subgroupLabel(meta),
+            formatLessonType(lesson),
+            formatLessonDate(lesson),
+            lesson.topic ?? '—',
+          ])
+        }
+      }
+      if (summaryRows.length) {
+        const summaryHeader = ['Группа', 'Подгруппа', 'Тип занятия', 'Дата', 'Тема']
+        const summaryData: (string | number)[][] = [
+          ['Темы занятий'],
+          [],
+          summaryHeader,
+          ...summaryRows,
+        ]
+        const summaryWs = XLSX.utils.aoa_to_sheet(summaryData)
+        summaryWs['!cols'] = [{ wch: 22 }, { wch: 16 }, { wch: 16 }, { wch: 12 }, { wch: 50 }]
+        summaryWs['!merges'] = [
+          { s: { r: 0, c: 0 }, e: { r: 0, c: summaryHeader.length - 1 } },
+        ]
+        XLSX.utils.book_append_sheet(wb, summaryWs, 'Темы')
+      }
 
       for (const { meta, items } of visibleSections) {
         const sectionLessons = lessons.filter(l => lessonVisibleForSection(l, meta))
@@ -230,6 +270,16 @@ export function useGradesExport() {
         ]
 
         XLSX.utils.book_append_sheet(wb, ws, meta.label.substring(0, 31))
+      }
+
+      if (wb.SheetNames.length === 0) {
+        toast.add({
+          title: 'Нет данных для экспорта',
+          description: 'Для выбранных групп и типа занятий нет занятий.',
+          color: 'warning',
+          icon: 'i-lucide-info',
+        })
+        return
       }
 
       const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })

@@ -247,7 +247,12 @@ function lessonActions(lesson: LessonResponse): DropdownMenuItem[][] {
 
       <!-- Группы -->
       <template #scopes-cell="{ row }">
-        <span v-if="shouldSpan(row.original)" class="text-sm text-muted">—</span>
+        <UTooltip v-if="shouldSpan(row.original)" text="Проведение не назначено — назначьте проведение">
+          <span class="inline-flex items-center gap-1 text-sm text-warning">
+            <span class="i-lucide-triangle-alert h-3.5 w-3.5 shrink-0" />
+            Проведение не назначено
+          </span>
+        </UTooltip>
 
         <div v-else class="flex flex-col gap-1">
           <UBadge

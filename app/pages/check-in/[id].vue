@@ -316,7 +316,7 @@ function studentStatusLabel(s: Student): string | null {
       />
 
       <UInput
-        v-if="isOpen && !isLocked"
+        v-if="students.length > 0"
         v-model="search"
         icon="i-lucide-search"
         placeholder="Найти себя..."
@@ -332,6 +332,10 @@ function studentStatusLabel(s: Student): string | null {
           />
         </template>
       </UInput>
+
+      <p v-if="search && students.length > 0" class="text-muted text-xs">
+        Найдено: {{ filteredStudents.length }} из {{ students.length }}
+      </p>
 
       <p v-if="isOpen && !isLocked" class="text-muted text-xs">
         Отметиться можно только один раз с устройства.

@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { components } from '#open-fetch-schemas/backend'
+import type { StudentSummaryRow, SummarySection, TypeBreakdown, TypeMaxes } from '~/composables/useFinalGradesExport'
 import { h } from 'vue'
+import { useFinalGradesExport } from '~/composables/useFinalGradesExport'
 import { applyBonus, applyPenalty, computeBonusCount, computePenaltyCount } from '~/composables/usePenalty'
 import { groupBySection } from '~/composables/useTableSections'
-import type { StudentSummaryRow, SummarySection } from '~/composables/useFinalGradesExport'
-import { useFinalGradesExport } from '~/composables/useFinalGradesExport'
 
 type GradingTableLesson = components['schemas']['GradingTableLesson']
 type AssignmentResponse = components['schemas']['AssignmentResponse']
@@ -23,7 +23,20 @@ const { data, pending, error, refresh } = useBackend('/api/grades', {
   immediate: false,
 })
 
-watch(permissionId, pid => pid && refresh(), { immediate: true })
+// Per-lesson attendance (with lesson type) — /api/grades only returns totals
+// aggregated per student, so we need this to split attendance by lesson type.
+const { data: attData, refresh: refreshAttendance } = useBackend('/api/attendances', {
+  method: 'GET',
+  query: computed(() => ({ permissionId: permissionId.value })),
+  immediate: false,
+})
+
+function refreshAll() {
+  refresh()
+  refreshAttendance()
+}
+
+watch(permissionId, pid => pid && refreshAll(), { immediate: true })
 
 // ─── derived maps ─────────────────────────────────────────────────────────────
 
@@ -54,11 +67,49 @@ const gradeIndex = computed<Map<string, GradeCellResponse>>(() => {
   return map
 })
 
-const attendanceByStudent = computed<Map<string, components['schemas']['StudentAttendanceResponse']>>(() => {
-  const map = new Map()
-  for (const a of data.value?.attendance ?? []) {
-    if (a.studentId)
-      map.set(a.studentId, a)
+type TypeKey = 'lecture' | 'practice'
+
+function typeKey(type: string | null | undefined): TypeKey | null {
+  if (type === 'LECTURE')
+    return 'lecture'
+  if (type === 'PRACTICE')
+    return 'practice'
+  return null
+}
+
+interface AttCounts { present: number, late: number, absent: number, excused: number }
+
+// studentId → { lecture, practice } attendance status counts, split by lesson type.
+const attCountsByStudent = computed<Map<string, Record<TypeKey, AttCounts>>>(() => {
+  const scopeType = new Map<string, TypeKey>()
+  for (const l of attData.value?.lessons ?? []) {
+    const k = typeKey(l.type)
+    if (l.id && k)
+      scopeType.set(l.id, k)
+  }
+
+  const blank = (): AttCounts => ({ present: 0, late: 0, absent: 0, excused: 0 })
+  const map = new Map<string, Record<TypeKey, AttCounts>>()
+  for (const c of attData.value?.attendances ?? []) {
+    if (!c.studentId || !c.lessonScopeId || !c.status)
+      continue
+    const k = scopeType.get(c.lessonScopeId)
+    if (!k)
+      continue
+    let rec = map.get(c.studentId)
+    if (!rec) {
+      rec = { lecture: blank(), practice: blank() }
+      map.set(c.studentId, rec)
+    }
+    const bucket = rec[k]
+    if (c.status === 'PRESENT')
+      bucket.present++
+    else if (c.status === 'LATE')
+      bucket.late++
+    else if (c.status === 'ABSENT')
+      bucket.absent++
+    else if (c.status === 'EXCUSED')
+      bucket.excused++
   }
   return map
 })
@@ -100,92 +151,120 @@ function rawScore(key: string): number {
   return effectiveScore(key).score
 }
 
+interface TypeAccum {
+  required: number
+  rawRequired: number
+  optional: number
+  rawOptional: number
+  extra: number
+  rawExtra: number
+}
+
+function emptyAccum(): TypeAccum {
+  return { required: 0, rawRequired: 0, optional: 0, rawOptional: 0, extra: 0, rawExtra: 0 }
+}
+
 function buildStudentRow(
   student: { id?: string, username?: string },
   sectionLessons: GradingTableLesson[],
 ): Omit<StudentSummaryRow, 'rank'> {
   const id = student.id!
-  let required = 0
-  let rawRequired = 0
-  let optional = 0
-  let rawOptional = 0
-  let extra = 0
-  let rawExtra = 0
+  const accum: Record<TypeKey, TypeAccum> = { lecture: emptyAccum(), practice: emptyAccum() }
 
   for (const lesson of sectionLessons) {
     if (!lesson.id)
       continue
+    const tk = typeKey(lesson.type)
+    if (!tk)
+      continue
+    const acc = accum[tk]
     const extraKey = `${id}:${lesson.id}:extra`
-    extra += adjustedScore(extraKey)
-    rawExtra += rawScore(extraKey)
+    acc.extra += adjustedScore(extraKey)
+    acc.rawExtra += rawScore(extraKey)
     for (const a of assignmentsByLesson.value.get(lesson.id) ?? []) {
       if (!a.id)
         continue
       const key = `${id}:${a.id}`
       if (a.required) {
-        required += adjustedScore(key)
-        rawRequired += rawScore(key)
+        acc.required += adjustedScore(key)
+        acc.rawRequired += rawScore(key)
       }
       else {
-        optional += adjustedScore(key)
-        rawOptional += rawScore(key)
+        acc.optional += adjustedScore(key)
+        acc.rawOptional += rawScore(key)
       }
     }
   }
 
   const attPolicy = data.value?.attendancePolicy
-  const attRaw = attendanceByStudent.value.get(id)
-  const attPresent = attRaw?.present ?? 0
-  const attLate = attRaw?.late ?? 0
-  const attAbsent = attRaw?.absent ?? 0
-  const attExcused = attRaw?.excused ?? 0
-  let attendance = 0
-  if (attPolicy?.enabled && attRaw) {
-    attendance = (
-      attPresent * (attPolicy.pointsPresent ?? 0)
-      + attLate * (attPolicy.pointsLate ?? 0)
-      + attAbsent * (attPolicy.pointsAbsent ?? 0)
-      + attExcused * (attPolicy.pointsExcused ?? 0)
-    )
+  const counts = attCountsByStudent.value.get(id)
+  const r = (n: number) => Math.round(n * 10) / 10
+
+  const buildType = (tk: TypeKey): TypeBreakdown => {
+    const acc = accum[tk]
+    const c = counts?.[tk] ?? { present: 0, late: 0, absent: 0, excused: 0 }
+    let attendance = 0
+    if (attPolicy?.enabled) {
+      attendance = (
+        c.present * (attPolicy.pointsPresent ?? 0)
+        + c.late * (attPolicy.pointsLate ?? 0)
+        + c.absent * (attPolicy.pointsAbsent ?? 0)
+        + c.excused * (attPolicy.pointsExcused ?? 0)
+      )
+    }
+    const subtotal = r(acc.required + acc.optional + acc.extra + attendance)
+    const rawSubtotal = r(acc.rawRequired + acc.rawOptional + acc.rawExtra + attendance)
+    return {
+      required: r(acc.required),
+      rawRequired: r(acc.rawRequired),
+      optional: r(acc.optional),
+      rawOptional: r(acc.rawOptional),
+      extra: r(acc.extra),
+      rawExtra: r(acc.rawExtra),
+      attPresent: c.present,
+      attLate: c.late,
+      attAbsent: c.absent,
+      attExcused: c.excused,
+      attendance: r(attendance),
+      subtotal,
+      rawSubtotal,
+    }
   }
 
-  const r = (n: number) => Math.round(n * 10) / 10
-  const total = r(required + optional + extra + attendance)
-  const rawTotal = r(rawRequired + rawOptional + rawExtra + attendance)
+  const lecture = buildType('lecture')
+  const practice = buildType('practice')
   return {
     id,
     username: student.username ?? '—',
-    required: r(required),
-    rawRequired: r(rawRequired),
-    optional: r(optional),
-    rawOptional: r(rawOptional),
-    extra: r(extra),
-    rawExtra: r(rawExtra),
-    attendance: r(attendance),
-    attPresent,
-    attLate,
-    attAbsent,
-    attExcused,
-    total,
-    rawTotal,
+    lecture,
+    practice,
+    total: r(lecture.subtotal + practice.subtotal),
+    rawTotal: r(lecture.rawSubtotal + practice.rawSubtotal),
   }
 }
 
-function maxRequired(sectionLessons: GradingTableLesson[]): number {
-  let max = 0
+function typeMaxes(sectionLessons: GradingTableLesson[], tk: TypeKey, hasAttendance: boolean): TypeMaxes {
+  let maxRequired = 0
+  let maxOptional = 0
+  let lessonCount = 0
   for (const lesson of sectionLessons) {
-    if (!lesson.id)
+    if (!lesson.id || typeKey(lesson.type) !== tk)
       continue
+    lessonCount++
     for (const a of assignmentsByLesson.value.get(lesson.id) ?? []) {
       if (a.required)
-        max += a.maxPoints ?? 0
+        maxRequired += a.maxPoints ?? 0
+      else
+        maxOptional += a.maxPoints ?? 0
     }
   }
-  return max
+  // Max attendance: 1 point per lesson, i.e. the number of lessons of this type.
+  const maxAttendance = hasAttendance ? lessonCount : 0
+  const maxSubtotal = Math.round((maxRequired + maxOptional + maxAttendance) * 10) / 10
+  return { maxRequired, maxOptional, maxAttendance, maxSubtotal, lessonCount }
 }
 
 // ─── sections ─────────────────────────────────────────────────────────────────
-
 
 const sectionOptions = computed(() =>
   groupBySection(data.value?.students ?? []).map(g => ({ label: g.meta.label, value: g.meta.key })),
@@ -245,12 +324,16 @@ const sections = computed<SummarySection[]>(() => {
     const rows: StudentSummaryRow[] = rawRows.map(r => ({ ...r, rank: rankMap.get(r.id) ?? 1 }))
     const totals = rows.map(r => r.total)
     const avgTotal = totals.length ? Math.round((totals.reduce((a, b) => a + b, 0) / totals.length) * 10) / 10 : 0
+    const lecture = typeMaxes(sectionLessons, 'lecture', hasAttendance)
+    const practice = typeMaxes(sectionLessons, 'practice', hasAttendance)
 
     return {
       key: meta.key,
       label: meta.label,
       rows,
-      maxRequired: maxRequired(sectionLessons),
+      lecture,
+      practice,
+      maxPossibleTotal: Math.round((lecture.maxSubtotal + practice.maxSubtotal) * 10) / 10,
       avgTotal,
       maxTotal: totals.length ? Math.max(...totals) : 0,
       minTotal: totals.length ? Math.min(...totals) : 0,
@@ -304,8 +387,112 @@ const fullscreenSection = computed(() =>
   sections.value.find(s => s.key === fullscreenSectionKey.value) ?? null,
 )
 
+function headerWithMax(label: string, max: number, opts?: { bold?: boolean, title?: string }) {
+  return h('div', { class: 'flex flex-col items-center' }, [
+    h('span', { class: opts?.bold ? 'font-bold text-highlighted' : 'font-semibold text-highlighted', title: opts?.title }, label),
+    max > 0
+      ? h('span', { class: 'text-[10px] text-muted tabular-nums' }, `до ${max}`)
+      : null,
+  ])
+}
+
+function sumFooter(key: string, sel: (r: StudentSummaryRow) => number, opts?: { int?: boolean, bold?: boolean }) {
+  const sum = sections.value.find(s => s.key === key)?.rows.reduce((a, r) => a + sel(r), 0) ?? 0
+  const value = opts?.int ? sum : Math.round(sum * 10) / 10
+  return h('span', { class: `tabular-nums ${opts?.bold ? 'font-bold' : 'font-semibold'} text-default` }, String(value))
+}
+
+function avgFooter(key: string, sel: (r: StudentSummaryRow) => number) {
+  const sec = sections.value.find(s => s.key === key)
+  if (!sec || !sec.rows.length)
+    return null
+  const avg = Math.round((sec.rows.reduce((a, r) => a + sel(r), 0) / sec.rows.length) * 10) / 10
+  return h('span', { class: 'tabular-nums font-bold text-default', title: 'Среднее по группе' }, String(avg))
+}
+
+function buildTypeGroup(section: SummarySection, tk: TypeKey, label: string): TableColumn<StudentSummaryRow> {
+  const m: TypeMaxes = section[tk]
+  const pick = (r: StudentSummaryRow): TypeBreakdown => r[tk]
+
+  const leaf: TableColumn<StudentSummaryRow>[] = [
+    {
+      id: `${tk}-required`,
+      header: () => headerWithMax('Обяз.', m.maxRequired),
+      cell: ({ row }) => {
+        const b = pick(row.original)
+        const incomplete = m.maxRequired > 0 && b.rawRequired < m.maxRequired
+        return h('div', {
+          class: 'flex items-center justify-center gap-1',
+          title: incomplete ? `Обязательное выполнено не полностью (${b.required}/${m.maxRequired})` : undefined,
+        }, [
+          incomplete
+            ? h('span', { class: 'i-lucide-triangle-alert w-3.5 h-3.5 text-warning shrink-0' })
+            : null,
+          renderScoreCell(b.required, b.rawRequired),
+        ])
+      },
+      footer: () => sumFooter(section.key, r => pick(r).required),
+      meta: { class: { th: 'min-w-[80px] text-center', td: 'min-w-[80px] text-center py-1.5' } },
+    },
+    {
+      id: `${tk}-optional`,
+      header: () => headerWithMax('Необяз.', m.maxOptional),
+      cell: ({ row }) => renderScoreCell(pick(row.original).optional, pick(row.original).rawOptional),
+      footer: () => sumFooter(section.key, r => pick(r).optional),
+      meta: { class: { th: 'min-w-[80px] text-center', td: 'min-w-[80px] text-center py-1.5' } },
+    },
+    {
+      id: `${tk}-extra`,
+      header: () => h('span', { class: 'font-semibold text-highlighted' }, 'Доп.'),
+      cell: ({ row }) => renderScoreCell(pick(row.original).extra, pick(row.original).rawExtra),
+      footer: () => sumFooter(section.key, r => pick(r).extra),
+      meta: { class: { th: 'min-w-[72px] text-center', td: 'min-w-[72px] text-center py-1.5' } },
+    },
+  ]
+
+  for (const att of ATT_STATUS_COLUMNS) {
+    leaf.push({
+      id: `${tk}-att-${att.key}`,
+      header: () => h('span', { class: `font-semibold ${att.textClass}`, title: att.label }, att.short),
+      cell: ({ row }) => {
+        const n = pick(row.original)[att.field]
+        return h('span', { class: n > 0 ? 'tabular-nums font-semibold text-default' : 'tabular-nums text-muted/50' }, String(n))
+      },
+      footer: () => sumFooter(section.key, r => pick(r)[att.field], { int: true, bold: true }),
+      meta: { class: { th: 'min-w-[52px] text-center', td: 'min-w-[52px] text-center' } },
+    })
+  }
+
+  if (section.hasAttendance) {
+    leaf.push({
+      id: `${tk}-attendance`,
+      header: () => headerWithMax('Посещ.', m.maxAttendance, { title: 'Балл за посещаемость' }),
+      cell: ({ row }) => {
+        const v = pick(row.original).attendance
+        return h('span', { class: v !== 0 ? 'tabular-nums font-semibold text-default' : 'tabular-nums text-muted/50' }, String(v))
+      },
+      footer: () => sumFooter(section.key, r => pick(r).attendance, { bold: true }),
+      meta: { class: { th: 'min-w-[64px] text-center', td: 'min-w-[64px] text-center' } },
+    })
+  }
+
+  leaf.push({
+    id: `${tk}-subtotal`,
+    header: () => headerWithMax('Подитог', m.maxSubtotal, { bold: true }),
+    cell: ({ row }) => h('span', { class: 'tabular-nums font-bold text-default' }, String(pick(row.original).subtotal)),
+    footer: () => avgFooter(section.key, r => pick(r).subtotal),
+    meta: { class: { th: 'min-w-[80px] text-center', td: 'min-w-[80px] text-center py-1.5' } },
+  })
+
+  return {
+    id: tk,
+    header: () => h('span', { class: 'font-bold text-highlighted' }, label),
+    columns: leaf,
+  }
+}
+
 function buildColumns(section: SummarySection): TableColumn<StudentSummaryRow>[] {
-  const cols: TableColumn<StudentSummaryRow>[] = [
+  return [
     {
       accessorKey: 'username',
       header: 'Студент',
@@ -316,103 +503,20 @@ function buildColumns(section: SummarySection): TableColumn<StudentSummaryRow>[]
         },
       },
     },
+    buildTypeGroup(section, 'lecture', 'Лекции'),
+    buildTypeGroup(section, 'practice', 'Практики'),
     {
-      accessorKey: 'required',
-      header: () =>
-        h('div', { class: 'flex flex-col items-center' }, [
-          h('span', { class: 'font-semibold text-highlighted' }, 'Обяз.'),
-          section.maxRequired > 0
-            ? h('span', { class: 'text-[10px] text-muted tabular-nums' }, `до ${section.maxRequired}`)
-            : null,
-        ]),
-      cell: ({ row }) => {
-        const { required: v, rawRequired } = row.original
-        const incomplete = section.maxRequired > 0 && rawRequired < section.maxRequired
-        return h('div', {
-          class: 'flex items-center justify-center gap-1',
-          title: incomplete ? `Обязательное выполнено не полностью (${v}/${section.maxRequired})` : undefined,
-        }, [
-          incomplete
-            ? h('span', { class: 'i-lucide-triangle-alert w-3.5 h-3.5 text-warning shrink-0' })
-            : null,
-          renderScoreCell(v, rawRequired),
-        ])
-      },
-      footer: () => {
-        const sum = sections.value.find(s => s.key === section.key)?.rows.reduce((a, r) => a + r.required, 0) ?? 0
-        return h('span', { class: 'tabular-nums font-semibold text-default' }, String(Math.round(sum * 10) / 10))
-      },
+      accessorKey: 'total',
+      header: () => headerWithMax('Итого', section.maxPossibleTotal, {
+        bold: true,
+        title: section.hasAttendance ? 'Максимум по заданиям и посещаемости' : 'Максимум по обязательным и необязательным заданиям',
+      }),
+      cell: ({ row }) =>
+        h('span', { class: 'tabular-nums font-bold text-default' }, String(row.original.total)),
+      footer: () => avgFooter(section.key, r => r.total),
       meta: { class: { th: 'min-w-[80px] text-center', td: 'min-w-[80px] text-center py-1.5' } },
-    },
-    {
-      accessorKey: 'optional',
-      header: () => h('span', { class: 'font-semibold text-highlighted' }, 'Необяз.'),
-      cell: ({ row }) => renderScoreCell(row.original.optional, row.original.rawOptional),
-      footer: () => {
-        const sum = sections.value.find(s => s.key === section.key)?.rows.reduce((a, r) => a + r.optional, 0) ?? 0
-        return h('span', { class: 'tabular-nums font-semibold text-default' }, String(Math.round(sum * 10) / 10))
-      },
-      meta: { class: { th: 'min-w-[80px] text-center', td: 'min-w-[80px] text-center py-1.5' } },
-    },
-    {
-      accessorKey: 'extra',
-      header: () => h('span', { class: 'font-semibold text-highlighted' }, 'Доп.'),
-      cell: ({ row }) => renderScoreCell(row.original.extra, row.original.rawExtra),
-      footer: () => {
-        const sum = sections.value.find(s => s.key === section.key)?.rows.reduce((a, r) => a + r.extra, 0) ?? 0
-        return h('span', { class: 'tabular-nums font-semibold text-default' }, String(Math.round(sum * 10) / 10))
-      },
-      meta: { class: { th: 'min-w-[72px] text-center', td: 'min-w-[72px] text-center py-1.5' } },
     },
   ]
-
-  for (const att of ATT_STATUS_COLUMNS) {
-    cols.push({
-      id: `att-${att.key}`,
-      header: () => h('span', { class: `font-semibold ${att.textClass}`, title: att.label }, att.short),
-      cell: ({ row }) => {
-        const n = row.original[att.field]
-        return h('span', { class: n > 0 ? 'tabular-nums font-semibold text-default' : 'tabular-nums text-muted/50' }, String(n))
-      },
-      footer: () => {
-        const sum = sections.value.find(s => s.key === section.key)?.rows.reduce((a, r) => a + r[att.field], 0) ?? 0
-        return h('span', { class: 'tabular-nums font-bold text-default' }, String(sum))
-      },
-      meta: { class: { th: 'min-w-[56px] text-center', td: 'min-w-[56px] text-center' } },
-    })
-  }
-
-  if (section.hasAttendance) {
-    cols.push({
-      accessorKey: 'attendance',
-      header: () => h('span', { class: 'font-semibold text-highlighted', title: 'Балл за посещаемость' }, 'Балл'),
-      cell: ({ row }) => {
-        const v = row.original.attendance
-        return h('span', { class: v !== 0 ? 'tabular-nums font-semibold text-default' : 'tabular-nums text-muted/50' }, String(v))
-      },
-      footer: () => {
-        const sum = sections.value.find(s => s.key === section.key)?.rows.reduce((a, r) => a + r.attendance, 0) ?? 0
-        return h('span', { class: 'tabular-nums font-bold text-default' }, String(Math.round(sum * 10) / 10))
-      },
-      meta: { class: { th: 'min-w-[72px] text-center', td: 'min-w-[72px] text-center' } },
-    })
-  }
-
-  cols.push({
-    accessorKey: 'total',
-    header: () => h('span', { class: 'font-bold text-highlighted' }, 'Итого'),
-    cell: ({ row }) =>
-      h('span', { class: 'tabular-nums font-bold text-default' }, String(row.original.total)),
-    footer: () => {
-      const sec = sections.value.find(s => s.key === section.key)
-      if (!sec)
-        return null
-      return h('span', { class: 'tabular-nums font-bold text-default', title: 'Средний балл по группе' }, String(sec.avgTotal))
-    },
-    meta: { class: { th: 'min-w-[80px] text-center', td: 'min-w-[80px] text-center py-1.5' } },
-  })
-
-  return cols
 }
 </script>
 
@@ -435,7 +539,7 @@ function buildColumns(section: SummarySection): TableColumn<StudentSummaryRow>[]
           color="neutral"
           variant="ghost"
           :loading="pending"
-          @click="refresh()"
+          @click="refreshAll()"
         />
       </template>
     </UPageHeader>

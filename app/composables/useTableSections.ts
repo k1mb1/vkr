@@ -2,6 +2,7 @@ export interface SectionKey {
   key: string
   label: string
   groupId: string
+  groupName: string
   subgroupId?: string
   subgroupIndex?: number
 }
@@ -20,7 +21,7 @@ export function sectionKeyOf(s: SectionInput): SectionKey {
   const label = s.subgroupIndex
     ? `${groupName} — Подгруппа ${s.subgroupIndex}`
     : `${groupName} — Вся группа`
-  return { key, label, groupId, subgroupId: s.subgroupId, subgroupIndex: s.subgroupIndex }
+  return { key, label, groupId, groupName, subgroupId: s.subgroupId, subgroupIndex: s.subgroupIndex }
 }
 
 interface ScopeLike {
