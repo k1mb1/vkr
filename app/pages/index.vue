@@ -3,12 +3,28 @@ const { t } = useI18n({
   messages: {
     en: {
       hero: {
+        badge: 'Self-hosted — you own your data',
         title: 'Self-service attendance & grading for university classes',
         description: 'Students check themselves in by scanning a QR code — you just review and confirm. Subjects, lessons, attendance and grades, in one teacher dashboard.',
         signin: 'Sign in',
         how: 'How it works',
       },
+      demo: {
+        subject: 'Programming · Lecture 3',
+        scanHint: 'Scan to check in',
+        live: 'Live',
+        onTime: 'On time',
+        late: 'Late',
+        student1: 'Anna K.',
+        student2: 'Boris M.',
+        student3: 'Clara V.',
+        attendanceTitle: 'Attendance',
+        period: 'Oct — Dec',
+        present: 'Present',
+        absent: 'Absent',
+      },
       features: {
+        headline: 'Features',
         title: 'Built around real lessons',
         description: 'Everything a teacher needs to run a course — from the roll call to the final grade sheet.',
         items: {
@@ -21,7 +37,7 @@ const { t } = useI18n({
             description: 'Generate lessons by count (lectures + practices) or paste a weekly schedule — recurring patterns supported.',
           },
           checkin: {
-            title: 'Живая отметка',
+            title: 'Live check-in',
             description: 'Start a session, students mark themselves in within the on-time and late windows from their phones.',
           },
           attendance: {
@@ -47,8 +63,9 @@ const { t } = useI18n({
         },
       },
       how: {
-        title: 'How presence marking works',
-        description: 'Three steps replace the roll call. No app installs, no accounts for students.',
+        headline: 'How it works',
+        title: 'Three steps replace the roll call',
+        description: 'No app installs, no accounts for students. Just a QR code and a link.',
         steps: {
           start: {
             title: 'Start the session',
@@ -64,7 +81,16 @@ const { t } = useI18n({
           },
         },
       },
+      detail_checkin: {
+        title: 'QR check-in in seconds',
+        description: 'Project the code or share the link. Students scan, tap, and done — their status appears in your dashboard in real time. No registration, no passwords, no friction.',
+      },
+      detail_attendance: {
+        title: 'Attendance grid at a glance',
+        description: 'All students and all lessons in one sortable matrix. Green for present, red for absent, yellow for late. Click any cell to override, add a comment, or fix a mistake.',
+      },
       faq: {
+        headline: 'FAQ',
         title: 'Frequently asked questions',
         description: 'Quick answers to what teachers ask before their first session.',
         items: {
@@ -98,12 +124,28 @@ const { t } = useI18n({
     },
     ru: {
       hero: {
+        badge: 'Свой сервер — данные под контролем',
         title: 'Самостоятельная отметка и оценивание студентов',
         description: 'Студенты отмечаются сами — по QR-коду или ссылке. Вы только проверяете и подтверждаете. Предметы, занятия, посещаемость и оценки — в одном кабинете преподавателя.',
         signin: 'Войти',
         how: 'Как это работает',
       },
+      demo: {
+        subject: 'Программирование · Лекция 3',
+        scanHint: 'Отсканируйте для отметки',
+        live: 'Активна',
+        onTime: 'Вовремя',
+        late: 'Опоздал',
+        student1: 'Анна К.',
+        student2: 'Борис М.',
+        student3: 'Клара В.',
+        attendanceTitle: 'Посещаемость',
+        period: 'Окт — Дек',
+        present: 'Присутствовал',
+        absent: 'Отсутствовал',
+      },
       features: {
+        headline: 'Возможности',
         title: 'Заточено под реальные занятия',
         description: 'Всё, что нужно преподавателю — от переклички до итоговой ведомости.',
         items: {
@@ -142,8 +184,9 @@ const { t } = useI18n({
         },
       },
       how: {
-        title: 'Как работает отметка присутствия',
-        description: 'Три шага вместо переклички. Студентам не нужно ставить приложение или регистрироваться.',
+        headline: 'Как это работает',
+        title: 'Три шага вместо переклички',
+        description: 'Студентам не нужно ставить приложение или регистрироваться.',
         steps: {
           start: {
             title: 'Запустить сессию',
@@ -159,8 +202,17 @@ const { t } = useI18n({
           },
         },
       },
+      detail_checkin: {
+        title: 'Отметка по QR за секунды',
+        description: 'Покажите код на проекторе или отправьте ссылку. Студент сканирует, нажимает — и готово. Статус появляется у вас в кабинете в реальном времени. Никакой регистрации и паролей.',
+      },
+      detail_attendance: {
+        title: 'Таблица посещаемости в одном взгляде',
+        description: 'Все студенты и все занятия — в одной сортируемой матрице. Зелёное — присутствовал, красное — отсутствовал, жёлтое — опоздал. Кликните любую ячейку, чтобы переопределить статус или оставить комментарий.',
+      },
       faq: {
-        title: 'Частые вопросы',
+        headline: 'Вопросы и ответы',
+        title: 'Часто задаваемые вопросы',
         description: 'Короткие ответы на то, что преподаватели спрашивают перед первой сессией.',
         items: {
           install: {
@@ -266,9 +318,11 @@ const faqItems = computed(() => [
 
 <template>
   <NuxtLayout name="landing">
+    <!-- Hero -->
     <UPageHero
       :title="t('hero.title')"
       :description="t('hero.description')"
+      orientation="horizontal"
       :links="[{
         label: t('hero.signin'),
         to: '/auth/login',
@@ -282,45 +336,264 @@ const faqItems = computed(() => [
         color: 'neutral',
         variant: 'subtle',
       }]"
-    />
+    >
+      <template #headline>
+        <UBadge color="primary" variant="subtle" size="md" class="mb-4">
+          <UIcon name="i-lucide-server" class="size-3.5" />
+          {{ t('hero.badge') }}
+        </UBadge>
+      </template>
 
+      <UPageCard class="w-full" variant="soft" spotlight :ui="{ body: 'p-0' }">
+        <div class="p-5">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2">
+              <UIcon name="i-lucide-radio" class="size-5 text-error animate-pulse" />
+              <span class="font-semibold text-sm">{{ t('demo.subject') }}</span>
+            </div>
+            <UBadge color="success" variant="soft" size="sm">
+              {{ t('demo.live') }}
+            </UBadge>
+          </div>
+
+          <div class="flex flex-col items-center gap-3">
+            <div class="bg-white dark:bg-white rounded-xl p-5 shadow-sm">
+              <UIcon name="i-lucide-qr-code" class="size-28 text-primary" />
+            </div>
+            <p class="text-xs text-muted uppercase tracking-wide">
+              {{ t('demo.scanHint') }}
+            </p>
+          </div>
+        </div>
+
+        <USeparator />
+
+        <div class="p-5 space-y-2.5">
+          <div class="flex items-center justify-between text-sm">
+            <div class="flex items-center gap-2">
+              <UAvatar text="АК" size="2xs" class="bg-primary text-inverted" />
+              <span class="text-default">{{ t('demo.student1') }}</span>
+            </div>
+            <UBadge color="success" variant="subtle" size="xs">
+              {{ t('demo.onTime') }}
+            </UBadge>
+          </div>
+          <div class="flex items-center justify-between text-sm">
+            <div class="flex items-center gap-2">
+              <UAvatar text="БМ" size="2xs" class="bg-secondary text-inverted" />
+              <span class="text-default">{{ t('demo.student2') }}</span>
+            </div>
+            <UBadge color="warning" variant="subtle" size="xs">
+              {{ t('demo.late') }}
+            </UBadge>
+          </div>
+          <div class="flex items-center justify-between text-sm">
+            <div class="flex items-center gap-2">
+              <UAvatar text="КВ" size="2xs" class="bg-info text-inverted" />
+              <span class="text-default">{{ t('demo.student3') }}</span>
+            </div>
+            <UBadge color="success" variant="subtle" size="xs">
+              {{ t('demo.onTime') }}
+            </UBadge>
+          </div>
+        </div>
+      </UPageCard>
+    </UPageHero>
+
+    <!-- Features -->
     <UPageSection
       id="features"
+      :headline="t('features.headline')"
       :title="t('features.title')"
       :description="t('features.description')"
-      :features="features"
-    />
+    >
+      <UPageGrid class="mt-8">
+        <UPageCard
+          v-for="(feature, i) in features"
+          :key="i"
+          :icon="feature.icon"
+          :title="feature.title"
+          :description="feature.description"
+          variant="soft"
+          spotlight
+          class="h-full"
+        />
+      </UPageGrid>
+    </UPageSection>
 
+    <!-- How it works -->
     <UPageSection
       id="how"
+      :headline="t('how.headline')"
       :title="t('how.title')"
       :description="t('how.description')"
     >
-      <UPageGrid>
+      <UPageGrid class="mt-8">
         <UPageCard
           v-for="(step, i) in steps"
           :key="i"
           :icon="step.icon"
           :title="`${i + 1}. ${step.title}`"
           :description="step.description"
+          variant="subtle"
+          highlight
+          class="h-full"
         />
       </UPageGrid>
     </UPageSection>
 
+    <!-- Detail: Check-in -->
     <UPageSection
-      id="faq"
-      :title="t('faq.title')"
-      :description="t('faq.description')"
+      :title="t('detail_checkin.title')"
+      :description="t('detail_checkin.description')"
       orientation="horizontal"
     >
-      <UAccordion :items="faqItems" />
+      <UPageCard class="w-full" variant="outline" spotlight>
+        <div class="flex flex-col gap-4">
+          <div class="flex items-center justify-between">
+            <span class="font-semibold text-sm">{{ t('demo.subject') }}</span>
+            <UBadge color="success" variant="soft" size="sm">
+              {{ t('demo.live') }}
+            </UBadge>
+          </div>
+
+          <div class="flex items-center justify-center">
+            <div class="bg-white dark:bg-white rounded-xl p-6 shadow-sm">
+              <UIcon name="i-lucide-qr-code" class="size-24 text-primary" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2 text-center text-xs">
+            <div class="bg-success/10 text-success rounded-lg p-2 flex items-center justify-center gap-1">
+              <UIcon name="i-lucide-check" class="size-3.5" />
+              <span>{{ t('demo.onTime') }}</span>
+            </div>
+            <div class="bg-warning/10 text-warning rounded-lg p-2 flex items-center justify-center gap-1">
+              <UIcon name="i-lucide-clock" class="size-3.5" />
+              <span>{{ t('demo.late') }}</span>
+            </div>
+          </div>
+
+          <div class="space-y-2">
+            <div class="flex items-center justify-between text-sm px-1">
+              <span>{{ t('demo.student1') }}</span>
+              <span class="text-success text-xs">12:03</span>
+            </div>
+            <div class="flex items-center justify-between text-sm px-1">
+              <span>{{ t('demo.student2') }}</span>
+              <span class="text-warning text-xs">12:18</span>
+            </div>
+            <div class="flex items-center justify-between text-sm px-1">
+              <span>{{ t('demo.student3') }}</span>
+              <span class="text-success text-xs">12:01</span>
+            </div>
+          </div>
+        </div>
+      </UPageCard>
     </UPageSection>
 
+    <!-- Detail: Attendance -->
+    <UPageSection
+      :title="t('detail_attendance.title')"
+      :description="t('detail_attendance.description')"
+      orientation="horizontal"
+      reverse
+    >
+      <UPageCard class="w-full" variant="outline" spotlight>
+        <div class="flex flex-col gap-3">
+          <div class="flex items-center justify-between text-sm font-medium">
+            <span>{{ t('demo.attendanceTitle') }}</span>
+            <span class="text-muted">{{ t('demo.period') }}</span>
+          </div>
+
+          <div class="grid grid-cols-5 gap-1.5">
+            <div class="bg-success/20 text-success rounded p-1.5 flex items-center justify-center text-xs">
+              <UIcon name="i-lucide-check" class="size-3.5" />
+            </div>
+            <div class="bg-success/20 text-success rounded p-1.5 flex items-center justify-center text-xs">
+              <UIcon name="i-lucide-check" class="size-3.5" />
+            </div>
+            <div class="bg-warning/20 text-warning rounded p-1.5 flex items-center justify-center text-xs">
+              <UIcon name="i-lucide-clock" class="size-3.5" />
+            </div>
+            <div class="bg-success/20 text-success rounded p-1.5 flex items-center justify-center text-xs">
+              <UIcon name="i-lucide-check" class="size-3.5" />
+            </div>
+            <div class="bg-error/20 text-error rounded p-1.5 flex items-center justify-center text-xs">
+              <UIcon name="i-lucide-x" class="size-3.5" />
+            </div>
+
+            <div class="bg-success/20 text-success rounded p-1.5 flex items-center justify-center text-xs">
+              <UIcon name="i-lucide-check" class="size-3.5" />
+            </div>
+            <div class="bg-error/20 text-error rounded p-1.5 flex items-center justify-center text-xs">
+              <UIcon name="i-lucide-x" class="size-3.5" />
+            </div>
+            <div class="bg-success/20 text-success rounded p-1.5 flex items-center justify-center text-xs">
+              <UIcon name="i-lucide-check" class="size-3.5" />
+            </div>
+            <div class="bg-success/20 text-success rounded p-1.5 flex items-center justify-center text-xs">
+              <UIcon name="i-lucide-check" class="size-3.5" />
+            </div>
+            <div class="bg-success/20 text-success rounded p-1.5 flex items-center justify-center text-xs">
+              <UIcon name="i-lucide-check" class="size-3.5" />
+            </div>
+
+            <div class="bg-warning/20 text-warning rounded p-1.5 flex items-center justify-center text-xs">
+              <UIcon name="i-lucide-clock" class="size-3.5" />
+            </div>
+            <div class="bg-success/20 text-success rounded p-1.5 flex items-center justify-center text-xs">
+              <UIcon name="i-lucide-check" class="size-3.5" />
+            </div>
+            <div class="bg-success/20 text-success rounded p-1.5 flex items-center justify-center text-xs">
+              <UIcon name="i-lucide-check" class="size-3.5" />
+            </div>
+            <div class="bg-error/20 text-error rounded p-1.5 flex items-center justify-center text-xs">
+              <UIcon name="i-lucide-x" class="size-3.5" />
+            </div>
+            <div class="bg-success/20 text-success rounded p-1.5 flex items-center justify-center text-xs">
+              <UIcon name="i-lucide-check" class="size-3.5" />
+            </div>
+          </div>
+
+          <div class="flex items-center gap-3 text-xs text-muted mt-1">
+            <div class="flex items-center gap-1">
+              <div class="size-2.5 rounded-sm bg-success/20" />
+              <span>{{ t('demo.present') }}</span>
+            </div>
+            <div class="flex items-center gap-1">
+              <div class="size-2.5 rounded-sm bg-warning/20" />
+              <span>{{ t('demo.late') }}</span>
+            </div>
+            <div class="flex items-center gap-1">
+              <div class="size-2.5 rounded-sm bg-error/20" />
+              <span>{{ t('demo.absent') }}</span>
+            </div>
+          </div>
+        </div>
+      </UPageCard>
+    </UPageSection>
+
+    <!-- FAQ -->
+    <UPageSection
+      id="faq"
+      :headline="t('faq.headline')"
+      :title="t('faq.title')"
+      :description="t('faq.description')"
+    >
+      <UAccordion
+        :items="faqItems"
+        type="multiple"
+        class="mt-8"
+      />
+    </UPageSection>
+
+    <!-- CTA -->
     <UPageSection>
       <UPageCTA
         :title="t('cta.title')"
         :description="t('cta.description')"
-        variant="subtle"
+        variant="solid"
         :links="[{
           label: t('cta.action'),
           to: '/auth/login',

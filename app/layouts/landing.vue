@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { NavigationMenuItem } from '@nuxt/ui'
+
 const { t } = useI18n({
   messages: {
     en: {
@@ -6,6 +8,9 @@ const { t } = useI18n({
         dashboard: 'Journal',
         login: 'Sign in',
         language: 'Language',
+        features: 'Features',
+        how: 'How it works',
+        faq: 'FAQ',
       },
       footer: {
         copy: 'Grade Journal · All rights reserved',
@@ -16,6 +21,9 @@ const { t } = useI18n({
         dashboard: 'Журнал',
         login: 'Войти',
         language: 'Язык',
+        features: 'Возможности',
+        how: 'Как это работает',
+        faq: 'Вопросы и ответы',
       },
       footer: {
         copy: 'Классный журнал · Все права защищены',
@@ -23,6 +31,12 @@ const { t } = useI18n({
     },
   },
 })
+
+const navItems = computed<NavigationMenuItem[]>(() => [
+  { label: t('nav.features'), to: '#features' },
+  { label: t('nav.how'), to: '#how' },
+  { label: t('nav.faq'), to: '#faq' },
+])
 </script>
 
 <template>
@@ -35,6 +49,8 @@ const { t } = useI18n({
         </NuxtLink>
       </template>
 
+      <UNavigationMenu :items="navItems" variant="link" class="hidden md:flex" />
+
       <template #right>
         <AppLocaleSelect />
         <UColorModeButton />
@@ -45,6 +61,10 @@ const { t } = useI18n({
 
       <template #body>
         <div class="flex flex-col gap-3 p-4">
+          <UNavigationMenu :items="navItems" orientation="vertical" class="-mx-2.5" />
+
+          <USeparator />
+
           <UButton
             to="/dashboard"
             variant="ghost"
