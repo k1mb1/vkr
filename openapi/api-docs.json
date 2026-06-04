@@ -1024,6 +1024,74 @@
         }
       }
     },
+    "/api/check-in-sessions/public/{id}/verify-code": {
+      "post": {
+        "tags": ["Check-in sessions (public)"],
+        "summary": "Подтвердить код аудитории",
+        "description": "Шаг перед поиском: проверяет код аудитории. 204 — код верный (можно искать), 400 — код неверный либо сессия закрыта.",
+        "operationId": "verifyCode",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyCheckInCodeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/api/check-in-sessions/public/{id}/students": {
+      "post": {
+        "tags": ["Check-in sessions (public)"],
+        "summary": "Найти себя по фамилии (за кодом аудитории)",
+        "description": "Доступ к списку — только за кодом аудитории: в теле передаются code и query. Возвращает только совпадения с маскированным ФИО и id (id нужен для отметки), без статусов посещаемости. Неверный код — 400; пустой/короткий запрос — пустой список.",
+        "operationId": "searchStudents",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicStudentSearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PublicStudentResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/check-in-sessions/public/{id}/check-in": {
       "post": {
         "tags": ["Check-in sessions (public)"],
@@ -1552,7 +1620,7 @@
       "get": {
         "tags": ["Check-in sessions (public)"],
         "summary": "Получить состояние сессии",
-        "description": "Возвращает только метаданные сессии (тему, аудиторию, окна, состояние). Ростер группы намеренно не отдаётся: чтобы найти себя, студент ищет по фамилии через GET /{id}/students.",
+        "description": "Возвращает только метаданные сессии (тему, аудиторию, окна, состояние). Ростер группы намеренно не отдаётся: сначала студент подтверждает код аудитории, затем ищет себя по фамилии через POST /{id}/students.",
         "operationId": "get_1",
         "parameters": [
           {
@@ -1569,44 +1637,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicCheckInSessionResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/check-in-sessions/public/{id}/students": {
-      "get": {
-        "tags": ["Check-in sessions (public)"],
-        "summary": "Найти себя по фамилии",
-        "description": "Поиск студента сессии по части ФИО (фамилии). Возвращает только совпадения с маскированным ФИО и id (id нужен для отметки), без статусов посещаемости других студентов. Пустой или слишком короткий запрос возвращает пустой список.",
-        "operationId": "searchStudents",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": { "type": "string", "format": "uuid" }
-          },
-          {
-            "name": "query",
-            "in": "query",
-            "description": "Фамилия или часть ФИО для поиска",
-            "required": true,
-            "schema": { "type": "string" }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/PublicStudentResponse"
-                  }
                 }
               }
             }
@@ -2884,6 +2914,49 @@
         },
         "required": ["status", "studentId"]
       },
+      "VerifyCheckInCodeRequest": {
+        "type": "object",
+        "description": "Подтверждение кода аудитории перед доступом к поиску студентов",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Код аудитории, показанный преподавателем",
+            "minLength": 1
+          }
+        },
+        "required": ["code"]
+      },
+      "PublicStudentSearchRequest": {
+        "type": "object",
+        "description": "Поиск себя по фамилии на публичной странице check-in. Требует кода аудитории: список доступен только тем, кто знает код.",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Код аудитории, показанный преподавателем",
+            "minLength": 1
+          },
+          "query": {
+            "type": "string",
+            "description": "Фамилия или часть ФИО для поиска. Короче 2 символов — вернётся пустой список."
+          }
+        },
+        "required": ["code"]
+      },
+      "PublicStudentResponse": {
+        "type": "object",
+        "description": "Найденный по фамилии студент для публичной страницы check-in. Отдаётся только для совпадений с поисковым запросом, без статуса посещаемости — чтобы не раскрывать посторонним, кто пришёл, а кто прогулял.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID студента — нужен для последующей отметки (POST /{id}/check-in)"
+          },
+          "username": {
+            "type": "string",
+            "description": "Маскированное ФИО студента (фамилия + инициалы, напр. «Иванов И. И.») — публичный эндпоинт не отдаёт полное имя в целях защиты персональных данных"
+          }
+        }
+      },
       "StudentCheckInRequest": {
         "type": "object",
         "description": "Отметка студента в check-in сессии",
@@ -3400,21 +3473,6 @@
             "type": "string",
             "format": "date-time",
             "description": "Текущий момент сервера (UTC)"
-          }
-        }
-      },
-      "PublicStudentResponse": {
-        "type": "object",
-        "description": "Найденный по фамилии студент для публичной страницы check-in. Отдаётся только для совпадений с поисковым запросом, без статуса посещаемости — чтобы не раскрывать посторонним, кто пришёл, а кто прогулял.",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID студента — нужен для последующей отметки (POST /{id}/check-in)"
-          },
-          "username": {
-            "type": "string",
-            "description": "Маскированное ФИО студента (фамилия + инициалы, напр. «Иванов И. И.») — публичный эндпоинт не отдаёт полное имя в целях защиты персональных данных"
           }
         }
       },

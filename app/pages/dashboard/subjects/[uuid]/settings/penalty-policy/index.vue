@@ -228,7 +228,7 @@ const handleSave = onSubmit(
                 type="number"
                 :min="state.operation === 'MULTIPLY' ? 0.1 : 0"
                 :max="state.operation === 'MULTIPLY' ? 1 : undefined"
-                :step="state.operation === 'MULTIPLY' ? 0.1 : 1"
+                :step="0.05"
                 class="w-full"
               />
               <template #hint>
@@ -301,7 +301,7 @@ const handleSave = onSubmit(
                 v-model.number="state.bonusStep"
                 type="number"
                 :min="state.bonusOperation === 'MULTIPLY' ? 1 : 0"
-                :step="state.bonusOperation === 'MULTIPLY' ? 0.1 : 1"
+                :step="0.05"
                 class="w-full"
               />
               <template #hint>

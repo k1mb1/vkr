@@ -25,6 +25,12 @@ const cards = computed<PageCardProps[]>(() => [
     description: 'Баллы за присутствие, опоздание и отсутствие на занятиях',
     icon: 'i-lucide-calendar-check',
   },
+  {
+    to: `/dashboard/subjects/${subjectId.value}/settings/check-in-policy`,
+    title: 'Единое время на отметку (check-in)',
+    description: 'Единые окна check-in для всех сессий предмета',
+    icon: 'i-lucide-timer',
+  },
 ])
 </script>
 

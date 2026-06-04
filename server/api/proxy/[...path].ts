@@ -84,6 +84,38 @@ export default defineEventHandler(async (event) => {
     console.warn('[proxy]', event.method, url.pathname, { auth: !!accessToken })
   }
 
+  // The public check-in session endpoint exposes session details (lesson topic,
+  // audience) by link, without auth. Once the survey is over (confirmed or
+  // cancelled) we must not reveal any of it: strip the details server-side so
+  // the browser never receives them, and forbid caching of the public response.
+  const isPublicSessionGet = event.method === 'GET'
+    && /^api\/check-in-sessions\/public\/[^/]+$/.test(decodedPath)
+
+  if (isPublicSessionGet) {
+    const res = await $fetch.raw(url.toString(), {
+      method: 'GET',
+      headers,
+      ignoreResponseError: true,
+      signal: AbortSignal.timeout(timeoutMs),
+    })
+
+    setResponseStatus(event, res.status)
+    setResponseHeader(event, 'cache-control', 'no-store')
+
+    const body = res._data
+    if (body && typeof body === 'object' && 'state' in body) {
+      const state = (body as { state?: string }).state
+      const sessionOver = state === 'CONFIRMED' || state === 'CANCELLED'
+      if (sessionOver) {
+        const b = body as Record<string, unknown>
+        delete b.lessonTopic
+        b.audience = []
+      }
+    }
+
+    return body
+  }
+
   return proxyRequest(event, url.toString(), {
     headers,
     fetchOptions: {

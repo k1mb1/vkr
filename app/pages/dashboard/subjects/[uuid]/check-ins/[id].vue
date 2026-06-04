@@ -11,7 +11,6 @@ type Row = components['schemas']['Row']
 type Override = components['schemas']['Override']
 type AttendanceStatus = NonNullable<Override['status']>
 type ConfirmCheckInRequest = components['schemas']['ConfirmCheckInRequest']
-type Student = components['schemas']['Student']
 
 const route = useRoute()
 const subjectId = computed(() => String(route.params.uuid ?? ''))
@@ -75,38 +74,7 @@ onUnmounted(() => {
     clearInterval(timer)
 })
 
-// ── Live students ─────────────────────────────────────────
-
-const {
-  data: publicData,
-  pending: publicPending,
-  refresh: refreshPublic,
-} = useBackend('/api/check-in-sessions/public/{id}', {
-  method: 'GET',
-  path: computed(() => ({ id: sessionId.value })),
-  headers: { 'x-proxy-auth-optional': 'true' },
-})
-
-const liveStudents = computed<Student[]>(() => {
-  const arr = [...(publicData.value?.students ?? [])]
-  arr.sort((a, b) => (a.username ?? '').localeCompare(b.username ?? '', 'ru'))
-  return arr
-})
-
-const liveStats = computed(() => {
-  const total = liveStudents.value.length
-  let present = 0
-  let late = 0
-  for (const s of liveStudents.value) {
-    if (s.checkedInStatus === 'PRESENT')
-      present++
-    else if (s.checkedInStatus === 'LATE')
-      late++
-  }
-  return { total, present, late, missing: total - present - late }
-})
-
-// Auto-refresh while active
+// Auto-refresh while active / awaiting
 let pollTimer: ReturnType<typeof setInterval> | null = null
 
 function stopPolling() {
@@ -121,8 +89,7 @@ watch([isActive, isAwaiting], ([active, awaiting]) => {
   if (active || awaiting) {
     pollTimer = setInterval(() => {
       void refreshSession()
-      if (active)
-        void refreshPublic()
+      void loadPreview({ silent: true })
     }, 5000)
   }
 }, { immediate: true })
@@ -240,7 +207,7 @@ const previewError = ref<string | null>(null)
 
 const overrides = reactive<Record<string, { status: AttendanceStatus, comment: string }>>({})
 
-async function loadPreview() {
+async function loadPreview(opts: { silent?: boolean } = {}) {
   if (!sessionId.value)
     return
   previewPending.value = true
@@ -263,15 +230,17 @@ async function loadPreview() {
   catch (e) {
     const fe = e as FetchError
     previewError.value = fe.message
-    toastError(fe)
+    // При фоновом опросе (например, пока сессия ещё открыта) не спамим тостами.
+    if (!opts.silent)
+      toastError(fe)
   }
   finally {
     previewPending.value = false
   }
 }
 
-watch(isAwaiting, (v) => {
-  if (v)
+watch([isActive, isAwaiting], ([active, awaiting]) => {
+  if (active || awaiting)
     void loadPreview()
 }, { immediate: true })
 
@@ -301,9 +270,25 @@ const previewRows = computed<Row[]>(() => {
   return arr
 })
 
-const liveColumns: TableColumn<Student>[] = [
+// Живой список берём из preview: публичный эндпоинт ростер больше не отдаёт.
+const liveStudents = previewRows
+
+const liveStats = computed(() => {
+  const total = liveStudents.value.length
+  let present = 0
+  let late = 0
+  for (const s of liveStudents.value) {
+    if (s.checkInStatus === 'PRESENT')
+      present++
+    else if (s.checkInStatus === 'LATE')
+      late++
+  }
+  return { total, present, late, missing: total - present - late }
+})
+
+const liveColumns: TableColumn<Row>[] = [
   { accessorKey: 'username', header: 'Студент' },
-  { accessorKey: 'checkedInStatus', header: 'Статус' },
+  { accessorKey: 'checkInStatus', header: 'Статус' },
   { accessorKey: 'checkedInAt', header: 'Время отметки' },
 ]
 
@@ -504,6 +489,19 @@ async function handleConfirm() {
           </div>
 
           <div class="flex flex-col gap-3 flex-1 min-w-0">
+            <div
+              v-if="session.code && isActive"
+              class="flex flex-col items-center gap-1 rounded-lg border border-default bg-elevated/50 p-3 text-center"
+            >
+              <span class="text-muted text-xs uppercase tracking-wide">Код аудитории</span>
+              <span class="text-4xl font-bold tracking-[0.3em] tabular-nums">
+                {{ session.code }}
+              </span>
+              <span class="text-muted text-xs">
+                Студенты вводят этот код при отметке
+              </span>
+            </div>
+
             <UInput
               :model-value="publicUrl"
               readonly
@@ -582,6 +580,14 @@ async function handleConfirm() {
                 class="w-full max-w-[480px]"
               >
             </div>
+
+            <div v-if="session.code" class="flex flex-col items-center gap-1">
+              <span class="text-muted text-xs uppercase tracking-wide">Код аудитории</span>
+              <span class="text-5xl font-bold tracking-[0.3em] tabular-nums">
+                {{ session.code }}
+              </span>
+            </div>
+
             <p class="text-muted text-sm break-all text-center">
               {{ publicUrl }}
             </p>
@@ -635,8 +641,8 @@ async function handleConfirm() {
                 icon="i-lucide-refresh-cw"
                 color="neutral"
                 variant="ghost"
-                :loading="publicPending"
-                @click="refreshPublic()"
+                :loading="previewPending"
+                @click="loadPreview()"
               />
             </div>
           </div>
@@ -646,22 +652,22 @@ async function handleConfirm() {
           <UTable
             :data="liveStudents"
             :columns="liveColumns"
-            :loading="publicPending && liveStudents.length === 0"
+            :loading="previewPending && liveStudents.length === 0"
           >
             <template #username-cell="{ row }">
               {{ row.original.username ?? '—' }}
             </template>
 
-            <template #checkedInStatus-cell="{ row }">
+            <template #checkInStatus-cell="{ row }">
               <UBadge
-                v-if="row.original.checkedInStatus === 'PRESENT'"
+                v-if="row.original.checkInStatus === 'PRESENT'"
                 color="success"
                 variant="soft"
                 icon="i-lucide-check"
                 label="Присутствует"
               />
               <UBadge
-                v-else-if="row.original.checkedInStatus === 'LATE'"
+                v-else-if="row.original.checkInStatus === 'LATE'"
                 color="warning"
                 variant="soft"
                 icon="i-lucide-clock"
@@ -705,7 +711,7 @@ async function handleConfirm() {
               color="neutral"
               variant="ghost"
               :loading="previewPending"
-              @click="loadPreview"
+              @click="loadPreview()"
             />
           </div>
         </template>

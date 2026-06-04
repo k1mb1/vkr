@@ -203,7 +203,7 @@ export function useGradesExport() {
                 const afterPenalty = applyPenalty(g.score, penaltyCount, policy)
                 const finalScore = applyBonus(afterPenalty, bonusCount, policy)
                 if (finalScore !== g.score) {
-                  val = Math.round(finalScore * 10) / 10
+                  val = Math.round(finalScore * 100) / 100
                   const parts: string[] = [`Исходный: ${g.score}`]
                   if (penaltyCount > 0)
                     parts.push(`Понижений: ${penaltyCount}`)
@@ -222,7 +222,7 @@ export function useGradesExport() {
               const afterPenalty = applyPenalty(extra.score, penaltyCount, policy)
               const finalScore = applyBonus(afterPenalty, bonusCount, policy)
               if (finalScore !== extra.score) {
-                extraVal = Math.round(finalScore * 10) / 10
+                extraVal = Math.round(finalScore * 100) / 100
                 const parts: string[] = [`Исходный: ${extra.score}`]
                 if (penaltyCount > 0)
                   parts.push(`Понижений: ${penaltyCount}`)

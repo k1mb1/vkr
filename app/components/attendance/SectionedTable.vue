@@ -225,7 +225,7 @@ function attendanceScoreForStudent(
     + late * (policy.pointsLate ?? 0)
     + absent * (policy.pointsAbsent ?? 0)
     + excused * (policy.pointsExcused ?? 0)
-  return Math.round(score * 10) / 10
+  return Math.round(score * 100) / 100
 }
 
 function buildScoreColumn(
@@ -244,7 +244,7 @@ function buildScoreColumn(
       let total = 0
       for (const s of sectionStudents)
         total += attendanceScoreForStudent(s, sectionScopes, cellIndex)
-      return h('span', { class: 'tabular-nums font-bold text-default' }, String(Math.round(total * 10) / 10))
+      return h('span', { class: 'tabular-nums font-bold text-default' }, String(Math.round(total * 100) / 100))
     },
     meta: { class: { th: 'min-w-[72px] text-center', td: 'min-w-[72px] text-center' } },
   }

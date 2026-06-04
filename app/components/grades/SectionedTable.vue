@@ -323,7 +323,7 @@ function renderScoreCell(opts: {
     tooltipParts.push(effectiveComment)
   const tooltipText = tooltipParts.length ? tooltipParts.join(' · ') : undefined
 
-  const adjustedLabel = String(Math.round((adjusted ?? 0) * 10) / 10)
+  const adjustedLabel = String(Math.round((adjusted ?? 0) * 100) / 100)
   const isBonus = (bonusCount ?? 0) > 0 && (penaltyCount ?? 0) === 0
 
   const badge = original == null
@@ -675,7 +675,7 @@ function buildCategoryTotalColumn(
     cell: ({ row }) => {
       const n = studentCategorySum(row.original, sectionLessons, category)
       const rawN = rawCategorySum(row.original, sectionLessons, category)
-      const r = (v: number) => Math.round(v * 10) / 10
+      const r = (v: number) => Math.round(v * 100) / 100
       const incomplete = category === 'required' && maxPerStudent > 0 && rawN < maxPerStudent
       const hasAdjustment = r(n) !== r(rawN)
 
@@ -701,7 +701,7 @@ function buildCategoryTotalColumn(
       let total = 0
       for (const s of sectionStudents)
         total += studentCategorySum(s, sectionLessons, category)
-      return h('span', { class: 'tabular-nums font-bold text-highlighted' }, String(Math.round(total * 10) / 10))
+      return h('span', { class: 'tabular-nums font-bold text-highlighted' }, String(Math.round(total * 100) / 100))
     },
     meta: { class: { th: 'min-w-[72px] text-center', td: 'min-w-[72px] text-center' } },
   }
@@ -727,12 +727,12 @@ function buildGrandTotalColumn(
       return h(
         'span',
         { class: 'tabular-nums font-bold text-default' },
-        String(Math.round(n * 10) / 10),
+        String(Math.round(n * 100) / 100),
       )
     },
     footer: () => {
       const total = sectionStudents.reduce((sum, s) => sum + studentGrandTotal(s, sectionLessons), 0)
-      return h('span', { class: 'tabular-nums font-bold text-default' }, String(Math.round(total * 10) / 10))
+      return h('span', { class: 'tabular-nums font-bold text-default' }, String(Math.round(total * 100) / 100))
     },
     meta: { class: { th: 'min-w-[80px] text-center', td: 'min-w-[80px] text-center' } },
   }
@@ -975,7 +975,7 @@ const fullscreenSection = computed(() =>
               <span
                 class="tabular-nums font-semibold"
                 :class="editTargetBonusCount > 0 && editTargetPenaltyCount === 0 ? 'text-success' : 'text-warning'"
-              >{{ Math.round(editTargetFinalScore * 10) / 10 }}</span>
+              >{{ Math.round(editTargetFinalScore * 100) / 100 }}</span>
             </div>
           </div>
 

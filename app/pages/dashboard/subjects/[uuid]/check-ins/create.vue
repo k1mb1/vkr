@@ -41,7 +41,22 @@ const subjectId = String(route.params.uuid ?? '')
 const { $backend } = useNuxtApp()
 const { d } = useI18n()
 
-const { permission, permissionId, pending: permissionPending } = usePermissions()
+// Единая политика окон предмета. Если включена — окна берутся из неё,
+// а поля формы игнорируются бэкендом и не отправляются.
+const { data: policyData } = useBackend('/api/check-in-policy/subjects/{subjectId}', {
+  method: 'GET',
+  path: { subjectId },
+})
+
+const policyEnabled = computed(() => policyData.value?.enabled === true)
+const policyOnTimeMinutes = computed(() =>
+  policyData.value?.onTimeSeconds != null ? Math.round(policyData.value.onTimeSeconds / 60) : null,
+)
+const policyLateMinutes = computed(() =>
+  policyData.value?.lateSeconds != null ? Math.round(policyData.value.lateSeconds / 60) : null,
+)
+
+const { permission, permissionId, hasAllPermissions, pending: permissionPending } = usePermissions()
 
 const { data: lessonsData, pending: lessonsPending, refresh } = useBackend('/api/lessons', {
   method: 'GET',
@@ -116,8 +131,13 @@ const handleStart = onSubmit(
   (data) => {
     const body: StartCheckInRequest = {
       lessonScopeId: data.lessonScopeId,
-      onTimeSeconds: data.onTimeMinutes * 60,
-      lateSeconds: data.lateMinutes * 60,
+      // При включённой политике предмета окна берутся из неё — не отправляем.
+      ...(policyEnabled.value
+        ? {}
+        : {
+            onTimeSeconds: data.onTimeMinutes * 60,
+            lateSeconds: data.lateMinutes * 60,
+          }),
     }
     return $backend('/api/check-in-sessions', { method: 'POST', body })
   },
@@ -187,7 +207,26 @@ const handleStart = onSubmit(
         </template>
       </UFormField>
 
-      <div class="grid gap-4 sm:grid-cols-2">
+      <UAlert
+        v-if="policyEnabled"
+        color="info"
+        variant="soft"
+        icon="i-lucide-timer"
+        title="Используются единые окна предмета"
+      >
+        <template #description>
+          Основное окно: <b>{{ policyOnTimeMinutes ?? '—' }} мин</b>,
+          для опоздавших: <b>{{ policyLateMinutes ?? '—' }} мин</b>.
+          <template v-if="hasAllPermissions">
+            Изменить можно в настройках предмета → «Единое время на отметку».
+          </template>
+          <template v-else>
+            Чтобы изменить окна, обратитесь к ответственному за предмет.
+          </template>
+        </template>
+      </UAlert>
+
+      <div v-else class="grid gap-4 sm:grid-cols-2">
         <UFormField label="Основное окно (минуты)" name="onTimeMinutes" required>
           <UInput
             v-model.number="state.onTimeMinutes"

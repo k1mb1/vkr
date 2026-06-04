@@ -1,10 +1,20 @@
 <script setup lang="ts">
+import type { FetchError } from 'ofetch'
 import type { components } from '#open-fetch-schemas/backend'
-import { useLocalStorage } from '@vueuse/core'
+import { refDebounced, useLocalStorage } from '@vueuse/core'
 
 type PublicCheckInSessionResponse = components['schemas']['PublicCheckInSessionResponse']
-type Student = components['schemas']['Student']
+type PublicStudentResponse = components['schemas']['PublicStudentResponse']
+type PublicCheckInRecordResponse = components['schemas']['PublicCheckInRecordResponse']
 type PublicState = NonNullable<PublicCheckInSessionResponse['state']>
+type ErrorDto = components['schemas']['ErrorDto']
+
+interface StoredResult {
+  studentId: string
+  username: string
+  status: NonNullable<PublicCheckInRecordResponse['status']>
+  checkedInAt?: string
+}
 
 definePageMeta({
   layout: 'landing',
@@ -15,7 +25,6 @@ const sessionId = computed(() => String(route.params.id ?? ''))
 
 const { $backend } = useNuxtApp()
 const toast = useToast()
-const { submit } = useFormSubmit()
 const { d } = useI18n()
 
 const {
@@ -48,6 +57,10 @@ const stateColor: Record<PublicState, 'success' | 'warning' | 'info' | 'neutral'
 }
 
 const isOpen = computed(() => state.value === 'OPEN' || state.value === 'LATE_WINDOW')
+
+// Once the survey is confirmed or cancelled the page must not reveal any
+// session details (the backend also strips them) — show a neutral stub only.
+const isClosed = computed(() => state.value === 'CONFIRMED' || state.value === 'CANCELLED')
 
 // ── Server-synced clock ───────────────────────────────────
 
@@ -112,110 +125,186 @@ watch(isOpen, (open) => {
 
 onUnmounted(stopPolling)
 
-// ── Student selection & search ────────────────────────────
+// ── Step 1: код аудитории (проверяется до доступа к поиску) ─
+
+const CODE_LENGTH = 6
+// UPinInput работает с массивом сегментов; собранный код — в computed.
+const codeDigits = ref<string[]>([])
+const code = computed(() => codeDigits.value.join('').trim())
+const codeError = ref<string | null>(null)
+const verifying = ref(false)
+const codeVerified = ref(false)
+
+// ── Step 2: поиск себя по фамилии (за кодом) ───────────────
 
 const search = ref('')
+const debouncedSearch = refDebounced(search, 300)
+const trimmedQuery = computed(() => debouncedSearch.value.trim())
+// Сервер игнорирует запросы короче 2 символов (возвращает []).
+const canSearch = computed(() =>
+  codeVerified.value && isOpen.value && trimmedQuery.value.length >= 2,
+)
+const results = ref<PublicStudentResponse[]>([])
+const searchPending = ref(false)
 
-const students = computed<Student[]>(() => {
-  const arr = [...(session.value?.students ?? [])]
-  arr.sort((a, b) => (a.username ?? '').localeCompare(b.username ?? '', 'ru'))
-  return arr
-})
+// ── Check-in lock ──────────────────────────────────────────
 
-const filteredStudents = computed<Student[]>(() => {
-  const q = search.value.trim().toLowerCase()
-  if (!q)
-    return students.value
-  return students.value.filter(s => (s.username ?? '').toLowerCase().includes(q))
-})
-
-// ── Check-in action ───────────────────────────────────────
-
-const checkingInId = ref<string | null>(null)
-
-// Best-effort lock: one check-in per device per session, persisted in localStorage
-const lockedStudentId = useLocalStorage<string | null>(
+// Best-effort lock: one check-in per device per session, persisted in localStorage.
+const storedResult = useLocalStorage<StoredResult | null>(
   `checkin:done:${sessionId.value}`,
   null,
+  { serializer: { read: v => (v ? JSON.parse(v) : null), write: v => JSON.stringify(v) } },
 )
 
-const lockedStudent = computed<Student | null>(() => {
-  if (!lockedStudentId.value)
-    return null
-  return students.value.find(s => s.id === lockedStudentId.value) ?? null
-})
-
-const isLocked = computed(() => !!lockedStudentId.value)
-
-async function handleCheckIn(student: Student) {
-  const studentId = student.id
-  if (!studentId || !sessionId.value)
-    return
-  if (student.checkedInStatus)
-    return
-  if (isLocked.value)
-    return
-
-  checkingInId.value = studentId
-  await submit(
-    () => $backend('/api/check-in-sessions/public/{id}/check-in', {
-      method: 'POST',
-      path: { id: sessionId.value },
-      body: { studentId },
-      headers: { 'x-proxy-auth-optional': 'true' },
-    }),
-    {
-      onSuccess: async (result) => {
-        lockedStudentId.value = studentId
-        toast.add({
-          title: result.status === 'LATE' ? 'Отмечено: опоздание' : 'Отмечено: вовремя',
-          color: result.status === 'LATE' ? 'warning' : 'success',
-          icon: 'i-lucide-check',
-        })
-        await refresh()
-      },
-    },
-  )
-  checkingInId.value = null
-}
+const isLocked = computed(() => !!storedResult.value)
 
 // ── Confirm dialog ────────────────────────────────────────
 
-const pendingStudent = ref<Student | null>(null)
+const pendingStudent = ref<PublicStudentResponse | null>(null)
 const confirmOpen = ref(false)
+const submitting = ref(false)
 
-function openConfirm(student: Student) {
-  if (!student.id || isLocked.value || student.checkedInStatus)
+function extractMessage(e: unknown, fallback: string): string {
+  const data = (e as FetchError)?.data as ErrorDto | undefined
+  return data?.message || fallback
+}
+
+async function verifyCode() {
+  if (!code.value) {
+    codeError.value = 'Введите код аудитории'
+    return
+  }
+  if (!isOpen.value) {
+    codeError.value = 'Сессия закрыта'
+    return
+  }
+  verifying.value = true
+  codeError.value = null
+  try {
+    await $backend('/api/check-in-sessions/public/{id}/verify-code', {
+      method: 'POST',
+      path: { id: sessionId.value },
+      body: { code: code.value },
+      headers: { 'x-proxy-auth-optional': 'true' },
+    })
+    codeVerified.value = true
+  }
+  catch (e) {
+    codeVerified.value = false
+    codeError.value = extractMessage(e, 'Неверный код')
+  }
+  finally {
+    verifying.value = false
+  }
+}
+
+function resetCode() {
+  codeVerified.value = false
+  codeDigits.value = []
+  codeError.value = null
+  search.value = ''
+  results.value = []
+}
+
+async function runSearch() {
+  if (!canSearch.value) {
+    results.value = []
+    return
+  }
+  searchPending.value = true
+  try {
+    // Код держим в памяти и шлём заново вместе с запросом.
+    const data = await $backend('/api/check-in-sessions/public/{id}/students', {
+      method: 'POST',
+      path: { id: sessionId.value },
+      body: { code: code.value, query: trimmedQuery.value },
+      headers: { 'x-proxy-auth-optional': 'true' },
+    })
+    results.value = data ?? []
+  }
+  catch (e) {
+    // Код мог стать неверным (например, сессия закрылась) — возвращаемся к шагу кода.
+    results.value = []
+    codeVerified.value = false
+    codeError.value = extractMessage(e, 'Не удалось выполнить поиск')
+    toast.add({ title: codeError.value, color: 'error', icon: 'i-lucide-circle-alert' })
+  }
+  finally {
+    searchPending.value = false
+  }
+}
+
+watch([trimmedQuery, canSearch], () => {
+  void runSearch()
+})
+
+function openConfirm(student: PublicStudentResponse) {
+  if (!student.id || isLocked.value || !isOpen.value || !codeVerified.value)
     return
   pendingStudent.value = student
   confirmOpen.value = true
 }
 
 function closeConfirm() {
-  if (checkingInId.value)
+  if (submitting.value)
     return
   confirmOpen.value = false
   pendingStudent.value = null
 }
 
 async function confirmCheckIn() {
-  if (!pendingStudent.value)
-    return
   const student = pendingStudent.value
-  await handleCheckIn(student)
-  if (lockedStudentId.value === student.id) {
+  const studentId = student?.id
+  if (!studentId || !sessionId.value || !code.value)
+    return
+
+  submitting.value = true
+  try {
+    const result = await $backend('/api/check-in-sessions/public/{id}/check-in', {
+      method: 'POST',
+      path: { id: sessionId.value },
+      body: { studentId, code: code.value },
+      headers: { 'x-proxy-auth-optional': 'true' },
+    })
+
+    storedResult.value = {
+      studentId,
+      username: student?.username ?? '',
+      status: (result.status ?? 'PRESENT') as StoredResult['status'],
+      checkedInAt: result.checkedInAt,
+    }
+
+    toast.add({
+      title: result.status === 'LATE' ? 'Отмечено: опоздание' : 'Отмечено: вовремя',
+      color: result.status === 'LATE' ? 'warning' : 'success',
+      icon: 'i-lucide-check',
+    })
+
     confirmOpen.value = false
     pendingStudent.value = null
   }
+  catch (e) {
+    const message = extractMessage(e, 'Не удалось отметиться')
+    // Код мог стать неверным — закрываем модалку и возвращаем к шагу кода.
+    confirmOpen.value = false
+    pendingStudent.value = null
+    codeVerified.value = false
+    codeError.value = message
+    toast.add({ title: message, color: 'error', icon: 'i-lucide-circle-alert' })
+  }
+  finally {
+    submitting.value = false
+  }
 }
 
-function studentStatusLabel(s: Student): string | null {
-  if (s.checkedInStatus === 'PRESENT')
-    return 'Присутствует'
-  if (s.checkedInStatus === 'LATE')
-    return 'Опоздал'
-  return null
-}
+const resultStatusLabel = computed(() => {
+  const s = storedResult.value?.status
+  if (s === 'PRESENT')
+    return 'Отмечено: вовремя'
+  if (s === 'LATE')
+    return 'Отмечено: опоздание'
+  return 'Отмечено'
+})
 </script>
 
 <template>
@@ -230,6 +319,15 @@ function studentStatusLabel(s: Student): string | null {
     />
 
     <USkeleton v-else-if="pending && !session" class="h-40" />
+
+    <UAlert
+      v-else-if="isClosed"
+      color="neutral"
+      variant="soft"
+      icon="i-lucide-lock"
+      title="Сессия недоступна"
+      description="Эта ссылка для отметки больше не активна."
+    />
 
     <template v-else-if="session">
       <UPageHeader
@@ -287,127 +385,144 @@ function studentStatusLabel(s: Student): string | null {
       />
 
       <UAlert
-        v-else-if="state === 'CONFIRMED'"
-        color="success"
-        variant="soft"
-        icon="i-lucide-check-circle"
-        title="Сессия завершена"
-        description="Посещаемость подтверждена."
-      />
-
-      <UAlert
-        v-else-if="state === 'CANCELLED'"
-        color="error"
-        variant="soft"
-        icon="i-lucide-x-circle"
-        title="Сессия отменена"
-        description="Преподаватель отменил эту сессию."
-      />
-
-      <UAlert
         v-if="isLocked"
         color="success"
         variant="soft"
         icon="i-lucide-check-circle"
-        :title="lockedStudent?.username
-          ? `С этого устройства отметился: ${lockedStudent.username}`
-          : 'С этого устройства отметка уже сделана'"
-        description="Повторно отметиться с этого устройства нельзя. Если выбрали не того студента — подойдите к преподавателю."
-      />
-
-      <UInput
-        v-if="students.length > 0"
-        v-model="search"
-        icon="i-lucide-search"
-        placeholder="Найти себя..."
-        size="lg"
-        class="w-full"
+        :title="storedResult?.username
+          ? `${resultStatusLabel} — ${storedResult.username}`
+          : resultStatusLabel"
       >
-        <template v-if="search" #trailing>
-          <UButton
+        <template #description>
+          <span v-if="storedResult?.checkedInAt">
+            Время отметки: {{ d(new Date(storedResult.checkedInAt), 'time') }}.
+          </span>
+          Повторно отметиться с этого устройства нельзя. Если выбрали не того студента — подойдите к преподавателю.
+        </template>
+      </UAlert>
+
+      <template v-else-if="isOpen">
+        <!-- Шаг 1: код аудитории -->
+        <template v-if="!codeVerified">
+          <UAlert
             color="neutral"
-            variant="link"
-            icon="i-lucide-x"
-            @click="search = ''"
+            variant="soft"
+            icon="i-lucide-info"
+            title="Введите код аудитории"
+            description="Код показал преподаватель на экране. После подтверждения кода вы сможете найти себя в списке."
+          />
+
+          <UFormField
+            label="Код аудитории"
+            :error="codeError ?? undefined"
+            required
+          >
+            <UPinInput
+              v-model="codeDigits"
+              :length="CODE_LENGTH"
+              type="text"
+              size="xl"
+              autofocus
+              :disabled="verifying"
+              @complete="verifyCode"
+            />
+          </UFormField>
+
+          <UButton
+            block
+            size="lg"
+            icon="i-lucide-arrow-right"
+            label="Подтвердить код"
+            :loading="verifying"
+            :disabled="code.length < CODE_LENGTH"
+            @click="verifyCode"
           />
         </template>
-      </UInput>
 
-      <p v-if="search && students.length > 0" class="text-muted text-xs">
-        Найдено: {{ filteredStudents.length }} из {{ students.length }}
-      </p>
-
-      <p v-if="isOpen && !isLocked" class="text-muted text-xs">
-        Отметиться можно только один раз с устройства.
-      </p>
-
-      <div class="flex flex-col gap-2">
-        <UEmpty
-          v-if="filteredStudents.length === 0"
-          icon="i-lucide-users"
-          title="Студенты не найдены"
-          :description="search ? 'Попробуйте изменить запрос.' : 'Список пуст.'"
-          variant="naked"
-          class="py-8"
-        />
-
-        <UCard
-          v-for="student in filteredStudents"
-          :key="student.id"
-          :ui="{
-            body: 'p-3 sm:p-3',
-          }"
-          class="transition"
-          :class="lockedStudentId === student.id ? 'ring-2 ring-primary' : ''"
-        >
-          <div class="flex items-center justify-between gap-3">
-            <div class="flex items-center gap-3 min-w-0">
-              <UAvatar
-                :alt="student.username ?? '?'"
+        <!-- Шаг 2: поиск себя -->
+        <template v-else>
+          <UAlert
+            color="success"
+            variant="soft"
+            icon="i-lucide-check-circle"
+            title="Код принят"
+          >
+            <template #description>
+              Код аудитории: <span class="font-semibold tracking-wider">{{ code }}</span>
+            </template>
+            <template #actions>
+              <UButton
+                color="neutral"
+                variant="outline"
+                size="xs"
+                icon="i-lucide-pencil"
+                label="Изменить код"
+                @click="resetCode"
               />
-              <div class="min-w-0">
-                <p class="font-medium truncate">
-                  {{ student.username ?? '—' }}
-                </p>
-                <p v-if="studentStatusLabel(student)" class="text-muted text-xs">
-                  {{ studentStatusLabel(student) }}
-                  · {{ student.checkedInAt ? d(new Date(student.checkedInAt), 'time') : '' }}
-                </p>
-              </div>
-            </div>
+            </template>
+          </UAlert>
 
-            <UBadge
-              v-if="student.checkedInStatus === 'PRESENT'"
-              color="success"
-              variant="soft"
-              icon="i-lucide-check"
-              label="Отмечен"
-            />
-            <UBadge
-              v-else-if="student.checkedInStatus === 'LATE'"
-              color="warning"
-              variant="soft"
-              icon="i-lucide-clock"
-              label="Опоздал"
-            />
-            <UButton
-              v-else-if="isOpen && !isLocked"
-              icon="i-lucide-hand"
-              :loading="checkingInId === student.id"
-              :disabled="checkingInId !== null"
-              @click="openConfirm(student)"
+          <UFormField label="Найдите себя">
+            <UInput
+              v-model="search"
+              icon="i-lucide-search"
+              placeholder="Введите свою фамилию..."
+              size="lg"
+              class="w-full"
+              autofocus
             >
-              Я здесь
-            </UButton>
-            <UBadge
-              v-else
-              color="neutral"
-              variant="soft"
-              label="—"
+              <template v-if="search" #trailing>
+                <UButton
+                  color="neutral"
+                  variant="link"
+                  icon="i-lucide-x"
+                  @click="search = ''"
+                />
+              </template>
+            </UInput>
+          </UFormField>
+
+          <div class="flex flex-col gap-2">
+            <p v-if="trimmedQuery.length > 0 && trimmedQuery.length < 2" class="text-muted text-xs">
+              Введите хотя бы 2 символа.
+            </p>
+
+            <USkeleton v-else-if="searchPending && canSearch" class="h-16" />
+
+            <UEmpty
+              v-else-if="canSearch && results.length === 0"
+              icon="i-lucide-user-x"
+              title="Никого не нашли"
+              description="Проверьте написание фамилии или обратитесь к преподавателю."
+              variant="naked"
+              class="py-8"
             />
+
+            <UCard
+              v-for="student in results"
+              :key="student.id"
+              :ui="{ body: 'p-3 sm:p-3' }"
+              class="transition"
+            >
+              <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-3 min-w-0">
+                  <UAvatar :alt="student.username ?? '?'" />
+                  <p class="font-medium truncate">
+                    {{ student.username ?? '—' }}
+                  </p>
+                </div>
+
+                <UButton
+                  icon="i-lucide-hand"
+                  @click="openConfirm(student)"
+                >
+                  Это я
+                </UButton>
+              </div>
+            </UCard>
           </div>
-        </UCard>
-      </div>
+        </template>
+      </template>
     </template>
 
     <UModal
@@ -421,6 +536,11 @@ function studentStatusLabel(s: Student): string | null {
             Отметиться как
             <span class="font-semibold">{{ pendingStudent?.username ?? '—' }}</span>?
           </p>
+
+          <p class="text-muted text-sm">
+            Код аудитории: <span class="font-semibold tracking-wider text-default">{{ code }}</span>
+          </p>
+
           <p class="text-muted text-xs">
             После подтверждения отметить кого-то ещё с этого устройства будет нельзя.
           </p>
@@ -429,18 +549,17 @@ function studentStatusLabel(s: Student): string | null {
             <UButton
               color="neutral"
               variant="soft"
-              :disabled="checkingInId !== null"
+              :disabled="submitting"
               @click="closeConfirm"
             >
               Отмена
             </UButton>
             <UButton
               icon="i-lucide-check"
-              :loading="checkingInId !== null"
-              :disabled="checkingInId !== null"
+              :loading="submitting"
               @click="confirmCheckIn"
             >
-              Я здесь
+              Отметиться
             </UButton>
           </div>
         </div>

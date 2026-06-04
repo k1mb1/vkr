@@ -198,7 +198,7 @@ function buildStudentRow(
 
   const attPolicy = data.value?.attendancePolicy
   const counts = attCountsByStudent.value.get(id)
-  const r = (n: number) => Math.round(n * 10) / 10
+  const r = (n: number) => Math.round(n * 100) / 100
 
   const buildType = (tk: TypeKey): TypeBreakdown => {
     const acc = accum[tk]
@@ -260,7 +260,7 @@ function typeMaxes(sectionLessons: GradingTableLesson[], tk: TypeKey, hasAttenda
   }
   // Max attendance: 1 point per lesson, i.e. the number of lessons of this type.
   const maxAttendance = hasAttendance ? lessonCount : 0
-  const maxSubtotal = Math.round((maxRequired + maxOptional + maxAttendance) * 10) / 10
+  const maxSubtotal = Math.round((maxRequired + maxOptional + maxAttendance) * 100) / 100
   return { maxRequired, maxOptional, maxAttendance, maxSubtotal, lessonCount }
 }
 
@@ -323,7 +323,7 @@ const sections = computed<SummarySection[]>(() => {
 
     const rows: StudentSummaryRow[] = rawRows.map(r => ({ ...r, rank: rankMap.get(r.id) ?? 1 }))
     const totals = rows.map(r => r.total)
-    const avgTotal = totals.length ? Math.round((totals.reduce((a, b) => a + b, 0) / totals.length) * 10) / 10 : 0
+    const avgTotal = totals.length ? Math.round((totals.reduce((a, b) => a + b, 0) / totals.length) * 100) / 100 : 0
     const lecture = typeMaxes(sectionLessons, 'lecture', hasAttendance)
     const practice = typeMaxes(sectionLessons, 'practice', hasAttendance)
 
@@ -333,7 +333,7 @@ const sections = computed<SummarySection[]>(() => {
       rows,
       lecture,
       practice,
-      maxPossibleTotal: Math.round((lecture.maxSubtotal + practice.maxSubtotal) * 10) / 10,
+      maxPossibleTotal: Math.round((lecture.maxSubtotal + practice.maxSubtotal) * 100) / 100,
       avgTotal,
       maxTotal: totals.length ? Math.max(...totals) : 0,
       minTotal: totals.length ? Math.min(...totals) : 0,
@@ -398,7 +398,7 @@ function headerWithMax(label: string, max: number, opts?: { bold?: boolean, titl
 
 function sumFooter(key: string, sel: (r: StudentSummaryRow) => number, opts?: { int?: boolean, bold?: boolean }) {
   const sum = sections.value.find(s => s.key === key)?.rows.reduce((a, r) => a + sel(r), 0) ?? 0
-  const value = opts?.int ? sum : Math.round(sum * 10) / 10
+  const value = opts?.int ? sum : Math.round(sum * 100) / 100
   return h('span', { class: `tabular-nums ${opts?.bold ? 'font-bold' : 'font-semibold'} text-default` }, String(value))
 }
 
@@ -406,7 +406,7 @@ function avgFooter(key: string, sel: (r: StudentSummaryRow) => number) {
   const sec = sections.value.find(s => s.key === key)
   if (!sec || !sec.rows.length)
     return null
-  const avg = Math.round((sec.rows.reduce((a, r) => a + sel(r), 0) / sec.rows.length) * 10) / 10
+  const avg = Math.round((sec.rows.reduce((a, r) => a + sel(r), 0) / sec.rows.length) * 100) / 100
   return h('span', { class: 'tabular-nums font-bold text-default', title: 'Среднее по группе' }, String(avg))
 }
 
