@@ -168,7 +168,7 @@ const columns = computed<TableColumn<FlatRow>[]>(() => [
           Предмет
         </p>
         <h1 class="text-2xl font-semibold text-highlighted">
-          Check-in сессии
+          Отметка присутствия сессии
         </h1>
       </div>
 

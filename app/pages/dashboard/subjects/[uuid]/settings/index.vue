@@ -27,8 +27,8 @@ const cards = computed<PageCardProps[]>(() => [
   },
   {
     to: `/dashboard/subjects/${subjectId.value}/settings/check-in-policy`,
-    title: 'Единое время на отметку (check-in)',
-    description: 'Единые окна check-in для всех сессий предмета',
+    title: 'Единое время на отметку',
+    description: 'Единые окна отметки для всех сессий предмета',
     icon: 'i-lucide-timer',
   },
 ])

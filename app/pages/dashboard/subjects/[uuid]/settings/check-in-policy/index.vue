@@ -87,7 +87,7 @@ const handleSave = onSubmit(
 
 <template>
   <div class="flex flex-col gap-6">
-    <UPageHeader title="Единое время на отметку (check-in)">
+    <UPageHeader title="Единое время на отметку">
       <template #links>
         <UButton
           icon="i-lucide-refresh-cw"
@@ -133,11 +133,11 @@ const handleSave = onSubmit(
         <UCard :ui="{ body: 'flex flex-col gap-4' }">
           <UCheckbox
             v-model="state.enabled"
-            label="Единые окна check-in для всего предмета"
+            label="Единые окна отметки для всего предмета"
           />
 
           <p class="text-sm text-muted">
-            Когда включено — все сессии check-in этого предмета используют указанные окна,
+            Когда включено — все сессии отметки этого предмета используют указанные окна,
             а поля окон на экране запуска сессии игнорируются. Когда выключено — окна задаются
             индивидуально при запуске каждой сессии.
           </p>

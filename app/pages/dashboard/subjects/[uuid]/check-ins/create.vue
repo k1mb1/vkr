@@ -151,7 +151,7 @@ const handleStart = onSubmit(
 
 <template>
   <div class="flex flex-col gap-6">
-    <UPageHeader title="Запустить check-in">
+    <UPageHeader title="Запустить отметку присутствия">
       <template #links>
         <UButton
           :to="`/dashboard/subjects/${subjectId}/check-ins`"

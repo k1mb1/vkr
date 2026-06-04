@@ -154,7 +154,7 @@ async function shareLink() {
     return
   try {
     await navigator.share({
-      title: 'Check-in',
+      title: 'Отметка присутствия',
       text: 'Отметьтесь на занятии',
       url: publicUrl.value,
     })
@@ -294,7 +294,7 @@ const liveColumns: TableColumn<Row>[] = [
 
 const previewColumns: TableColumn<Row>[] = [
   { accessorKey: 'username', header: 'Студент' },
-  { accessorKey: 'checkInStatus', header: 'Check-in' },
+  { accessorKey: 'checkInStatus', header: 'Отметка' },
   { accessorKey: 'proposedStatus', header: 'Статус', meta: { class: { td: 'min-w-[180px]' } } },
   { id: 'comment', header: 'Комментарий', meta: { class: { td: 'min-w-[200px]' } } },
 ]
@@ -344,7 +344,7 @@ async function handleConfirm() {
 
 <template>
   <div class="flex flex-col gap-6">
-    <UPageHeader title="Check-in сессия">
+    <UPageHeader title="Сессия отметки присутствия">
       <template #links>
         <UButton
           :to="`/dashboard/subjects/${subjectId}/check-ins`"
@@ -567,7 +567,7 @@ async function handleConfirm() {
 
       <UModal
         v-model:open="qrModalOpen"
-        title="QR для check-in"
+        title="QR для отметки присутствия"
         :ui="{ content: 'sm:max-w-2xl' }"
       >
         <template #body>

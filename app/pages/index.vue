@@ -21,7 +21,7 @@ const { t } = useI18n({
             description: 'Generate lessons by count (lectures + practices) or paste a weekly schedule — recurring patterns supported.',
           },
           checkin: {
-            title: 'Live check-in',
+            title: 'Живая отметка',
             description: 'Start a session, students mark themselves in within the on-time and late windows from their phones.',
           },
           attendance: {
@@ -47,7 +47,7 @@ const { t } = useI18n({
         },
       },
       how: {
-        title: 'How check-in works',
+        title: 'How presence marking works',
         description: 'Three steps replace the roll call. No app installs, no accounts for students.',
         steps: {
           start: {
@@ -56,7 +56,7 @@ const { t } = useI18n({
           },
           mark: {
             title: 'Students check in',
-            description: 'They open the QR or link, find themselves in the list and tap «I\'m here». One device — one check-in.',
+            description: 'They open the QR or link, find themselves in the list and tap «I\'m here». One device — one mark.',
           },
           confirm: {
             title: 'Confirm and grade',
@@ -74,7 +74,7 @@ const { t } = useI18n({
           },
           late: {
             label: 'How do I handle latecomers?',
-            content: 'Each session has two windows — on-time and late. Anyone checking in after the on-time window is automatically flagged as late, and you can still override the status manually.',
+            content: 'Each session has two windows — on-time and late. Anyone marking presence after the on-time window is automatically flagged as late, and you can still override the status manually.',
           },
           override: {
             label: 'Can I correct a status after the session?',
@@ -116,7 +116,7 @@ const { t } = useI18n({
             description: 'Создавайте занятия по количеству (лекции + практики) или по недельному расписанию — поддерживаются повторяющиеся шаблоны.',
           },
           checkin: {
-            title: 'Live check-in',
+            title: 'Живая отметка',
             description: 'Запустите сессию — студенты сами отметятся со своих телефонов в основном окне или окне для опоздавших.',
           },
           attendance: {
@@ -142,7 +142,7 @@ const { t } = useI18n({
         },
       },
       how: {
-        title: 'Как работает check-in',
+        title: 'Как работает отметка присутствия',
         description: 'Три шага вместо переклички. Студентам не нужно ставить приложение или регистрироваться.',
         steps: {
           start: {

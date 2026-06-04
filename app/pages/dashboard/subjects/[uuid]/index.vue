@@ -13,7 +13,7 @@ const cards = computed(() => {
       to: `/dashboard/subjects/${subjectId.value}/lessons`,
     },
     {
-      label: 'Check-in',
+      label: 'Отметка присутствия',
       description: 'Запуск и управление отметками присутствия',
       icon: 'i-lucide-clipboard-list',
       to: `/dashboard/subjects/${subjectId.value}/check-ins`,

@@ -3,6 +3,7 @@ import type { BreadcrumbItem, NavigationMenuItem } from '@nuxt/ui'
 
 const route = useRoute()
 const { subjects } = useSubjectNavigation()
+const { hasAllPermissions } = usePermissions()
 
 const uuid = computed(() => {
   const param = route.params.uuid
@@ -57,7 +58,7 @@ const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
         items.push({ label: 'Задания' })
     }
     else if (route.path.includes('/check-ins')) {
-      items.push({ label: 'Check-in', to: `/dashboard/subjects/${uuid.value}/check-ins` })
+      items.push({ label: 'Отметка присутствия', to: `/dashboard/subjects/${uuid.value}/check-ins` })
       if (route.path.endsWith('/create'))
         items.push({ label: 'Запуск' })
     }
@@ -90,7 +91,7 @@ const toolbarItems = computed<NavigationMenuItem[][]>(() => uuid.value
         active: route.path.startsWith(`/dashboard/subjects/${uuid.value}/lessons`),
       },
       {
-        label: 'Check-in',
+        label: 'Отметка присутствия',
         icon: 'i-lucide-clipboard-list',
         to: `/dashboard/subjects/${uuid.value}/check-ins`,
         active: route.path.startsWith(`/dashboard/subjects/${uuid.value}/check-ins`),
@@ -113,12 +114,14 @@ const toolbarItems = computed<NavigationMenuItem[][]>(() => uuid.value
         to: `/dashboard/subjects/${uuid.value}/final`,
         active: route.path.startsWith(`/dashboard/subjects/${uuid.value}/final`),
       },
-      {
-        label: 'Настройки',
-        icon: 'i-lucide-settings',
-        to: `/dashboard/subjects/${uuid.value}/settings`,
-        active: route.path.startsWith(`/dashboard/subjects/${uuid.value}/settings`),
-      },
+      ...(hasAllPermissions.value
+        ? [{
+            label: 'Настройки',
+            icon: 'i-lucide-settings',
+            to: `/dashboard/subjects/${uuid.value}/settings`,
+            active: route.path.startsWith(`/dashboard/subjects/${uuid.value}/settings`),
+          }]
+        : []),
     ]]
   : [])
 </script>

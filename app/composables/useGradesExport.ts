@@ -16,10 +16,6 @@ const lessonTypeLabel: Record<LessonType, string> = {
   PRACTICE: 'Практика',
 }
 
-function subgroupLabel(section: SectionKey): string {
-  return section.subgroupIndex ? `Подгруппа ${section.subgroupIndex}` : 'Вся группа'
-}
-
 function lessonDate(l: GradingTableLesson): string | undefined {
   const dates = (l.scopes ?? [])
     .map(s => (s as Scope).startedAt)
