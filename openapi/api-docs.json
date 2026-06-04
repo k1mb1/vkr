@@ -35,6 +35,10 @@
     },
     { "name": "Lesson scopes", "description": "Операции над scope занятия" },
     { "name": "Grades", "description": "Оценивание" },
+    {
+      "name": "Subject check-in policy",
+      "description": "Единое время на отметку (check-in) для всего предмета"
+    },
     { "name": "Subgroups", "description": "Управление подгруппами" },
     { "name": "Subjects", "description": "Управление предметами" },
     { "name": "Lessons", "description": "Управление занятиями и расписанием" },
@@ -306,6 +310,70 @@
                 "schema": {
                   "type": "array",
                   "items": { "$ref": "#/components/schemas/GradeCellResponse" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/check-in-policy/subjects/{subjectId}": {
+      "get": {
+        "tags": ["Subject check-in policy"],
+        "summary": "Получить политику окон check-in предмета",
+        "operationId": "getCheckInPolicy",
+        "parameters": [
+          {
+            "name": "subjectId",
+            "in": "path",
+            "description": "ID предмета",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckInPolicyResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["Subject check-in policy"],
+        "summary": "Задать/обновить политику окон check-in",
+        "description": "enabled=false выключает фичу (окна задаются при запуске сессии). При enabled=true окна обязательны и применяются ко всем сессиям предмета.",
+        "operationId": "updateCheckInPolicy",
+        "parameters": [
+          {
+            "name": "subjectId",
+            "in": "path",
+            "description": "ID предмета",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "description": "Параметры окон check-in",
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CheckInPolicyRequest" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckInPolicyResponse"
                 }
               }
             }
@@ -960,6 +1028,7 @@
       "post": {
         "tags": ["Check-in sessions (public)"],
         "summary": "Отметиться студенту",
+        "description": "Требует ID студента (из результата поиска) и код аудитории, показанный преподавателем. Возвращает только собственный статус отметки.",
         "operationId": "checkIn",
         "parameters": [
           {
@@ -983,7 +1052,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CheckInRecordResponse"
+                  "$ref": "#/components/schemas/PublicCheckInRecordResponse"
                 }
               }
             }
@@ -1482,7 +1551,8 @@
     "/api/check-in-sessions/public/{id}": {
       "get": {
         "tags": ["Check-in sessions (public)"],
-        "summary": "Получить состояние сессии и список студентов",
+        "summary": "Получить состояние сессии",
+        "description": "Возвращает только метаданные сессии (тему, аудиторию, окна, состояние). Ростер группы намеренно не отдаётся: чтобы найти себя, студент ищет по фамилии через GET /{id}/students.",
         "operationId": "get_1",
         "parameters": [
           {
@@ -1499,6 +1569,44 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicCheckInSessionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/check-in-sessions/public/{id}/students": {
+      "get": {
+        "tags": ["Check-in sessions (public)"],
+        "summary": "Найти себя по фамилии",
+        "description": "Поиск студента сессии по части ФИО (фамилии). Возвращает только совпадения с маскированным ФИО и id (id нужен для отметки), без статусов посещаемости других студентов. Пустой или слишком короткий запрос возвращает пустой список.",
+        "operationId": "searchStudents",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "description": "Фамилия или часть ФИО для поиска",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PublicStudentResponse"
+                  }
                 }
               }
             }
@@ -2080,6 +2188,50 @@
           "comment": { "type": "string", "description": "Комментарий" }
         }
       },
+      "CheckInPolicyRequest": {
+        "type": "object",
+        "description": "Единое время на отметку (check-in) для всего предмета.\nЕсли enabled = true — onTimeSeconds и lateSeconds обязательны (проверяется на сервисе),\nи любая check-in сессия предмета использует именно эти окна, игнорируя значения из запроса\nна запуск. Если enabled = false — окна задаются индивидуально при запуске сессии.\n",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Включена ли единая политика окон check-in"
+          },
+          "onTimeSeconds": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Длительность основного окна (секунды). Отметившиеся здесь получат статус PRESENT",
+            "example": 600,
+            "minimum": 1
+          },
+          "lateSeconds": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Дополнительное окно для опоздавших (секунды). Отметившиеся здесь получат статус LATE",
+            "example": 600
+          }
+        },
+        "required": ["enabled"]
+      },
+      "CheckInPolicyResponse": {
+        "type": "object",
+        "description": "Единое время на отметку (check-in) для всего предмета",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Включена ли единая политика окон check-in"
+          },
+          "onTimeSeconds": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Длительность основного окна (секунды); null если политика выключена"
+          },
+          "lateSeconds": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Дополнительное окно для опоздавших (секунды); null если политика выключена"
+          }
+        }
+      },
       "BulkUpsertAttendanceRequest": {
         "type": "object",
         "description": "Массовое создание/обновление ячеек посещаемости.\nКаждый элемент — целевое состояние одной ячейки (studentId, lessonScopeId, status, comment?).\nПара (studentId, lessonScopeId) должна быть уникальна в пределах запроса.\n",
@@ -2588,18 +2740,18 @@
           "onTimeSeconds": {
             "type": "integer",
             "format": "int32",
-            "description": "Длительность основного окна (секунды). Студенты, отметившиеся здесь, получат статус PRESENT",
+            "description": "Длительность основного окна (секунды). Студенты, отметившиеся здесь, получат статус PRESENT. Обязательно, если у предмета НЕ задана политика check-in; при заданной политике игнорируется.",
             "example": 600,
             "minimum": 1
           },
           "lateSeconds": {
             "type": "integer",
             "format": "int32",
-            "description": "Дополнительное окно для опоздавших (секунды). Отметившиеся здесь получат статус LATE",
+            "description": "Дополнительное окно для опоздавших (секунды). Отметившиеся здесь получат статус LATE. Обязательно, если у предмета НЕ задана политика check-in; при заданной политике игнорируется.",
             "example": 600
           }
         },
-        "required": ["lateSeconds", "lessonScopeId", "onTimeSeconds"]
+        "required": ["lessonScopeId"]
       },
       "CheckInAudienceScope": {
         "type": "object",
@@ -2650,6 +2802,10 @@
             "type": "array",
             "description": "Аудитория опроса — копия аудитории lesson scope. Если allGroups=true, содержит по одной записи на каждую группу предмета.",
             "items": { "$ref": "#/components/schemas/CheckInAudienceScope" }
+          },
+          "code": {
+            "type": "string",
+            "description": "Код аудитории — преподаватель показывает его студентам; нужен им для отметки. В публичный ответ не отдаётся."
           },
           "startedAt": {
             "type": "string",
@@ -2735,33 +2891,23 @@
           "studentId": {
             "type": "string",
             "format": "uuid",
-            "description": "ID студента"
+            "description": "ID студента (берётся из результата поиска по фамилии)"
+          },
+          "code": {
+            "type": "string",
+            "description": "Код аудитории, который преподаватель показал в аудитории. Без верного кода отметка отклоняется — это не даёт отметить кого-либо, просто зная его ID.",
+            "minLength": 1
           }
         },
-        "required": ["studentId"]
+        "required": ["code", "studentId"]
       },
-      "CheckInRecordResponse": {
+      "PublicCheckInRecordResponse": {
         "type": "object",
-        "description": "Запись о check-in одного студента",
+        "description": "Подтверждение собственной отметки студента. Содержит только его собственный результат — ни ID записи, ни данные других студентов не раскрываются.",
         "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID записи"
-          },
-          "sessionId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID сессии"
-          },
-          "studentId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID студента"
-          },
           "status": {
             "type": "string",
-            "description": "Статус",
+            "description": "Статус собственной отметки (вовремя / с опозданием)",
             "enum": ["PRESENT", "LATE"]
           },
           "checkedInAt": {
@@ -3216,7 +3362,7 @@
       },
       "PublicCheckInSessionResponse": {
         "type": "object",
-        "description": "Публичное состояние check-in сессии (для страницы студентов)",
+        "description": "Публичное состояние check-in сессии (для страницы студентов). Ростер группы намеренно не отдаётся: чтобы отметиться, студент ищет себя по фамилии через GET /{id}/students?query=... — так список группы и статусы посещаемости не раскрываются всем по ссылке.",
         "properties": {
           "id": {
             "type": "string",
@@ -3254,36 +3400,21 @@
             "type": "string",
             "format": "date-time",
             "description": "Текущий момент сервера (UTC)"
-          },
-          "students": {
-            "type": "array",
-            "description": "Список студентов для таблицы check-in",
-            "items": { "$ref": "#/components/schemas/Student" }
           }
         }
       },
-      "Student": {
+      "PublicStudentResponse": {
         "type": "object",
-        "description": "Строка таблицы студентов",
+        "description": "Найденный по фамилии студент для публичной страницы check-in. Отдаётся только для совпадений с поисковым запросом, без статуса посещаемости — чтобы не раскрывать посторонним, кто пришёл, а кто прогулял.",
         "properties": {
           "id": {
             "type": "string",
             "format": "uuid",
-            "description": "ID студента"
+            "description": "ID студента — нужен для последующей отметки (POST /{id}/check-in)"
           },
           "username": {
             "type": "string",
             "description": "Маскированное ФИО студента (фамилия + инициалы, напр. «Иванов И. И.») — публичный эндпоинт не отдаёт полное имя в целях защиты персональных данных"
-          },
-          "checkedInStatus": {
-            "type": "string",
-            "description": "Уже отметившийся статус, либо null если ещё не отмечен",
-            "enum": ["PRESENT", "LATE"]
-          },
-          "checkedInAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Момент отметки, если есть"
           }
         }
       },
