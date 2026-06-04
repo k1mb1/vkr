@@ -1,7 +1,7 @@
 import type { components } from '#open-fetch-schemas/backend'
 import type { SectionKey } from '~/composables/useTableSections'
 import { applyBonus, applyPenalty, computeBonusCount, computePenaltyCount } from '~/composables/usePenalty'
-import { groupBySection } from '~/composables/useTableSections'
+import { groupBySection, scopeVisibleForSection } from '~/composables/useTableSections'
 
 type GradingTableResponse = components['schemas']['GradingTableResponse']
 type GradingTableLesson = components['schemas']['GradingTableLesson']
@@ -115,22 +115,86 @@ export function useGradesExport() {
         ? grouped.filter(g => sectionsFilter.includes(g.meta.key))
         : grouped
 
-      // ── Сводный лист «Темы»: тема + группа + подгруппа + дата ──
-      const summaryRows: (string | number)[][] = []
-      for (const { meta } of visibleSections) {
-        const sectionLessons = lessons.filter(l => lessonVisibleForSection(l, meta))
-        for (const lesson of sectionLessons) {
-          summaryRows.push([
-            meta.groupName,
-            subgroupLabel(meta),
-            formatLessonType(lesson),
-            formatLessonDate(lesson),
-            lesson.topic ?? '—',
-          ])
+      // ── Сводный лист «Темы»: тип + тема (объединены) + группа + подгруппа + дата ──
+      const groupNameMap = new Map<string, string>()
+      const subgroupIndexMap = new Map<string, number>()
+      for (const { meta } of grouped) {
+        groupNameMap.set(meta.groupId, meta.groupName)
+        if (meta.subgroupId != null && meta.subgroupIndex != null) {
+          subgroupIndexMap.set(meta.subgroupId, meta.subgroupIndex)
         }
       }
+
+      function scopeIsVisible(scope: Scope): boolean {
+        if (scope.allGroups)
+          return true
+        for (const { meta } of visibleSections) {
+          if (scopeVisibleForSection(scope, meta))
+            return true
+        }
+        return false
+      }
+
+      const summaryRows: (string | number)[][] = []
+      const summaryMerges: { s: { r: number, c: number }, e: { r: number, c: number } }[] = []
+      let currentRow = 3
+
+      for (const lesson of lessons) {
+        const hasAllGroups = lesson.scopes?.some(s => (s as Scope).allGroups) ?? false
+
+        if (hasAllGroups) {
+          summaryRows.push([
+            formatLessonType(lesson),
+            lesson.topic ?? '—',
+            'Все группы',
+            '—',
+            formatLessonDate(lesson),
+          ])
+          currentRow++
+          continue
+        }
+
+        const visibleScopes = (lesson.scopes as Scope[] ?? []).filter(scopeIsVisible)
+        if (!visibleScopes.length && !lesson.scopes?.length) {
+          summaryRows.push([
+            formatLessonType(lesson),
+            lesson.topic ?? '—',
+            '—',
+            '—',
+            '—',
+          ])
+          currentRow++
+          continue
+        }
+        if (!visibleScopes.length)
+          continue
+
+        const startRow = currentRow
+        for (const scope of visibleScopes) {
+          const group = groupNameMap.get(scope.groupId!) ?? '—'
+          const subgroup = scope.allowedSubgroupId == null
+            ? 'Вся группа'
+            : `Подгруппа ${subgroupIndexMap.get(scope.allowedSubgroupId) ?? '?'}`
+
+          summaryRows.push([
+            formatLessonType(lesson),
+            lesson.topic ?? '—',
+            group,
+            subgroup,
+            scope.startedAt ? d(new Date(scope.startedAt), 'numeric') : '—',
+          ])
+          currentRow++
+        }
+        if (visibleScopes.length > 1) {
+          summaryMerges.push(
+            { s: { r: startRow, c: 0 }, e: { r: startRow + visibleScopes.length - 1, c: 0 } },
+            { s: { r: startRow, c: 1 }, e: { r: startRow + visibleScopes.length - 1, c: 1 } },
+          )
+        }
+      }
+
       if (summaryRows.length) {
-        const summaryHeader = ['Группа', 'Подгруппа', 'Тип занятия', 'Дата', 'Тема']
+        const summaryHeader = ['Тип занятия', 'Тема', 'Группа', 'Подгруппа', 'Дата']
         const summaryData: (string | number)[][] = [
           ['Темы занятий'],
           [],
@@ -138,9 +202,10 @@ export function useGradesExport() {
           ...summaryRows,
         ]
         const summaryWs = XLSX.utils.aoa_to_sheet(summaryData)
-        summaryWs['!cols'] = [{ wch: 22 }, { wch: 16 }, { wch: 16 }, { wch: 12 }, { wch: 50 }]
+        summaryWs['!cols'] = [{ wch: 18 }, { wch: 50 }, { wch: 22 }, { wch: 16 }, { wch: 14 }]
         summaryWs['!merges'] = [
           { s: { r: 0, c: 0 }, e: { r: 0, c: summaryHeader.length - 1 } },
+          ...summaryMerges,
         ]
         XLSX.utils.book_append_sheet(wb, summaryWs, 'Темы')
       }

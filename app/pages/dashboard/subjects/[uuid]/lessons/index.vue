@@ -52,6 +52,16 @@ const tabs = computed(() => [
   { label: 'Лекции', value: 'lectures', badge: lectures.value.length || undefined },
   { label: 'Практики', value: 'practices', badge: practices.value.length || undefined },
 ])
+
+const { exportLoading, downloadExcel } = useLessonsTopicsExport()
+
+const lessonTypeFilter = computed<LessonTypeFilter>(() => {
+  if (activeTab.value === 'lectures')
+    return 'LECTURE'
+  if (activeTab.value === 'practices')
+    return 'PRACTICE'
+  return 'ALL'
+})
 </script>
 
 <template>
@@ -64,6 +74,14 @@ const tabs = computed(() => [
           variant="ghost"
           :loading="pending"
           @click="refresh()"
+        />
+        <UButton
+          icon="i-lucide-file-spreadsheet"
+          label="Excel"
+          color="neutral"
+          variant="outline"
+          :loading="exportLoading"
+          @click="downloadExcel(sortedData, lessonTypeFilter)"
         />
         <SubjectPermissionGate>
           <UButton

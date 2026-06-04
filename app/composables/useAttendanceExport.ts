@@ -74,22 +74,55 @@ export function useAttendanceExport() {
         ? grouped.filter(g => sectionsFilter.includes(g.meta.key))
         : grouped
 
-      // ── Сводный лист «Темы»: тема + группа + подгруппа + дата ──
-      const summaryRows: (string | number)[][] = []
+      // ── Сводный лист «Темы»: тип + тема (объединены) + группа + подгруппа + дата ──
+      const rawRows: { lessonId: string, row: (string | number)[] }[] = []
       for (const { meta } of visibleSections) {
         const sectionLessons = lessons.filter(sc => scopeVisibleForSection(sc, meta))
         for (const lesson of sectionLessons) {
-          summaryRows.push([
-            meta.groupName,
-            subgroupLabel(meta),
-            formatLessonType(lesson),
-            formatScopeDate(lesson),
-            lesson.topic ?? '—',
-          ])
+          rawRows.push({
+            lessonId: lesson.lessonId ?? lesson.id!,
+            row: [
+              formatLessonType(lesson),
+              lesson.topic ?? '—',
+              meta.groupName,
+              subgroupLabel(meta),
+              formatScopeDate(lesson),
+            ],
+          })
         }
       }
+
+      const summaryRows: (string | number)[][] = []
+      const summaryMerges: { s: { r: number, c: number }, e: { r: number, c: number } }[] = []
+      let currentRow = 3
+
+      const lessonOrder: string[] = []
+      const rowsByLesson = new Map<string, (string | number)[][]>()
+      for (const { lessonId, row } of rawRows) {
+        if (!rowsByLesson.has(lessonId))
+          lessonOrder.push(lessonId)
+        const list = rowsByLesson.get(lessonId) ?? []
+        list.push(row)
+        rowsByLesson.set(lessonId, list)
+      }
+
+      for (const lessonId of lessonOrder) {
+        const rows = rowsByLesson.get(lessonId)!
+        const startRow = currentRow
+        for (const row of rows) {
+          summaryRows.push(row)
+          currentRow++
+        }
+        if (rows.length > 1) {
+          summaryMerges.push(
+            { s: { r: startRow, c: 0 }, e: { r: startRow + rows.length - 1, c: 0 } },
+            { s: { r: startRow, c: 1 }, e: { r: startRow + rows.length - 1, c: 1 } },
+          )
+        }
+      }
+
       if (summaryRows.length) {
-        const summaryHeader = ['Группа', 'Подгруппа', 'Тип занятия', 'Дата', 'Тема']
+        const summaryHeader = ['Тип занятия', 'Тема', 'Группа', 'Подгруппа', 'Дата']
         const summaryData: (string | number)[][] = [
           ['Темы занятий'],
           [],
@@ -97,9 +130,10 @@ export function useAttendanceExport() {
           ...summaryRows,
         ]
         const summaryWs = XLSX.utils.aoa_to_sheet(summaryData)
-        summaryWs['!cols'] = [{ wch: 22 }, { wch: 16 }, { wch: 16 }, { wch: 12 }, { wch: 50 }]
+        summaryWs['!cols'] = [{ wch: 18 }, { wch: 50 }, { wch: 22 }, { wch: 16 }, { wch: 14 }]
         summaryWs['!merges'] = [
           { s: { r: 0, c: 0 }, e: { r: 0, c: summaryHeader.length - 1 } },
+          ...summaryMerges,
         ]
         XLSX.utils.book_append_sheet(wb, summaryWs, 'Темы')
       }
