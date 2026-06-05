@@ -31,6 +31,24 @@ const cards = computed<PageCardProps[]>(() => [
     description: 'Единые окна отметки для всех сессий предмета',
     icon: 'i-lucide-timer',
   },
+  {
+    to: `/dashboard/subjects/${subjectId.value}/settings/grading-highlight-policy`,
+    title: 'Подсветка таблицы оценок',
+    description: 'Цветовая раскраска ячеек таблицы оценок',
+    icon: 'i-lucide-palette',
+  },
+  {
+    to: `/dashboard/subjects/${subjectId.value}/settings/attendance-highlight-policy`,
+    title: 'Подсветка таблицы посещаемости',
+    description: 'Цветовая раскраска ячеек таблицы посещаемости',
+    icon: 'i-lucide-palette',
+  },
+  {
+    to: `/dashboard/subjects/${subjectId.value}/settings/final-assessment-policy`,
+    title: 'Промежуточная аттестация',
+    description: 'Банды итогов и условия посещаемости',
+    icon: 'i-lucide-award',
+  },
 ])
 </script>
 

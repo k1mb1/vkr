@@ -20,6 +20,10 @@
       "description": "Права преподавателей на предметы"
     },
     {
+      "name": "Results",
+      "description": "Итоги семестра (оценки + посещаемость одним запросом)"
+    },
+    {
       "name": "Check-in sessions (public)",
       "description": "Публичная страница опроса по UUID сессии (QR-код)"
     },
@@ -234,44 +238,79 @@
         "responses": { "200": { "description": "OK" } }
       }
     },
+    "/api/grading-highlight-policy/subjects/{subjectId}": {
+      "get": {
+        "tags": ["subject-grading-highlight-policy-controller"],
+        "operationId": "getGradingHighlightPolicy",
+        "parameters": [
+          {
+            "name": "subjectId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/GradingHighlightPolicyResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["subject-grading-highlight-policy-controller"],
+        "operationId": "updateGradingHighlightPolicy",
+        "parameters": [
+          {
+            "name": "subjectId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GradingHighlightPolicyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/GradingHighlightPolicyResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/grades": {
       "get": {
         "tags": ["Grades"],
-        "summary": "Получить таблицу оценок по permissionId",
+        "summary": "Получить полную таблицу оценок по permissionId",
+        "description": "Таблица по всем занятиям предмета разрешения. Пер-урочный режим (grades+attendance по одному занятию) — на GET /api/results?permissionId=&lessonId=",
         "operationId": "getGradingTable",
         "parameters": [
           {
             "name": "permissionId",
             "in": "query",
-            "description": "ID разрешения преподавателя (обязательно — определяет, что видно). Без других фильтров вернёт полную таблицу по предмету разрешения.",
+            "description": "ID разрешения преподавателя (обязательно — определяет, что видно)",
             "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "ID разрешения преподавателя (обязательно — определяет, что видно). Без других фильтров вернёт полную таблицу по предмету разрешения."
-            }
-          },
-          {
-            "name": "lessonId",
-            "in": "query",
-            "description": "ID занятия. Если задан — таблица только по этому занятию",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "ID занятия. Если задан — таблица только по этому занятию"
-            }
-          },
-          {
-            "name": "lessonScopeId",
-            "in": "query",
-            "description": "ID конкретного scope. Если задан — таблица только по уроку этого scope",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "ID конкретного scope. Если задан — таблица только по уроку этого scope"
-            }
+            "schema": { "type": "string", "format": "uuid" }
           }
         ],
         "responses": {
@@ -310,6 +349,66 @@
                 "schema": {
                   "type": "array",
                   "items": { "$ref": "#/components/schemas/GradeCellResponse" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/final-assessment-policy/subjects/{subjectId}": {
+      "get": {
+        "tags": ["subject-final-assessment-policy-controller"],
+        "operationId": "getFinalAssessmentPolicy",
+        "parameters": [
+          {
+            "name": "subjectId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/FinalAssessmentPolicyResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["subject-final-assessment-policy-controller"],
+        "operationId": "updateFinalAssessmentPolicy",
+        "parameters": [
+          {
+            "name": "subjectId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinalAssessmentPolicyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/FinalAssessmentPolicyResponse"
                 }
               }
             }
@@ -384,41 +483,16 @@
     "/api/attendances": {
       "get": {
         "tags": ["Attendances"],
-        "summary": "Получить таблицу посещаемости по permissionId",
+        "summary": "Получить полную таблицу посещаемости по permissionId",
+        "description": "Таблица по всем занятиям предмета разрешения. Пер-урочный режим (grades+attendance по одному занятию) — на GET /api/results?permissionId=&lessonId=",
         "operationId": "getAttendanceTable",
         "parameters": [
           {
             "name": "permissionId",
             "in": "query",
-            "description": "ID разрешения преподавателя (обязательно — определяет, что видно). Без других фильтров вернёт полную таблицу по предмету разрешения.",
+            "description": "ID разрешения преподавателя (обязательно — определяет, что видно)",
             "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "ID разрешения преподавателя (обязательно — определяет, что видно). Без других фильтров вернёт полную таблицу по предмету разрешения."
-            }
-          },
-          {
-            "name": "lessonId",
-            "in": "query",
-            "description": "ID занятия. Если задан — таблица только по scope'ам этого занятия (пересечённым с разрешением)",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "ID занятия. Если задан — таблица только по scope'ам этого занятия (пересечённым с разрешением)"
-            }
-          },
-          {
-            "name": "lessonScopeId",
-            "in": "query",
-            "description": "ID конкретного scope. Если задан — таблица только по одному столбцу",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "ID конкретного scope. Если задан — таблица только по одному столбцу"
-            }
+            "schema": { "type": "string", "format": "uuid" }
           }
         ],
         "responses": {
@@ -525,6 +599,66 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AttendancePolicyResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/attendance-highlight-policy/subjects/{subjectId}": {
+      "get": {
+        "tags": ["subject-attendance-highlight-policy-controller"],
+        "operationId": "getAttendanceHighlightPolicy",
+        "parameters": [
+          {
+            "name": "subjectId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttendanceHighlightPolicyResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["subject-attendance-highlight-policy-controller"],
+        "operationId": "updateAttendanceHighlightPolicy",
+        "parameters": [
+          {
+            "name": "subjectId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttendanceHighlightPolicyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttendanceHighlightPolicyResponse"
                 }
               }
             }
@@ -1498,6 +1632,47 @@
         }
       }
     },
+    "/api/results": {
+      "get": {
+        "tags": ["Results"],
+        "summary": "Получить итоги по permissionId одним запросом (оценки + посещаемость)",
+        "operationId": "getResults",
+        "parameters": [
+          {
+            "name": "permissionId",
+            "in": "query",
+            "description": "ID разрешения преподавателя (обязательно — определяет, что видно)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "ID разрешения преподавателя (обязательно — определяет, что видно)"
+            }
+          },
+          {
+            "name": "lessonId",
+            "in": "query",
+            "description": "ID занятия. Если задан — таблицы только по этому занятию",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "ID занятия. Если задан — таблицы только по этому занятию"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ResultsResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/lessons": {
       "get": {
         "tags": ["Lessons"],
@@ -2135,6 +2310,52 @@
           }
         }
       },
+      "GradingHighlightPolicyRequest": {
+        "type": "object",
+        "properties": {
+          "enabled": { "type": "boolean" },
+          "assignmentColor": {
+            "type": "string",
+            "pattern": "^#[0-9A-Fa-f]{6}$"
+          },
+          "fullColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+          "partialLowColor": {
+            "type": "string",
+            "pattern": "^#[0-9A-Fa-f]{6}$"
+          },
+          "partialHighColor": {
+            "type": "string",
+            "pattern": "^#[0-9A-Fa-f]{6}$"
+          }
+        },
+        "required": ["enabled"]
+      },
+      "GradingHighlightPolicyResponse": {
+        "type": "object",
+        "description": "Цветовая подсветка таблицы оценок (раскраску ячеек выполняет фронт)",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Применяется ли цветовая подсветка таблицы оценок"
+          },
+          "assignmentColor": {
+            "type": "string",
+            "description": "Цвет колонок с заданиями на л.р. (голубой), HEX вида #00C16A"
+          },
+          "fullColor": {
+            "type": "string",
+            "description": "Цвет полностью решённой л.р. (жёлтый), HEX вида #00C16A"
+          },
+          "partialLowColor": {
+            "type": "string",
+            "description": "Цвет л.р., решённой не более чем на половину (светло-жёлтый), HEX вида #00C16A"
+          },
+          "partialHighColor": {
+            "type": "string",
+            "description": "Цвет л.р., решённой более чем на половину (потемнее), HEX вида #00C16A"
+          }
+        }
+      },
       "BulkUpsertGradesRequest": {
         "type": "object",
         "description": "Массовое создание/обновление ячеек оценок.\nКаждый элемент — целевое состояние одной ячейки (studentId, lessonId, assignmentId?, score, comment?).\nТройка (studentId, lessonId, assignmentId) должна быть уникальна в пределах запроса\n(assignmentId=null — отдельная категория «оценка вне задания»).\n",
@@ -2216,6 +2437,136 @@
             "description": "Балл (сырой, без понижения — понижение применяет фронт)"
           },
           "comment": { "type": "string", "description": "Комментарий" }
+        }
+      },
+      "Band": {
+        "type": "object",
+        "description": "Банда: ярлык и условия его получения (minPoints и/или requiredTasks, AND)",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Ярлык, напр. «5», «зачтено»",
+            "minLength": 1
+          },
+          "minPoints": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Минимальный итоговый балл (включительно). null — без ограничения по баллам",
+            "minimum": 0
+          },
+          "requiredTasks": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Минимум закрытых обязательных задач. null — без ограничения по задачам",
+            "minimum": 0
+          }
+        },
+        "required": ["label"]
+      },
+      "FinalAssessmentPolicyRequest": {
+        "type": "object",
+        "description": "Параметры промежуточной аттестации (итоги): единый список банд + режим посещаемости.\nПри enabled = true обязателен непустой bands (проверяется на сервисе). Каждая банда —\nярлык и условия (баллы и/или задачи), условия комбинируются по AND. Банды нужно слать\nпо убыванию старшинства. Все вычисления вердикта и «сколько ещё» делает фронт.\n",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Включены ли итоги (банды)"
+          },
+          "bands": {
+            "type": "array",
+            "description": "Банды по убыванию старшинства (первая — самая старшая)",
+            "items": { "$ref": "#/components/schemas/Band" }
+          },
+          "attendanceMode": {
+            "type": "string",
+            "description": "Учёт посещаемости: COMBINED (в балл) или SEPARATE (отдельный гейт). По умолчанию COMBINED",
+            "enum": ["COMBINED", "SEPARATE"]
+          },
+          "attendanceRequirementMode": {
+            "type": "string",
+            "description": "SEPARATE: чем меряется гейт — PERCENT или COUNT",
+            "enum": ["PERCENT", "COUNT"]
+          },
+          "attendanceMinPercent": {
+            "type": "integer",
+            "format": "int32",
+            "description": "SEPARATE + PERCENT: минимальный процент посещённых занятий (0..100)",
+            "maximum": 100,
+            "minimum": 0
+          },
+          "attendanceMinCount": {
+            "type": "integer",
+            "format": "int32",
+            "description": "SEPARATE + COUNT: минимальное количество посещённых занятий",
+            "minimum": 0
+          },
+          "attendanceCountPresent": {
+            "type": "boolean",
+            "description": "SEPARATE: засчитывать ли PRESENT как посещение"
+          },
+          "attendanceCountLate": {
+            "type": "boolean",
+            "description": "SEPARATE: засчитывать ли LATE как посещение"
+          },
+          "attendanceCountAbsent": {
+            "type": "boolean",
+            "description": "SEPARATE: засчитывать ли ABSENT как посещение"
+          },
+          "attendanceCountExcused": {
+            "type": "boolean",
+            "description": "SEPARATE: засчитывать ли EXCUSED как посещение"
+          }
+        },
+        "required": ["enabled"]
+      },
+      "FinalAssessmentPolicyResponse": {
+        "type": "object",
+        "description": "Параметры промежуточной аттестации (итоги считает фронт)",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Включены ли итоги (банды)"
+          },
+          "bands": {
+            "type": "array",
+            "description": "Банды по убыванию старшинства (первая — самая старшая)",
+            "items": { "$ref": "#/components/schemas/Band" }
+          },
+          "attendanceMode": {
+            "type": "string",
+            "description": "Учёт посещаемости: COMBINED (в балл) или SEPARATE (отдельный гейт)",
+            "enum": ["COMBINED", "SEPARATE"]
+          },
+          "attendanceRequirementMode": {
+            "type": "string",
+            "description": "SEPARATE: чем меряется гейт — PERCENT или COUNT",
+            "enum": ["PERCENT", "COUNT"]
+          },
+          "attendanceMinPercent": {
+            "type": "integer",
+            "format": "int32",
+            "description": "SEPARATE + PERCENT: минимальный процент посещённых занятий (0..100)"
+          },
+          "attendanceMinCount": {
+            "type": "integer",
+            "format": "int32",
+            "description": "SEPARATE + COUNT: минимальное количество посещённых занятий"
+          },
+          "attendanceCountPresent": {
+            "type": "boolean",
+            "description": "SEPARATE: засчитывается ли PRESENT как посещение"
+          },
+          "attendanceCountLate": {
+            "type": "boolean",
+            "description": "SEPARATE: засчитывается ли LATE как посещение"
+          },
+          "attendanceCountAbsent": {
+            "type": "boolean",
+            "description": "SEPARATE: засчитывается ли ABSENT как посещение"
+          },
+          "attendanceCountExcused": {
+            "type": "boolean",
+            "description": "SEPARATE: засчитывается ли EXCUSED как посещение"
+          }
         }
       },
       "CheckInPolicyRequest": {
@@ -2375,6 +2726,43 @@
           "pointsExcused": {
             "type": "number",
             "description": "Баллы за пропуск по уважительной причине (EXCUSED)"
+          }
+        }
+      },
+      "AttendanceHighlightPolicyRequest": {
+        "type": "object",
+        "properties": {
+          "enabled": { "type": "boolean" },
+          "presentColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+          "lateColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+          "absentColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+          "excusedColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" }
+        },
+        "required": ["enabled"]
+      },
+      "AttendanceHighlightPolicyResponse": {
+        "type": "object",
+        "description": "Цветовая подсветка таблицы посещаемости (раскраску ячеек выполняет фронт)",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Применяется ли цветовая подсветка таблицы посещаемости"
+          },
+          "presentColor": {
+            "type": "string",
+            "description": "Цвет ячейки со статусом PRESENT, HEX вида #00C16A"
+          },
+          "lateColor": {
+            "type": "string",
+            "description": "Цвет ячейки со статусом LATE, HEX вида #00C16A"
+          },
+          "absentColor": {
+            "type": "string",
+            "description": "Цвет ячейки со статусом ABSENT, HEX вида #00C16A"
+          },
+          "excusedColor": {
+            "type": "string",
+            "description": "Цвет ячейки со статусом EXCUSED, HEX вида #00C16A"
           }
         }
       },
@@ -3151,331 +3539,6 @@
           }
         }
       },
-      "GroupPageResponse": {
-        "type": "object",
-        "description": "Краткая информация о группе (для списка)",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID группы"
-          },
-          "name": { "type": "string", "description": "Название группы" },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Дата создания"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Дата последнего обновления"
-          }
-        }
-      },
-      "PagedModelGroupPageResponse": {
-        "type": "object",
-        "properties": {
-          "content": {
-            "type": "array",
-            "items": { "$ref": "#/components/schemas/GroupPageResponse" }
-          },
-          "page": { "$ref": "#/components/schemas/PageMetadata" }
-        }
-      },
-      "GroupWithSubgroupsResponse": {
-        "type": "object",
-        "description": "Группа с подгруппами (без студентов)",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID группы"
-          },
-          "name": { "type": "string", "description": "Название группы" },
-          "subgroups": {
-            "type": "array",
-            "description": "Список подгрупп",
-            "items": { "$ref": "#/components/schemas/SubgroupResponse" }
-          }
-        }
-      },
-      "GradingAudienceScope": {
-        "type": "object",
-        "description": "Аудитория таблицы — одна запись на (группа, опц. подгруппа). Один scope разрешения = одна запись; при allPermissions=true — по одной записи на каждую группу предмета.",
-        "properties": {
-          "groupId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID группы"
-          },
-          "groupName": { "type": "string", "description": "Название группы" },
-          "allowedSubgroupId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID разрешённой подгруппы (null = вся группа)"
-          },
-          "allowedSubgroupIndex": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Индекс разрешённой подгруппы (null = вся группа)"
-          }
-        }
-      },
-      "GradingTableLesson": {
-        "type": "object",
-        "description": "Занятие в таблице оценок (шаблон); даты — в scopes",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID занятия"
-          },
-          "type": {
-            "type": "string",
-            "description": "Тип занятия",
-            "enum": ["LECTURE", "PRACTICE"]
-          },
-          "orderIndex": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Порядковый номер занятия в рамках (предмет, тип)"
-          },
-          "topic": { "type": "string", "description": "Тема" },
-          "active": {
-            "type": "boolean",
-            "description": "Активное (текущее) занятие — точка отсчёта для понижения балла"
-          },
-          "scopes": {
-            "type": "array",
-            "description": "Проведения этого занятия для соответствующих групп",
-            "items": { "$ref": "#/components/schemas/Scope" }
-          }
-        }
-      },
-      "GradingTableResponse": {
-        "type": "object",
-        "description": "Таблица оценок: студенты × (задания + extra-колонка) с существующими ячейками",
-        "properties": {
-          "penaltyPolicy": {
-            "$ref": "#/components/schemas/PenaltyPolicyResponse",
-            "description": "Политика понижения за просрочку и бонуса за раннюю сдачу. Если включена — фронт применяет её к каждой ячейке по её lessonsOffset."
-          },
-          "attendancePolicy": {
-            "$ref": "#/components/schemas/AttendancePolicyResponse",
-            "description": "Связка посещаемости с баллом. Если enabled=true — фронт считает вклад посещаемости по сводке attendance ниже."
-          },
-          "attendance": {
-            "type": "array",
-            "description": "Сводка посещаемости по студентам (по занятиям этой таблицы) для расчёта вклада",
-            "items": {
-              "$ref": "#/components/schemas/StudentAttendanceResponse"
-            }
-          },
-          "audience": {
-            "type": "array",
-            "description": "Аудитория таблицы — группы/подгруппы из scope'ов разрешения. Пустой список при allPermissions=true: клиент должен взять группы из subject.groups.",
-            "items": { "$ref": "#/components/schemas/GradingAudienceScope" }
-          },
-          "students": {
-            "type": "array",
-            "description": "Строки таблицы — студенты",
-            "items": { "$ref": "#/components/schemas/GradingTableStudent" }
-          },
-          "lessons": {
-            "type": "array",
-            "description": "Занятия (нужны для построения подзаголовков колонок и extra-оценок по уроку)",
-            "items": { "$ref": "#/components/schemas/GradingTableLesson" }
-          },
-          "assignments": {
-            "type": "array",
-            "description": "Задания (колонки таблицы внутри каждого урока)",
-            "items": { "$ref": "#/components/schemas/AssignmentResponse" }
-          },
-          "grades": {
-            "type": "array",
-            "description": "Проставленные ячейки оценок (включая оценки вне заданий — у них assignmentId=null)",
-            "items": { "$ref": "#/components/schemas/GradeCellResponse" }
-          }
-        }
-      },
-      "GradingTableStudent": {
-        "type": "object",
-        "description": "Студент в таблице оценок",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID студента"
-          },
-          "username": { "type": "string", "description": "Имя студента" },
-          "groupId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID группы студента"
-          },
-          "groupName": {
-            "type": "string",
-            "description": "Название группы студента"
-          },
-          "subgroupId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID подгруппы (null = без подгруппы)"
-          },
-          "subgroupIndex": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Индекс подгруппы (null = без подгруппы)"
-          }
-        }
-      },
-      "Scope": {
-        "type": "object",
-        "description": "Проведение занятия для группы (для отображения даты в шапке колонки)",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID проведения"
-          },
-          "groupId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID группы (null = все группы)"
-          },
-          "allowedSubgroupId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID разрешённой подгруппы (null = вся группа)"
-          },
-          "startedAt": {
-            "type": "string",
-            "format": "date",
-            "description": "Дата проведения"
-          },
-          "allGroups": {
-            "type": "boolean",
-            "description": "true = проведение для всех групп"
-          }
-        }
-      },
-      "StudentAttendanceResponse": {
-        "type": "object",
-        "description": "Сводка посещаемости студента по занятиям таблицы (для расчёта вклада на фронте)",
-        "properties": {
-          "studentId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID студента"
-          },
-          "present": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Кол-во присутствий (PRESENT)"
-          },
-          "late": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Кол-во опозданий (LATE)"
-          },
-          "absent": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Кол-во пропусков без причины (ABSENT)"
-          },
-          "excused": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Кол-во пропусков по уважительной причине (EXCUSED)"
-          }
-        }
-      },
-      "CheckInPreviewResponse": {
-        "type": "object",
-        "description": "Сверочный пред-просмотр результатов check-in. Преподаватель видит, что попадёт в основную посещаемость после подтверждения.",
-        "properties": {
-          "session": {
-            "$ref": "#/components/schemas/CheckInSessionResponse",
-            "description": "Состояние сессии"
-          },
-          "rows": {
-            "type": "array",
-            "description": "Строки сверки: одна на каждого студента",
-            "items": { "$ref": "#/components/schemas/Row" }
-          }
-        }
-      },
-      "Row": {
-        "type": "object",
-        "description": "Строка сверки",
-        "properties": {
-          "studentId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID студента"
-          },
-          "username": { "type": "string", "description": "Имя студента" },
-          "checkInStatus": {
-            "type": "string",
-            "description": "Статус из check-in (если был)",
-            "enum": ["PRESENT", "LATE"]
-          },
-          "checkedInAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Момент отметки (если был)"
-          },
-          "proposedStatus": {
-            "type": "string",
-            "description": "Какой статус посещаемости будет проставлен по умолчанию",
-            "enum": ["PRESENT", "ABSENT", "LATE", "EXCUSED"]
-          }
-        }
-      },
-      "PublicCheckInSessionResponse": {
-        "type": "object",
-        "description": "Публичное состояние check-in сессии (для страницы студентов). Ростер группы намеренно не отдаётся: чтобы отметиться, студент ищет себя по фамилии через GET /{id}/students?query=... — так список группы и статусы посещаемости не раскрываются всем по ссылке.",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID сессии"
-          },
-          "lessonTopic": { "type": "string", "description": "Тема занятия" },
-          "audience": {
-            "type": "array",
-            "description": "Аудитория опроса — копия lesson scopes (группа + опц. подгруппа). Если allGroups=true, содержит по одной записи на каждую группу предмета.",
-            "items": { "$ref": "#/components/schemas/CheckInAudienceScope" }
-          },
-          "state": {
-            "type": "string",
-            "description": "Текущее состояние сессии",
-            "enum": [
-              "OPEN",
-              "LATE_WINDOW",
-              "AWAITING_CONFIRMATION",
-              "CONFIRMED",
-              "CANCELLED"
-            ]
-          },
-          "onTimeEndsAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Момент окончания основного окна"
-          },
-          "lateEndsAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Момент окончания окна для опоздавших"
-          },
-          "serverNow": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Текущий момент сервера (UTC)"
-          }
-        }
-      },
       "AttendanceAudienceScope": {
         "type": "object",
         "description": "Аудитория таблицы — одна запись на (группа, опц. подгруппа). Один scope разрешения = одна запись; при allPermissions=true — по одной записи на каждую группу предмета.",
@@ -3561,6 +3624,10 @@
         "type": "object",
         "description": "Таблица посещаемости: студенты × занятия с существующими ячейками",
         "properties": {
+          "highlightPolicy": {
+            "$ref": "#/components/schemas/AttendanceHighlightPolicyResponse",
+            "description": "Цветовая подсветка таблицы посещаемости. Если enabled=true — фронт раскрашивает ячейки по этим цветам (HEX вида #00C16A)."
+          },
           "audience": {
             "type": "array",
             "description": "Аудитория таблицы — группы/подгруппы из scope'ов разрешения. Пустой список при allPermissions=true: клиент должен взять группы из subject.groups.",
@@ -3611,6 +3678,353 @@
             "type": "integer",
             "format": "int32",
             "description": "Индекс подгруппы (null = без подгруппы)"
+          }
+        }
+      },
+      "GradingAudienceScope": {
+        "type": "object",
+        "description": "Аудитория таблицы — одна запись на (группа, опц. подгруппа). Один scope разрешения = одна запись; при allPermissions=true — по одной записи на каждую группу предмета.",
+        "properties": {
+          "groupId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID группы"
+          },
+          "groupName": { "type": "string", "description": "Название группы" },
+          "allowedSubgroupId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID разрешённой подгруппы (null = вся группа)"
+          },
+          "allowedSubgroupIndex": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Индекс разрешённой подгруппы (null = вся группа)"
+          }
+        }
+      },
+      "GradingTableLesson": {
+        "type": "object",
+        "description": "Занятие в таблице оценок (шаблон); даты — в scopes",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID занятия"
+          },
+          "type": {
+            "type": "string",
+            "description": "Тип занятия",
+            "enum": ["LECTURE", "PRACTICE"]
+          },
+          "orderIndex": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Порядковый номер занятия в рамках (предмет, тип)"
+          },
+          "topic": { "type": "string", "description": "Тема" },
+          "active": {
+            "type": "boolean",
+            "description": "Активное (текущее) занятие — точка отсчёта для понижения балла"
+          },
+          "scopes": {
+            "type": "array",
+            "description": "Проведения этого занятия для соответствующих групп",
+            "items": { "$ref": "#/components/schemas/Scope" }
+          }
+        }
+      },
+      "GradingTableResponse": {
+        "type": "object",
+        "description": "Таблица оценок: студенты × (задания + extra-колонка) с существующими ячейками",
+        "properties": {
+          "penaltyPolicy": {
+            "$ref": "#/components/schemas/PenaltyPolicyResponse",
+            "description": "Политика понижения за просрочку и бонуса за раннюю сдачу. Если включена — фронт применяет её к каждой ячейке по её lessonsOffset."
+          },
+          "attendancePolicy": {
+            "$ref": "#/components/schemas/AttendancePolicyResponse",
+            "description": "Связка посещаемости с баллом. Если enabled=true — фронт считает вклад посещаемости по сводке attendance ниже."
+          },
+          "highlightPolicy": {
+            "$ref": "#/components/schemas/GradingHighlightPolicyResponse",
+            "description": "Цветовая подсветка таблицы оценок. Если enabled=true — фронт раскрашивает колонки заданий и ячейки по этим цветам (HEX вида #00C16A)."
+          },
+          "finalAssessmentPolicy": {
+            "$ref": "#/components/schemas/FinalAssessmentPolicyResponse",
+            "description": "Промежуточная аттестация (итоги). Если enabled=true — фронт по итоговому баллу/задачам выбирает первую подходящую банду и считает «сколько до следующей»."
+          },
+          "attendance": {
+            "type": "array",
+            "description": "Сводка посещаемости по студентам (по занятиям этой таблицы) для расчёта вклада",
+            "items": {
+              "$ref": "#/components/schemas/StudentAttendanceResponse"
+            }
+          },
+          "audience": {
+            "type": "array",
+            "description": "Аудитория таблицы — группы/подгруппы из scope'ов разрешения. Пустой список при allPermissions=true: клиент должен взять группы из subject.groups.",
+            "items": { "$ref": "#/components/schemas/GradingAudienceScope" }
+          },
+          "students": {
+            "type": "array",
+            "description": "Строки таблицы — студенты",
+            "items": { "$ref": "#/components/schemas/GradingTableStudent" }
+          },
+          "lessons": {
+            "type": "array",
+            "description": "Занятия (нужны для построения подзаголовков колонок и extra-оценок по уроку)",
+            "items": { "$ref": "#/components/schemas/GradingTableLesson" }
+          },
+          "assignments": {
+            "type": "array",
+            "description": "Задания (колонки таблицы внутри каждого урока)",
+            "items": { "$ref": "#/components/schemas/AssignmentResponse" }
+          },
+          "grades": {
+            "type": "array",
+            "description": "Проставленные ячейки оценок (включая оценки вне заданий — у них assignmentId=null)",
+            "items": { "$ref": "#/components/schemas/GradeCellResponse" }
+          }
+        }
+      },
+      "GradingTableStudent": {
+        "type": "object",
+        "description": "Студент в таблице оценок",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID студента"
+          },
+          "username": { "type": "string", "description": "Имя студента" },
+          "groupId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID группы студента"
+          },
+          "groupName": {
+            "type": "string",
+            "description": "Название группы студента"
+          },
+          "subgroupId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID подгруппы (null = без подгруппы)"
+          },
+          "subgroupIndex": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Индекс подгруппы (null = без подгруппы)"
+          }
+        }
+      },
+      "ResultsResponse": {
+        "type": "object",
+        "description": "Единый ответ страницы итогов: таблица оценок и таблица посещаемости в одном запросе. Политику итогов (банды) фронт берёт из grading.finalAssessmentPolicy.",
+        "properties": {
+          "grading": {
+            "$ref": "#/components/schemas/GradingTableResponse",
+            "description": "Таблица оценок (с политиками штрафа/посещаемости/подсветки/итогов)"
+          },
+          "attendance": {
+            "$ref": "#/components/schemas/AttendanceTableResponse",
+            "description": "Таблица посещаемости (поячеечная, с политикой подсветки)"
+          }
+        }
+      },
+      "Scope": {
+        "type": "object",
+        "description": "Проведение занятия для группы (для отображения даты в шапке колонки)",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID проведения"
+          },
+          "groupId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID группы (null = все группы)"
+          },
+          "allowedSubgroupId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID разрешённой подгруппы (null = вся группа)"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date",
+            "description": "Дата проведения"
+          },
+          "allGroups": {
+            "type": "boolean",
+            "description": "true = проведение для всех групп"
+          }
+        }
+      },
+      "StudentAttendanceResponse": {
+        "type": "object",
+        "description": "Сводка посещаемости студента по занятиям таблицы (для расчёта вклада на фронте)",
+        "properties": {
+          "studentId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID студента"
+          },
+          "present": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Кол-во присутствий (PRESENT)"
+          },
+          "late": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Кол-во опозданий (LATE)"
+          },
+          "absent": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Кол-во пропусков без причины (ABSENT)"
+          },
+          "excused": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Кол-во пропусков по уважительной причине (EXCUSED)"
+          }
+        }
+      },
+      "GroupPageResponse": {
+        "type": "object",
+        "description": "Краткая информация о группе (для списка)",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID группы"
+          },
+          "name": { "type": "string", "description": "Название группы" },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Дата создания"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Дата последнего обновления"
+          }
+        }
+      },
+      "PagedModelGroupPageResponse": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/GroupPageResponse" }
+          },
+          "page": { "$ref": "#/components/schemas/PageMetadata" }
+        }
+      },
+      "GroupWithSubgroupsResponse": {
+        "type": "object",
+        "description": "Группа с подгруппами (без студентов)",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID группы"
+          },
+          "name": { "type": "string", "description": "Название группы" },
+          "subgroups": {
+            "type": "array",
+            "description": "Список подгрупп",
+            "items": { "$ref": "#/components/schemas/SubgroupResponse" }
+          }
+        }
+      },
+      "CheckInPreviewResponse": {
+        "type": "object",
+        "description": "Сверочный пред-просмотр результатов check-in. Преподаватель видит, что попадёт в основную посещаемость после подтверждения.",
+        "properties": {
+          "session": {
+            "$ref": "#/components/schemas/CheckInSessionResponse",
+            "description": "Состояние сессии"
+          },
+          "rows": {
+            "type": "array",
+            "description": "Строки сверки: одна на каждого студента",
+            "items": { "$ref": "#/components/schemas/Row" }
+          }
+        }
+      },
+      "Row": {
+        "type": "object",
+        "description": "Строка сверки",
+        "properties": {
+          "studentId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID студента"
+          },
+          "username": { "type": "string", "description": "Имя студента" },
+          "checkInStatus": {
+            "type": "string",
+            "description": "Статус из check-in (если был)",
+            "enum": ["PRESENT", "LATE"]
+          },
+          "checkedInAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Момент отметки (если был)"
+          },
+          "proposedStatus": {
+            "type": "string",
+            "description": "Какой статус посещаемости будет проставлен по умолчанию",
+            "enum": ["PRESENT", "ABSENT", "LATE", "EXCUSED"]
+          }
+        }
+      },
+      "PublicCheckInSessionResponse": {
+        "type": "object",
+        "description": "Публичное состояние check-in сессии (для страницы студентов). Ростер группы намеренно не отдаётся: чтобы отметиться, студент ищет себя по фамилии через GET /{id}/students?query=... — так список группы и статусы посещаемости не раскрываются всем по ссылке.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID сессии"
+          },
+          "lessonTopic": { "type": "string", "description": "Тема занятия" },
+          "audience": {
+            "type": "array",
+            "description": "Аудитория опроса — копия lesson scopes (группа + опц. подгруппа). Если allGroups=true, содержит по одной записи на каждую группу предмета.",
+            "items": { "$ref": "#/components/schemas/CheckInAudienceScope" }
+          },
+          "state": {
+            "type": "string",
+            "description": "Текущее состояние сессии",
+            "enum": [
+              "OPEN",
+              "LATE_WINDOW",
+              "AWAITING_CONFIRMATION",
+              "CONFIRMED",
+              "CANCELLED"
+            ]
+          },
+          "onTimeEndsAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Момент окончания основного окна"
+          },
+          "lateEndsAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Момент окончания окна для опоздавших"
+          },
+          "serverNow": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Текущий момент сервера (UTC)"
           }
         }
       }

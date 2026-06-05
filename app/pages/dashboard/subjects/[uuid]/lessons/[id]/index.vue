@@ -20,28 +20,23 @@ const { data: lesson, pending: lessonPending, error: lessonError } = useBackend(
   path: computed(() => ({ id: lessonId.value })),
 })
 
-const { data: attData, pending: attPending, refresh: attRefresh } = useBackend('/api/attendances', {
+const { data: results, pending: resultsPending, refresh: resultsRefresh } = useBackend('/api/results', {
   method: 'GET',
   query: computed(() => ({ permissionId: permissionId.value, lessonId: lessonId.value })),
   immediate: false,
 })
 
-const { data: gradesData, pending: gradesPending, refresh: gradesRefresh } = useBackend('/api/grades', {
-  method: 'GET',
-  query: computed(() => ({ permissionId: permissionId.value, lessonId: lessonId.value })),
-  immediate: false,
-})
+const attData = computed(() => results.value?.attendance ?? null)
+const gradesData = computed(() => results.value?.grading ?? null)
 
 watch(permissionId, (pid) => {
   if (pid) {
-    attRefresh()
-    gradesRefresh()
+    resultsRefresh()
   }
 }, { immediate: true })
 
 function refreshAll() {
-  attRefresh()
-  gradesRefresh()
+  resultsRefresh()
 }
 
 const lessonTypeLabel = (t?: LessonResponse['type']) => t === 'LECTURE' ? 'Лекция' : t === 'PRACTICE' ? 'Практика' : '—'
@@ -98,7 +93,7 @@ async function saveAttendance() {
     const body: BulkUpsertAttendanceRequest = { items }
     await $backend('/api/attendances', { method: 'PUT', body })
     resetAttendance()
-    await attRefresh()
+    await resultsRefresh()
     toast.add({
       title: 'Посещаемость сохранена',
       description: `Обновлено ячеек: ${items.length}`,
@@ -167,7 +162,7 @@ async function saveGrades() {
     const body: BulkUpsertGradesRequest = { items }
     await $backend('/api/grades', { method: 'PUT', body })
     resetGrades()
-    await gradesRefresh()
+    await resultsRefresh()
     toast.add({
       title: 'Оценки сохранены',
       description: `Обновлено ячеек: ${items.length}`,
@@ -273,7 +268,7 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnloadHan
           icon="i-lucide-refresh-cw"
           color="neutral"
           variant="ghost"
-          :loading="attPending || gradesPending"
+          :loading="resultsPending"
           @click="refreshAll"
         />
         <UButton
@@ -453,9 +448,9 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnloadHan
           </div>
 
           <AttendanceSectionedTable
-            v-show="activeTab === 'attendance'"
+            v-if="activeTab === 'attendance'"
             :data="attData"
-            :pending="attPending"
+            :pending="resultsPending"
             :editable="canEdit"
             :pending-changes="attendanceChanges"
             empty-description="Для этого занятия нет проведений или назначенных студентов."
@@ -463,9 +458,9 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnloadHan
           />
 
           <GradesSectionedTable
-            v-show="activeTab === 'grades'"
+            v-else
             :data="gradesData"
-            :pending="gradesPending"
+            :pending="resultsPending"
             :lesson-id="lessonId"
             :editable="canEdit"
             :pending-changes="gradePendingView"

@@ -2,6 +2,7 @@ import type { components } from '#open-fetch-schemas/backend'
 import type { SectionKey } from '~/composables/useTableSections'
 import { applyBonus, applyPenalty, computeBonusCount, computePenaltyCount } from '~/composables/usePenalty'
 import { groupBySection, scopeVisibleForSection } from '~/composables/useTableSections'
+import { round2 } from '~/utils/number'
 
 type GradingTableResponse = components['schemas']['GradingTableResponse']
 type GradingTableLesson = components['schemas']['GradingTableLesson']
@@ -264,7 +265,7 @@ export function useGradesExport() {
                 const afterPenalty = applyPenalty(g.score, penaltyCount, policy)
                 const finalScore = applyBonus(afterPenalty, bonusCount, policy)
                 if (finalScore !== g.score) {
-                  val = Math.round(finalScore * 100) / 100
+                  val = round2(finalScore)
                   const parts: string[] = [`Исходный: ${g.score}`]
                   if (penaltyCount > 0)
                     parts.push(`Понижений: ${penaltyCount}`)
@@ -283,7 +284,7 @@ export function useGradesExport() {
               const afterPenalty = applyPenalty(extra.score, penaltyCount, policy)
               const finalScore = applyBonus(afterPenalty, bonusCount, policy)
               if (finalScore !== extra.score) {
-                extraVal = Math.round(finalScore * 100) / 100
+                extraVal = round2(finalScore)
                 const parts: string[] = [`Исходный: ${extra.score}`]
                 if (penaltyCount > 0)
                   parts.push(`Понижений: ${penaltyCount}`)

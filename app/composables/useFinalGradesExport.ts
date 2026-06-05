@@ -22,6 +22,8 @@ export interface StudentSummaryRow {
   total: number
   rawTotal: number
   rank: number
+  /** Число полностью закрытых обязательных задач (raw-балл ≥ макс). */
+  closedRequired: number
 }
 
 export interface TypeMaxes {

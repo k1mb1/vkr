@@ -1,7 +1,7 @@
 import { env } from 'node:process'
 
 export default defineNuxtConfig({
-  modules: ['@nuxt/eslint', '@nuxt/ui', 'nuxt-auth-utils', '@pinia/nuxt', '@nuxtjs/i18n', 'nuxt-open-fetch', 'nuxt-security'],
+  modules: ['@nuxt/eslint', '@nuxt/ui', 'nuxt-auth-utils', '@nuxtjs/i18n', 'nuxt-open-fetch', 'nuxt-security'],
 
   devtools: {
     enabled: true,
@@ -130,6 +130,7 @@ export default defineNuxtConfig({
         '@internationalized/date',
         '@vueuse/integrations/useQRCode',
         '@vueuse/core',
+        'xlsx'
       ],
     },
   },
