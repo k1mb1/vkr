@@ -16,8 +16,6 @@ type GradingTableLesson = components['schemas']['GradingTableLesson']
 
 type TypeKey = 'lecture' | 'practice'
 
-interface AttCounts { present: number, late: number, absent: number, excused: number }
-
 interface TypeAccum {
   required: number
   rawRequired: number
@@ -27,26 +25,13 @@ interface TypeAccum {
   rawExtra: number
 }
 
-const ATT_STATUS_COLUMNS = [
-  { key: 'present', short: 'П', label: 'Присутствовал', textClass: 'text-success', field: 'attPresent' },
-  { key: 'late', short: 'О', label: 'Опоздал', textClass: 'text-warning', field: 'attLate' },
-  { key: 'absent', short: 'Н', label: 'Отсутствовал', textClass: 'text-error', field: 'attAbsent' },
-  { key: 'excused', short: 'У', label: 'Уваж. причина', textClass: 'text-info', field: 'attExcused' },
-] as const satisfies ReadonlyArray<{
-  key: string
-  short: string
-  label: string
-  textClass: string
-  field: 'attPresent' | 'attLate' | 'attAbsent' | 'attExcused'
-}>
-
 /**
  * Вся логика страницы итоговых оценок: индексация данных, расчёт строк студентов,
  * колонки таблицы и вердикт промежуточной аттестации. Компонент остаётся тонким.
  */
 export function useFinalTable(
   data: ComputedRef<GradingTableResponse | null>,
-  attData: ComputedRef<AttendanceTableResponse | null>,
+  _attData: ComputedRef<AttendanceTableResponse | null>,
 ) {
   const finalPolicy = computed(() => data.value?.finalAssessmentPolicy ?? null)
   const finalEnabled = computed(() => finalPolicy.value?.enabled ?? false)
@@ -65,40 +50,6 @@ export function useFinalTable(
   }
 
   // studentId → { lecture, practice } attendance status counts, split by lesson type.
-  const attCountsByStudent = computed<Map<string, Record<TypeKey, AttCounts>>>(() => {
-    const scopeType = new Map<string, TypeKey>()
-    for (const l of attData.value?.lessons ?? []) {
-      const k = typeKey(l.type)
-      if (l.id && k)
-        scopeType.set(l.id, k)
-    }
-
-    const blank = (): AttCounts => ({ present: 0, late: 0, absent: 0, excused: 0 })
-    const map = new Map<string, Record<TypeKey, AttCounts>>()
-    for (const c of attData.value?.attendances ?? []) {
-      if (!c.studentId || !c.lessonScopeId || !c.status)
-        continue
-      const k = scopeType.get(c.lessonScopeId)
-      if (!k)
-        continue
-      let rec = map.get(c.studentId)
-      if (!rec) {
-        rec = { lecture: blank(), practice: blank() }
-        map.set(c.studentId, rec)
-      }
-      const bucket = rec[k]
-      if (c.status === 'PRESENT')
-        bucket.present++
-      else if (c.status === 'LATE')
-        bucket.late++
-      else if (c.status === 'ABSENT')
-        bucket.absent++
-      else if (c.status === 'EXCUSED')
-        bucket.excused++
-    }
-    return map
-  })
-
   const sortedLessons = computed(() => sortGradingLessons(data.value?.lessons))
 
   // ─── per-student computation ──────────────────────────────────────────────────
@@ -166,24 +117,12 @@ export function useFinalTable(
       }
     }
 
-    const attPolicy = data.value?.attendancePolicy
-    const counts = attCountsByStudent.value.get(id)
     const r = round2
 
     const buildType = (tk: TypeKey): TypeBreakdown => {
       const acc = accum[tk]
-      const c = counts?.[tk] ?? { present: 0, late: 0, absent: 0, excused: 0 }
-      let attendance = 0
-      if (attPolicy?.enabled) {
-        attendance = (
-          c.present * (attPolicy.pointsPresent ?? 0)
-          + c.late * (attPolicy.pointsLate ?? 0)
-          + c.absent * (attPolicy.pointsAbsent ?? 0)
-          + c.excused * (attPolicy.pointsExcused ?? 0)
-        )
-      }
-      const subtotal = r(acc.required + acc.optional + acc.extra + attendance)
-      const rawSubtotal = r(acc.rawRequired + acc.rawOptional + acc.rawExtra + attendance)
+      const subtotal = r(acc.required + acc.optional + acc.extra)
+      const rawSubtotal = r(acc.rawRequired + acc.rawOptional + acc.rawExtra)
       return {
         required: r(acc.required),
         rawRequired: r(acc.rawRequired),
@@ -191,11 +130,11 @@ export function useFinalTable(
         rawOptional: r(acc.rawOptional),
         extra: r(acc.extra),
         rawExtra: r(acc.rawExtra),
-        attPresent: c.present,
-        attLate: c.late,
-        attAbsent: c.absent,
-        attExcused: c.excused,
-        attendance: r(attendance),
+        attPresent: 0,
+        attLate: 0,
+        attAbsent: 0,
+        attExcused: 0,
+        attendance: 0,
         subtotal,
         rawSubtotal,
       }
@@ -273,8 +212,6 @@ export function useFinalTable(
   const sections = computed<SummarySection[]>(() => {
     const grouped = groupBySection(data.value?.students ?? [])
     const visible = grouped.filter(g => selectedSections.value.includes(g.meta.key))
-    const hasAttendance = !!(data.value?.attendancePolicy?.enabled)
-
     return visible.map(({ meta, items }) => {
       const sectionLessons = sortedLessons.value.filter(l =>
         lessonVisibleForSection(l, meta.groupId, meta.subgroupId),
@@ -295,8 +232,8 @@ export function useFinalTable(
       const rows: StudentSummaryRow[] = rawRows.map(r => ({ ...r, rank: rankMap.get(r.id) ?? 1 }))
       const totals = rows.map(r => r.total)
       const avgTotal = totals.length ? round2(totals.reduce((a, b) => a + b, 0) / totals.length) : 0
-      const lecture = typeMaxes(sectionLessons, 'lecture', hasAttendance)
-      const practice = typeMaxes(sectionLessons, 'practice', hasAttendance)
+      const lecture = typeMaxes(sectionLessons, 'lecture', false)
+      const practice = typeMaxes(sectionLessons, 'practice', false)
 
       return {
         key: meta.key,
@@ -308,7 +245,7 @@ export function useFinalTable(
         avgTotal,
         maxTotal: totals.length ? Math.max(...totals) : 0,
         minTotal: totals.length ? Math.min(...totals) : 0,
-        hasAttendance,
+        hasAttendance: false,
       }
     })
   })
@@ -368,7 +305,7 @@ export function useFinalTable(
           const incomplete = m.maxRequired > 0 && b.rawRequired < m.maxRequired
           return h('div', {
             class: 'flex items-center justify-center gap-1',
-            title: incomplete ? `Обязательное выполнено не полностью (${b.required}/${m.maxRequired})` : undefined,
+            title: incomplete ? `Обязательное выполнено не полностью (${b.rawRequired}/${m.maxRequired})` : undefined,
           }, [
             incomplete
               ? h('span', { class: 'i-lucide-triangle-alert w-3.5 h-3.5 text-warning shrink-0' })
@@ -395,32 +332,6 @@ export function useFinalTable(
       },
     ]
 
-    for (const att of ATT_STATUS_COLUMNS) {
-      leaf.push({
-        id: `${tk}-att-${att.key}`,
-        header: () => h('span', { class: `font-semibold ${att.textClass}`, title: att.label }, att.short),
-        cell: ({ row }) => {
-          const n = pick(row.original)[att.field]
-          return h('span', { class: n > 0 ? 'tabular-nums font-semibold text-default' : 'tabular-nums text-muted/50' }, String(n))
-        },
-        footer: () => sumFooter(section.key, r => pick(r)[att.field], { int: true, bold: true }),
-        meta: { class: { th: 'min-w-[52px] text-center', td: 'min-w-[52px] text-center' } },
-      })
-    }
-
-    if (section.hasAttendance) {
-      leaf.push({
-        id: `${tk}-attendance`,
-        header: () => headerWithMax('Посещ.', m.maxAttendance, { title: 'Балл за посещаемость' }),
-        cell: ({ row }) => {
-          const v = pick(row.original).attendance
-          return h('span', { class: v !== 0 ? 'tabular-nums font-semibold text-default' : 'tabular-nums text-muted/50' }, String(v))
-        },
-        footer: () => sumFooter(section.key, r => pick(r).attendance, { bold: true }),
-        meta: { class: { th: 'min-w-[64px] text-center', td: 'min-w-[64px] text-center' } },
-      })
-    }
-
     leaf.push({
       id: `${tk}-subtotal`,
       header: () => headerWithMax('Подитог', m.maxSubtotal, { bold: true }),
@@ -438,20 +349,10 @@ export function useFinalTable(
 
   // ─── итоговый вердикт (промежуточная аттестация) ────────────────────────────────
 
-  function combinedAtt(row: StudentSummaryRow): AttCounts {
-    return {
-      present: row.lecture.attPresent + row.practice.attPresent,
-      late: row.lecture.attLate + row.practice.attLate,
-      absent: row.lecture.attAbsent + row.practice.attAbsent,
-      excused: row.lecture.attExcused + row.practice.attExcused,
-    }
-  }
-
   function verdictForRow(row: StudentSummaryRow) {
     return computeVerdict(finalPolicy.value!, {
       total: row.total,
       closedRequired: row.closedRequired,
-      attendance: combinedAtt(row),
     })
   }
 
@@ -462,9 +363,13 @@ export function useFinalTable(
       cell: ({ row }) => {
         const verdict = verdictForRow(row.original)
         const tone = verdictTone(verdict)
-        const title = verdict.attendanceFailed
-          ? 'Не пройден гейт посещаемости'
-          : `Закрыто обязательных задач: ${row.original.closedRequired}`
+        const parts: string[] = []
+        parts.push(`Закрыто обязательных задач: ${row.original.closedRequired}`)
+        if (verdict.pointsToNext != null)
+          parts.push(`До следующего уровня по баллам: +${verdict.pointsToNext}`)
+        if (verdict.tasksToNext != null)
+          parts.push(`До следующего уровня по задачам: +${verdict.tasksToNext}`)
+        const title = parts.join(' · ')
         return h('div', { class: 'flex justify-center', title }, [
           h(UBadge, {
             color: tone.color,
@@ -517,6 +422,7 @@ export function useFinalTable(
 
   return {
     finalEnabled,
+    finalPolicy,
     sectionOptions,
     selectedSections,
     sections,

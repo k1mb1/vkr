@@ -24,6 +24,7 @@ watch(permissionId, pid => pid && refreshAll(), { immediate: true })
 
 const {
   finalEnabled,
+  finalPolicy,
   sectionOptions,
   selectedSections,
   sections,
@@ -83,16 +84,33 @@ const tableUi = sectionedTableUi()
       </div>
 
       <!-- Verdict legend -->
-      <div v-if="finalEnabled" class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
+      <div v-if="finalEnabled && finalPolicy?.bands?.length" class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
         <span class="font-medium text-default">Вердикт:</span>
-        <span class="flex items-center gap-1">
-          <UIcon name="i-lucide-circle-check" class="size-3.5 text-success" /> старшая банда
-        </span>
-        <span class="flex items-center gap-1">
-          <UIcon name="i-lucide-circle-alert" class="size-3.5 text-warning" /> младшая банда
+        <span v-for="(band, i) in finalPolicy.bands" :key="i" class="flex items-center gap-1">
+          <UIcon
+            :name="finalPolicy.bands.length <= 1 || i / (finalPolicy.bands.length - 1) <= 0.5 ? 'i-lucide-circle-check' : 'i-lucide-circle-alert'"
+            :class="finalPolicy.bands.length <= 1 || i / (finalPolicy.bands.length - 1) <= 0.5 ? 'size-3.5 text-success' : 'size-3.5 text-warning'"
+          />
+          {{ band.label }}
         </span>
         <span class="flex items-center gap-1">
           <UIcon name="i-lucide-circle-x" class="size-3.5 text-error" /> не аттестован
+        </span>
+      </div>
+
+      <!-- Bands legend -->
+      <div v-if="finalEnabled && finalPolicy?.bands?.length" class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
+        <span class="font-medium text-default">Банды:</span>
+        <span v-for="(band, i) in finalPolicy.bands" :key="i" class="flex items-center gap-1">
+          <UBadge
+            :label="band.label"
+            variant="subtle"
+            color="neutral"
+            size="xs"
+            class="font-semibold"
+          />
+          <span v-if="band.minPoints != null">Мин. баллов: {{ band.minPoints }}</span>
+          <span v-if="band.requiredTasks != null">Мин. задач: {{ band.requiredTasks }}</span>
         </span>
       </div>
 
