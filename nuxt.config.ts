@@ -130,7 +130,7 @@ export default defineNuxtConfig({
         '@internationalized/date',
         '@vueuse/integrations/useQRCode',
         '@vueuse/core',
-        'xlsx'
+        'xlsx',
       ],
     },
   },

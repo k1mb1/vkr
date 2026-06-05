@@ -14,7 +14,7 @@ const color = defineModel<string>({ required: true })
     <template #content>
       <div class="flex flex-col gap-2 p-2">
         <UColorPicker v-model="color" />
-        <UInput v-model="color" :style="{ color: color }">
+        <UInput v-model="color" :style="{ color }">
           <template #leading>
             <span class="size-4 rounded-full" :style="{ backgroundColor: color }" />
           </template>

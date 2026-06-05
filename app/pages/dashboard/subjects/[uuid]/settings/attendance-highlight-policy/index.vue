@@ -38,7 +38,7 @@ const AttendanceHighlightPolicySchema: SchemaFor<AttendanceHighlightPolicyForm> 
   ),
 })
 
-const colorFields: { key: Exclude<keyof AttendanceHighlightPolicyForm, 'enabled'>; label: string }[] = [
+const colorFields: { key: Exclude<keyof AttendanceHighlightPolicyForm, 'enabled'>, label: string }[] = [
   { key: 'presentColor', label: 'Присутствие' },
   { key: 'lateColor', label: 'Опоздание' },
   { key: 'absentColor', label: 'Отсутствие' },

@@ -38,7 +38,7 @@ const GradingHighlightPolicySchema: SchemaFor<GradingHighlightPolicyForm> = v.ob
   ),
 })
 
-const colorFields: { key: Exclude<keyof GradingHighlightPolicyForm, 'enabled'>; label: string; help?: string }[] = [
+const colorFields: { key: Exclude<keyof GradingHighlightPolicyForm, 'enabled'>, label: string, help?: string }[] = [
   { key: 'assignmentColor', label: 'Колонка задания', help: 'Фон шапки колонок с заданиями' },
   { key: 'fullColor', label: 'Решено полностью', help: 'Балл равен максимуму задания' },
   { key: 'partialLowColor', label: 'Решено меньше половины', help: '50% от максимума и меньше' },
