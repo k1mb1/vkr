@@ -24,6 +24,8 @@ export interface StudentSummaryRow {
   rank: number
   /** Число полностью закрытых обязательных задач (raw-балл ≥ макс). */
   closedRequired: number
+  /** Ярлык вердикта промежуточной аттестации (если включена). */
+  verdict?: string
 }
 
 export interface TypeMaxes {
@@ -86,6 +88,7 @@ export function useFinalGradesExport() {
       for (const section of sections) {
         const lecCols = leafDescriptors(section.lecture, section.hasAttendance)
         const praCols = leafDescriptors(section.practice, section.hasAttendance)
+        const hasVerdict = section.rows.some(r => r.verdict != null)
 
         // Row 0: title · 1: blank · 2: group row · 3: header · 4: subheader · 5+: data
         const HEADER_ROWS = 5
@@ -94,14 +97,21 @@ export function useFinalGradesExport() {
         groupRow.push('Лекции', ...pad(lecCols.length - 1))
         groupRow.push('Практики', ...pad(praCols.length - 1))
         groupRow.push('Итого')
+        if (hasVerdict)
+          groupRow.push('Вердикт')
 
         const headerRow: string[] = ['Студент', ...lecCols.map(c => c.label), ...praCols.map(c => c.label), 'Итого']
+        if (hasVerdict)
+          headerRow.push('Вердикт')
+
         const subRow: string[] = [
           '',
           ...lecCols.map(c => c.sub),
           ...praCols.map(c => c.sub),
           section.maxPossibleTotal > 0 ? `до ${section.maxPossibleTotal}` : '',
         ]
+        if (hasVerdict)
+          subRow.push('')
 
         const rows: (string | number)[][] = []
         const comments: { r: number, c: number, text: string }[] = []
@@ -122,6 +132,8 @@ export function useFinalGradesExport() {
           pushGroup(student.lecture, lecCols)
           pushGroup(student.practice, praCols)
           row.push(student.total)
+          if (hasVerdict)
+            row.push(student.verdict ?? '')
           rows.push(row)
         }
 

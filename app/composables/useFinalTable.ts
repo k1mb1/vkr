@@ -16,6 +16,21 @@ type GradingTableLesson = components['schemas']['GradingTableLesson']
 
 type TypeKey = 'lecture' | 'practice'
 
+interface AttCounts { present: number, late: number, absent: number, excused: number }
+
+const ATT_STATUS_COLUMNS = [
+  { key: 'present', short: 'П', label: 'Присутствовал', textClass: 'text-success', field: 'attPresent' },
+  { key: 'late', short: 'О', label: 'Опоздал', textClass: 'text-warning', field: 'attLate' },
+  { key: 'absent', short: 'Н', label: 'Отсутствовал', textClass: 'text-error', field: 'attAbsent' },
+  { key: 'excused', short: 'У', label: 'Уваж. причина', textClass: 'text-info', field: 'attExcused' },
+] as const satisfies ReadonlyArray<{
+  key: string
+  short: string
+  label: string
+  textClass: string
+  field: 'attPresent' | 'attLate' | 'attAbsent' | 'attExcused'
+}>
+
 interface TypeAccum {
   required: number
   rawRequired: number
@@ -31,7 +46,7 @@ interface TypeAccum {
  */
 export function useFinalTable(
   data: ComputedRef<GradingTableResponse | null>,
-  _attData: ComputedRef<AttendanceTableResponse | null>,
+  attData: ComputedRef<AttendanceTableResponse | null>,
 ) {
   const finalPolicy = computed(() => data.value?.finalAssessmentPolicy ?? null)
   const finalEnabled = computed(() => finalPolicy.value?.enabled ?? false)
@@ -50,6 +65,40 @@ export function useFinalTable(
   }
 
   // studentId → { lecture, practice } attendance status counts, split by lesson type.
+  const attCountsByStudent = computed<Map<string, Record<TypeKey, AttCounts>>>(() => {
+    const scopeType = new Map<string, TypeKey>()
+    for (const l of attData.value?.lessons ?? []) {
+      const k = typeKey(l.type)
+      if (l.id && k)
+        scopeType.set(l.id, k)
+    }
+
+    const blank = (): AttCounts => ({ present: 0, late: 0, absent: 0, excused: 0 })
+    const map = new Map<string, Record<TypeKey, AttCounts>>()
+    for (const c of attData.value?.attendances ?? []) {
+      if (!c.studentId || !c.lessonScopeId || !c.status)
+        continue
+      const k = scopeType.get(c.lessonScopeId)
+      if (!k)
+        continue
+      let rec = map.get(c.studentId)
+      if (!rec) {
+        rec = { lecture: blank(), practice: blank() }
+        map.set(c.studentId, rec)
+      }
+      const bucket = rec[k]
+      if (c.status === 'PRESENT')
+        bucket.present++
+      else if (c.status === 'LATE')
+        bucket.late++
+      else if (c.status === 'ABSENT')
+        bucket.absent++
+      else if (c.status === 'EXCUSED')
+        bucket.excused++
+    }
+    return map
+  })
+
   const sortedLessons = computed(() => sortGradingLessons(data.value?.lessons))
 
   // ─── per-student computation ──────────────────────────────────────────────────
@@ -117,12 +166,24 @@ export function useFinalTable(
       }
     }
 
+    const attPolicy = data.value?.attendancePolicy
+    const counts = attCountsByStudent.value.get(id)
     const r = round2
 
     const buildType = (tk: TypeKey): TypeBreakdown => {
       const acc = accum[tk]
-      const subtotal = r(acc.required + acc.optional + acc.extra)
-      const rawSubtotal = r(acc.rawRequired + acc.rawOptional + acc.rawExtra)
+      const c = counts?.[tk] ?? { present: 0, late: 0, absent: 0, excused: 0 }
+      let attendance = 0
+      if (attPolicy?.enabled) {
+        attendance = (
+          c.present * (attPolicy.pointsPresent ?? 0)
+          + c.late * (attPolicy.pointsLate ?? 0)
+          + c.absent * (attPolicy.pointsAbsent ?? 0)
+          + c.excused * (attPolicy.pointsExcused ?? 0)
+        )
+      }
+      const subtotal = r(acc.required + acc.optional + acc.extra + attendance)
+      const rawSubtotal = r(acc.rawRequired + acc.rawOptional + acc.rawExtra + attendance)
       return {
         required: r(acc.required),
         rawRequired: r(acc.rawRequired),
@@ -130,11 +191,11 @@ export function useFinalTable(
         rawOptional: r(acc.rawOptional),
         extra: r(acc.extra),
         rawExtra: r(acc.rawExtra),
-        attPresent: 0,
-        attLate: 0,
-        attAbsent: 0,
-        attExcused: 0,
-        attendance: 0,
+        attPresent: c.present,
+        attLate: c.late,
+        attAbsent: c.absent,
+        attExcused: c.excused,
+        attendance: r(attendance),
         subtotal,
         rawSubtotal,
       }
@@ -212,6 +273,8 @@ export function useFinalTable(
   const sections = computed<SummarySection[]>(() => {
     const grouped = groupBySection(data.value?.students ?? [])
     const visible = grouped.filter(g => selectedSections.value.includes(g.meta.key))
+    const hasAttendance = !!(data.value?.attendancePolicy?.enabled)
+
     return visible.map(({ meta, items }) => {
       const sectionLessons = sortedLessons.value.filter(l =>
         lessonVisibleForSection(l, meta.groupId, meta.subgroupId),
@@ -229,11 +292,17 @@ export function useFinalTable(
         rankMap.set(byTotal[i]!.id, rank)
       }
 
-      const rows: StudentSummaryRow[] = rawRows.map(r => ({ ...r, rank: rankMap.get(r.id) ?? 1 }))
+      const rows: StudentSummaryRow[] = rawRows.map(r => ({
+        ...r,
+        rank: rankMap.get(r.id) ?? 1,
+        verdict: finalEnabled.value && finalPolicy.value
+          ? verdictForRow(r)?.label
+          : undefined,
+      }))
       const totals = rows.map(r => r.total)
       const avgTotal = totals.length ? round2(totals.reduce((a, b) => a + b, 0) / totals.length) : 0
-      const lecture = typeMaxes(sectionLessons, 'lecture', false)
-      const practice = typeMaxes(sectionLessons, 'practice', false)
+      const lecture = typeMaxes(sectionLessons, 'lecture', hasAttendance)
+      const practice = typeMaxes(sectionLessons, 'practice', hasAttendance)
 
       return {
         key: meta.key,
@@ -245,7 +314,7 @@ export function useFinalTable(
         avgTotal,
         maxTotal: totals.length ? Math.max(...totals) : 0,
         minTotal: totals.length ? Math.min(...totals) : 0,
-        hasAttendance: false,
+        hasAttendance,
       }
     })
   })
@@ -332,6 +401,32 @@ export function useFinalTable(
       },
     ]
 
+    for (const att of ATT_STATUS_COLUMNS) {
+      leaf.push({
+        id: `${tk}-att-${att.key}`,
+        header: () => h('span', { class: `font-semibold ${att.textClass}`, title: att.label }, att.short),
+        cell: ({ row }) => {
+          const n = pick(row.original)[att.field]
+          return h('span', { class: n > 0 ? 'tabular-nums font-semibold text-default' : 'tabular-nums text-muted/50' }, String(n))
+        },
+        footer: () => sumFooter(section.key, r => pick(r)[att.field], { int: true, bold: true }),
+        meta: { class: { th: 'min-w-[52px] text-center', td: 'min-w-[52px] text-center' } },
+      })
+    }
+
+    if (section.hasAttendance) {
+      leaf.push({
+        id: `${tk}-attendance`,
+        header: () => headerWithMax('Посещ.', m.maxAttendance, { title: 'Балл за посещаемость' }),
+        cell: ({ row }) => {
+          const v = pick(row.original).attendance
+          return h('span', { class: v !== 0 ? 'tabular-nums font-semibold text-default' : 'tabular-nums text-muted/50' }, String(v))
+        },
+        footer: () => sumFooter(section.key, r => pick(r).attendance, { bold: true }),
+        meta: { class: { th: 'min-w-[64px] text-center', td: 'min-w-[64px] text-center' } },
+      })
+    }
+
     leaf.push({
       id: `${tk}-subtotal`,
       header: () => headerWithMax('Подитог', m.maxSubtotal, { bold: true }),
@@ -349,7 +444,7 @@ export function useFinalTable(
 
   // ─── итоговый вердикт (промежуточная аттестация) ────────────────────────────────
 
-  function verdictForRow(row: StudentSummaryRow) {
+  function verdictForRow(row: Pick<StudentSummaryRow, 'total' | 'closedRequired'>) {
     return computeVerdict(finalPolicy.value!, {
       total: row.total,
       closedRequired: row.closedRequired,
