@@ -67,7 +67,10 @@ function normalizeGroups(input: string[] | string | undefined): string[] {
 
 export default defineOAuthOidcEventHandler({
   config: {
-    scope: ['openid', 'profile', 'email', 'groups'],
+    // Casdoor не поддерживает кастомный scope `groups` (вернёт invalid_scope).
+    // Claim `groups` приходит в id_token/userinfo автоматически и читается ниже.
+    // `offline_access` обязателен, иначе Casdoor не выдаст refresh_token.
+    scope: ['openid', 'profile', 'email', 'offline_access'],
   },
   async onSuccess(event, { user, tokens }) {
     const oidcUser = user as OidcUser
@@ -95,6 +98,9 @@ export default defineOAuthOidcEventHandler({
     return sendRedirect(event, redirectTo)
   },
   onError(event, error) {
+    // Реальную причину (invalid state, nonce mismatch, ошибка обмена кода)
+    // видно только здесь — логируем в терминал сервера для диагностики.
+    console.error('[auth/oidc] OIDC callback failed:', error)
     throw createError({
       statusCode: 401,
       statusMessage: 'Unauthorized',
