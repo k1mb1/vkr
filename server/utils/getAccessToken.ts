@@ -1,4 +1,5 @@
 import type { H3Event } from 'h3'
+import { getTokens, setTokens } from '#server/utils/tokenStore'
 
 interface OidcTokenResponse {
   access_token?: string
@@ -117,35 +118,44 @@ export async function getAccessToken(event: H3Event): Promise<string> {
   const session = await getUserSession(event)
   const { secure, tokenExpiresAt } = session
 
-  if (!secure?.accessToken) {
+  const sid = secure?.sid
+  if (!sid) {
+    throw createError({ statusCode: 401, message: 'Not authenticated' })
+  }
+
+  const stored = await getTokens(sid)
+  if (!stored?.accessToken) {
     throw createError({ statusCode: 401, message: 'Not authenticated' })
   }
 
   // Токен ещё валиден (с запасом 30 сек)
   if (tokenExpiresAt && tokenExpiresAt - 30_000 > Date.now()) {
-    return secure.accessToken
+    return stored.accessToken
   }
 
-  if (!secure.refreshToken) {
+  if (!stored.refreshToken) {
     throw createError({
       statusCode: 401,
       message: 'Session expired. Please log in again.',
     })
   }
 
-  const refreshed = await performRefresh(event, secure.refreshToken)
+  const refreshed = await performRefresh(event, stored.refreshToken)
 
-  // Записываем результат в сессию текущего события. Если параллельный запрос
-  // уже обновил токен через ту же in-flight Promise, мы получим тот же результат
-  // и просто перепишем сессию идемпотентно.
+  // Обновлённые токены кладём обратно в серверное хранилище (cookie не трогаем,
+  // там только sid). Параллельные вызовы разделяют одну in-flight Promise, так
+  // что запись идемпотентна.
+  await setTokens(sid, {
+    accessToken: refreshed.accessToken,
+    refreshToken: refreshed.refreshToken,
+  })
+
+  // В сессии обновляем только срок жизни — это маленькое поле, cookie остаётся
+  // компактной.
   await replaceUserSession(event, {
     ...session,
     tokenExpiresAt: refreshed.expiresAt,
-    secure: {
-      ...secure,
-      accessToken: refreshed.accessToken,
-      refreshToken: refreshed.refreshToken,
-    },
+    secure: { sid },
   })
 
   return refreshed.accessToken

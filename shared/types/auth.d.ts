@@ -3,7 +3,6 @@ declare module '#auth-utils' {
     sub?: string
     email?: string
     name?: string
-    groups?: string[]
   }
 
   interface UserSession {
@@ -13,8 +12,10 @@ declare module '#auth-utils' {
   }
 
   interface SecureSessionData {
-    accessToken?: string
-    refreshToken?: string
+    // Идентификатор записи в серверном хранилище токенов (server/utils/tokenStore).
+    // Сами access/refresh токены в cookie не хранятся — иначе sealed-cookie
+    // превышает лимит браузера 4096 байт и отбрасывается.
+    sid?: string
   }
 }
 

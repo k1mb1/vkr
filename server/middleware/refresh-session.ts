@@ -22,7 +22,7 @@ export default defineEventHandler(async (event) => {
     return
 
   const session = await getUserSession(event)
-  if (!session.secure?.refreshToken)
+  if (!session.secure?.sid)
     return
 
   const expiresAt = session.tokenExpiresAt

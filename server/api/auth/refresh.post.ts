@@ -1,5 +1,6 @@
 import * as v from 'valibot'
 import { getAccessToken } from '#server/utils/getAccessToken'
+import { getTokens } from '#server/utils/tokenStore'
 import { validateBody } from '#server/utils/validateBody'
 
 const RefreshBodySchema = v.strictObject({})
@@ -8,9 +9,10 @@ export default defineEventHandler(async (event) => {
   await validateBody(event, RefreshBodySchema, { allowEmpty: true, emptyValue: {} })
 
   const session = await getUserSession(event)
-  const secure = session.secure
+  const sid = session.secure?.sid
 
-  if (!secure?.refreshToken) {
+  const stored = sid ? await getTokens(sid) : null
+  if (!stored?.refreshToken) {
     throw createError({
       statusCode: 401,
       statusMessage: 'No refresh token. Please log in again.',
