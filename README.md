@@ -1,63 +1,152 @@
-# Nuxt OIDC Scaffold (Pocket ID Ready)
+# VKR — система учёта учебного процесса
 
-Nuxt 4 starter with:
+Веб-приложение для преподавателей: управление группами и студентами, занятиями
+и заданиями, отметка присутствия по QR-коду, журнал оценок, гибкие политики
+оценивания и автоматическая промежуточная аттестация.
 
-- `@nuxt/ui` for UI components
-- `nuxt-auth-utils` for sealed cookie session auth
-- Generic OIDC flow for Pocket ID (`/auth/oidc`)
-- Token refresh endpoint and client refresh scheduler
-- Protected route middleware and auth stub pages
+Фронтенд на **Nuxt 4**. Бэкенд (VKR Backend API) — отдельный сервис; браузер с
+ним напрямую не общается: все запросы идут через серверный прокси Nuxt
+(`/api/proxy/**`) с подстановкой токена доступа.
 
-## Setup
+## Возможности
 
-1. Install dependencies
+- **Группы и студенты** — подгруппы, добавление студентов списком (вставка/Enter).
+- **Предметы и доступы** — назначение преподавателей с полным доступом или
+  ограничением по группам, подгруппам и типу занятий (лекции/практики).
+- **Занятия** — лекции и практики, проведения (даты по группам/подгруппам),
+  задания с режимами допуска (нет / сдал-не сдал / мин. балл / по уровням).
+- **Отметка присутствия (check-in)** — QR-код и код аудитории, окна «вовремя» и
+  «для опоздавших», единые окна на предмет; преподаватель подтверждает
+  результаты, и они переносятся в посещаемость.
+- **Посещаемость и оценки** — сводные таблицы по группам с фильтрами и
+  цветовой подсветкой.
+- **Политики оценивания**:
+  - понижение/повышение балла за сроки сдачи (штрафы и бонусы);
+  - учёт посещаемости в баллах;
+  - подсветка таблиц оценок и посещаемости;
+  - **промежуточная аттестация** — уровни (отметки) по баллам и закрытым
+    обязательным задачам, с порогом по посещаемости.
+- **Экспорт в Excel** — оценки, посещаемость, итоги.
+- **Аутентификация** — OIDC через защищённые cookie-сессии.
+
+## Технологии
+
+- [Nuxt 4](https://nuxt.com/) + Vue 3, TypeScript
+- [@nuxt/ui](https://ui.nuxt.com/) (v4) + Tailwind CSS v4
+- [nuxt-auth-utils](https://github.com/atinux/nuxt-auth-utils) — сессии в
+  запечатанных cookie, OIDC-флоу
+- [nuxt-open-fetch](https://nuxt-open-fetch.vercel.app/) — типизированный
+  клиент из OpenAPI-схемы (`openapi/api-docs.json`)
+- [nuxt-security](https://nuxt-security.vercel.app/) — CSP, заголовки, CORS,
+  rate limiting
+- [@nuxtjs/i18n](https://i18n.nuxtjs.org/) — локализация (ru)
+- `@tanstack/vue-table`, `valibot` (валидация форм), `xlsx` (экспорт),
+  `qrcode` (QR), `@vueuse/core`
+
+## Архитектура
+
+```
+Браузер ──► Nuxt (этот проект)
+              ├─ OIDC-флоу и cookie-сессия (nuxt-auth-utils)
+              └─ /api/proxy/**  ──►  VKR Backend API
+                 (серверная подстановка access token)
+```
+
+- Браузер общается только с origin Nuxt; бэкенд доступен лишь со стороны
+  сервера через прокси — токены не попадают в браузер.
+- Типы и клиент для бэкенда генерируются из `openapi/api-docs.json`
+  (клиент `backend`, `baseURL: /api/proxy`).
+
+## Требования
+
+- Node.js 24+
+- pnpm 11+
+- Запущенный VKR Backend API и OIDC-провайдер
+
+## Установка
 
 ```bash
 pnpm install
-```
-
-2. Create environment file from sample
-
-```bash
 cp .env.example .env
 ```
 
-3. Fill required values in `.env`
+Заполните `.env`:
 
 ```bash
-NUXT_SESSION_PASSWORD=<long-random-value-at-least-32-chars>
-NUXT_OAUTH_OIDC_CLIENT_ID=<client-id>
-NUXT_OAUTH_OIDC_CLIENT_SECRET=<client-secret>
+# Секрет для шифрования cookie-сессии (минимум 32 символа)
+NUXT_SESSION_PASSWORD=
+
+# OIDC-провайдер
+NUXT_OAUTH_OIDC_CLIENT_ID=
+NUXT_OAUTH_OIDC_CLIENT_SECRET=
 NUXT_OAUTH_OIDC_OPENID_CONFIG=https://id.example.com/.well-known/openid-configuration
-NUXT_OAUTH_OIDC_REDIRECT_URL=http://localhost:3000/auth/oidc
+NUXT_OAUTH_OIDC_REDIRECT_URL=http://front.localhost/auth/oidc
+
+# Необязательно: federated logout, если провайдер поддерживает
+NUXT_OIDC_POST_LOGOUT_REDIRECT_URL=http://front.localhost/
+
+# Адреса бэкенда и origin сайта
+NUXT_PUBLIC_BACKEND_BASE_URL=http://backend.localhost
+NUXT_PUBLIC_SITE_ORIGIN=http://front.localhost
 ```
 
-4. In Pocket ID client settings, set callback URL to:
+В настройках OIDC-клиента укажите callback URL, совпадающий с
+`NUXT_OAUTH_OIDC_REDIRECT_URL` (например, `http://front.localhost/auth/oidc`).
 
-```text
-http://localhost:3000/auth/oidc
-```
-
-## Run
+## Запуск
 
 ```bash
-pnpm dev
+pnpm dev        # режим разработки
+pnpm build      # production-сборка
+pnpm preview    # предпросмотр сборки
 ```
 
-Then open:
+После старта откройте `/auth/login` для входа и `/dashboard` — рабочий стол.
 
-- `/auth/login` for sign-in
-- `/dashboard` as protected route example
-- `/profile`, `/settings` as protected stubs
+## Скрипты
 
-## Auth routes
+| Команда          | Назначение                         |
+| ---------------- | ---------------------------------- |
+| `pnpm dev`       | Дев-сервер с HMR                   |
+| `pnpm build`     | Production-сборка                  |
+| `pnpm preview`   | Предпросмотр собранного приложения |
+| `pnpm lint`      | ESLint (`@antfu/eslint-config`)    |
+| `pnpm typecheck` | Проверка типов (`nuxt typecheck`)  |
 
-- `GET /auth/oidc`: starts OIDC flow and handles callback
-- `POST /api/auth/refresh`: refreshes tokens using `refresh_token`
-- `POST /api/auth/logout`: clears local session
+## Переменные окружения
 
-## Notes
+| Переменная                           | Обязательна | Описание                                             |
+| ------------------------------------ | ----------- | ---------------------------------------------------- |
+| `NUXT_SESSION_PASSWORD`              | да          | Ключ шифрования cookie-сессии (≥ 32 символов)        |
+| `NUXT_OAUTH_OIDC_CLIENT_ID`          | да          | Client ID OIDC-приложения                            |
+| `NUXT_OAUTH_OIDC_CLIENT_SECRET`      | да          | Client Secret OIDC-приложения                        |
+| `NUXT_OAUTH_OIDC_OPENID_CONFIG`      | да          | URL `.well-known/openid-configuration`               |
+| `NUXT_OAUTH_OIDC_REDIRECT_URL`       | да          | Callback URL (должен совпадать с настройкой клиента) |
+| `NUXT_PUBLIC_BACKEND_BASE_URL`       | да          | Базовый URL VKR Backend API                          |
+| `NUXT_PUBLIC_SITE_ORIGIN`            | да          | Origin фронтенда (для CORS)                          |
+| `NUXT_OIDC_POST_LOGOUT_REDIRECT_URL` | нет         | Redirect после federated logout                      |
+| `NUXT_PROXY_TIMEOUT_MS`              | нет         | Таймаут прокси к бэкенду (по умолчанию 15000)        |
 
-- By default all routes are protected except `/`, `/auth/*`, `/auth-error`, `/logout`.
-- Refresh is scheduled client-side before token expiration.
-- `refresh_token` is stored in server-only secure session data.
+## Структура проекта
+
+```
+app/
+  pages/          Маршруты (dashboard, предметы, занятия, посещаемость, оценки…)
+  components/     UI-компоненты (таблицы, формы, селекты)
+  composables/    Логика таблиц, итогов, штрафов, экспорта
+  middleware/     Доступ к маршрутам и проверка прав на предмет
+  utils/          Хелперы (валидация, форматирование, подсветка)
+  layouts/        Макеты страниц
+server/
+  routes/auth/    OIDC-флоу (/auth/oidc)
+  api/auth/       Обновление и сброс сессии
+  api/proxy/      Прокси к бэкенду с подстановкой токена
+  middleware/     Синхронизация преподавателя, обновление сессии, CSRF
+openapi/
+  api-docs.json   OpenAPI-схема бэкенда (источник типов клиента)
+i18n/             Конфигурация локализации
+```
+
+## Лицензия
+
+[MIT](./LICENSE)
