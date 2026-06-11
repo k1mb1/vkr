@@ -34,6 +34,14 @@ const { hasAllPermissions, permissionId } = usePermissions()
     </UPageHeader>
 
     <UAlert
+      color="neutral"
+      variant="soft"
+      icon="i-lucide-info"
+      title="Что такое назначения"
+      description="Назначения определяют, кто из преподавателей работает с предметом и с какими группами. Доступ ко всем группам — полные права, включая настройки предмета и выдачу назначений другим. Ограниченный доступ открывает только выбранные группы (по желанию — конкретные подгруппы и типы занятий)."
+    />
+
+    <UAlert
       v-if="error"
       color="error"
       variant="soft"

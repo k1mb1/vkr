@@ -207,6 +207,15 @@ const previewError = ref<string | null>(null)
 
 const overrides = reactive<Record<string, { status: AttendanceStatus, comment: string }>>({})
 
+// studentId, у которых преподаватель вручную изменил статус — их не перезаписываем
+// при обновлении предпросмотра.
+const editedStudentIds = new Set<string>()
+
+function markStatusEdited(studentId: string | undefined) {
+  if (studentId)
+    editedStudentIds.add(studentId)
+}
+
 async function loadPreview(opts: { silent?: boolean } = {}) {
   if (!sessionId.value)
     return
@@ -219,11 +228,17 @@ async function loadPreview(opts: { silent?: boolean } = {}) {
     })
     preview.value = data
     for (const row of data.rows ?? []) {
-      if (row.studentId && !overrides[row.studentId]) {
-        overrides[row.studentId] = {
-          status: (row.proposedStatus ?? 'ABSENT') as AttendanceStatus,
-          comment: '',
-        }
+      if (!row.studentId)
+        continue
+      const proposed = (row.proposedStatus ?? 'ABSENT') as AttendanceStatus
+      const existing = overrides[row.studentId]
+      if (!existing) {
+        overrides[row.studentId] = { status: proposed, comment: '' }
+      }
+      else if (!editedStudentIds.has(row.studentId)) {
+        // Пока преподаватель не менял статус вручную, следуем за предложенным —
+        // он уточняется по мере того, как студенты отмечаются.
+        existing.status = proposed
       }
     }
   }
@@ -770,6 +785,7 @@ async function handleConfirm() {
                   v-model="overrides[row.original.studentId]!.status"
                   :items="statusItems"
                   class="w-full"
+                  @update:model-value="markStatusEdited(row.original.studentId)"
                 />
               </template>
 

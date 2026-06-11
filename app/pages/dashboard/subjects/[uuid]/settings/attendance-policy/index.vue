@@ -8,13 +8,7 @@ definePageMeta({ middleware: 'subject-permission' })
 type AttendancePolicyRequest = components['schemas']['AttendancePolicyRequest']
 type AttendancePolicyResponse = components['schemas']['AttendancePolicyResponse']
 
-interface AttendancePolicyForm {
-  enabled: boolean
-  pointsPresent: number
-  pointsLate: number
-  pointsAbsent: number
-  pointsExcused: number
-}
+type AttendancePolicyForm = AttendancePolicyRequest
 
 const AttendancePolicySchema: SchemaFor<AttendancePolicyForm> = v.object({
   enabled: v.boolean(),
@@ -63,18 +57,10 @@ watch(
 
 const handleSave = onSubmit(
   (data) => {
-    const body: AttendancePolicyRequest = {
-      enabled: data.enabled,
-      pointsPresent: data.pointsPresent,
-      pointsLate: data.pointsLate,
-      pointsAbsent: data.pointsAbsent,
-      pointsExcused: data.pointsExcused,
-    }
-
     return $backend('/api/attendance-policy/subjects/{subjectId}', {
       method: 'PUT',
       path: { subjectId },
-      body,
+      body: data,
     })
   },
   {
@@ -129,13 +115,21 @@ const handleSave = onSubmit(
         @error="onError"
       >
         <UCard :ui="{ body: 'flex flex-col gap-4' }">
-          <UCheckbox v-model="state.enabled" label="Учитывать посещаемость в баллах" />
+          <USwitch v-model="state.enabled" label="Учитывать посещаемость в баллах" />
+
+          <UAlert
+            color="neutral"
+            variant="soft"
+            icon="i-lucide-info"
+            title="Зачем это нужно"
+            description="Баллы за посещаемость прибавляются к сумме студента в таблицах оценок и итогов. Значение может быть отрицательным — например, минус за пропуск. Если в «Промежуточной аттестации» выбран режим «Включена в балл», именно эти баллы войдут в итог."
+          />
 
           <template v-if="state.enabled">
             <USeparator />
 
             <p class="text-sm text-muted">
-              Укажите, сколько баллов начисляется за каждый тип посещения. Значение может быть отрицательным.
+              Укажите, сколько баллов начисляется за каждый тип посещения за одно занятие.
             </p>
 
             <UFormField label="Присутствие" name="pointsPresent" required>

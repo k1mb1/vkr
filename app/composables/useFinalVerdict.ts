@@ -7,6 +7,12 @@ export interface VerdictInput {
   total: number
   /** Число полностью закрытых обязательных задач. */
   closedRequired: number
+  /** Всего обязательных задач (для уровней с пустым «мин. задач» — нужно закрыть все). */
+  totalRequired?: number
+  /** Засчитанных посещений по выбранным статусам (для гейта SEPARATE). */
+  attendanceCounted?: number
+  /** Всего отслеженных занятий студента (знаменатель процента). */
+  attendanceTracked?: number
 }
 
 export interface VerdictResult {
@@ -20,6 +26,8 @@ export interface VerdictResult {
   pointsToNext: number | null
   /** Сколько обязательных задач не хватает до ближайшей более старшей банды (null — нет ограничения по задачам). */
   tasksToNext: number | null
+  /** true — студент не прошёл отдельный гейт посещаемости (attendanceMode === 'SEPARATE'). */
+  attendanceGateFailed: boolean
 }
 
 export interface VerdictTone {
@@ -29,8 +37,30 @@ export interface VerdictTone {
 }
 
 /**
+ * Проверка отдельного гейта посещаемости (attendanceMode === 'SEPARATE').
+ * Возвращает true, если гейт активен и НЕ пройден. Для COMBINED/без режима — всегда false.
+ */
+function attendanceGateFails(policy: FinalAssessmentPolicyResponse, input: VerdictInput): boolean {
+  if (policy.attendanceMode !== 'SEPARATE')
+    return false
+  const counted = input.attendanceCounted ?? 0
+  const tracked = input.attendanceTracked ?? 0
+  if (policy.attendanceRequirementMode === 'COUNT')
+    return policy.attendanceMinCount != null && counted < policy.attendanceMinCount
+  if (policy.attendanceRequirementMode === 'PERCENT') {
+    // Без отслеженных занятий процент не определён — гейт не валим.
+    if (policy.attendanceMinPercent == null || tracked <= 0)
+      return false
+    return (counted / tracked) * 100 < policy.attendanceMinPercent
+  }
+  return false
+}
+
+/**
  * Вердикт для студента: первая (самая старшая) банда, чьи условия выполнены.
  * Условия банды (minPoints, requiredTasks) комбинируются по AND; пустое — без ограничения.
+ * Поверх банд действует отдельный гейт посещаемости (SEPARATE): если он не пройден,
+ * студент «Не аттестован» независимо от набранных баллов и закрытых задач.
  */
 export function computeVerdict(
   policy: FinalAssessmentPolicyResponse,
@@ -38,6 +68,10 @@ export function computeVerdict(
 ): VerdictResult {
   const bands = policy.bands ?? []
   const bandCount = bands.length
+  const totalRequired = input.totalRequired ?? 0
+
+  // Требование по задачам для уровня: пусто — закрыть ВСЕ обязательные задачи.
+  const taskReqOf = (b: typeof bands[number]) => b.requiredTasks ?? totalRequired
 
   // Считаем, сколько не хватает до ближайшей более старшей банды
   let pointsToNext: number | null = null
@@ -49,22 +83,27 @@ export function computeVerdict(
       if (pointsToNext == null || diff < pointsToNext)
         pointsToNext = diff
     }
-    if (b.requiredTasks != null && input.closedRequired < b.requiredTasks) {
-      const diff = b.requiredTasks - input.closedRequired
+    const req = taskReqOf(b)
+    if (req > 0 && input.closedRequired < req) {
+      const diff = req - input.closedRequired
       if (tasksToNext == null || diff < tasksToNext)
         tasksToNext = diff
     }
   }
 
+  const attendanceGateFailed = attendanceGateFails(policy, input)
+  if (attendanceGateFailed)
+    return { label: 'Не аттестован', bandIndex: null, bandCount, pointsToNext, tasksToNext, attendanceGateFailed }
+
   for (let i = 0; i < bands.length; i++) {
     const b = bands[i]!
     const okPoints = b.minPoints == null || input.total >= b.minPoints
-    const okTasks = b.requiredTasks == null || input.closedRequired >= b.requiredTasks
+    const okTasks = input.closedRequired >= taskReqOf(b)
     if (okPoints && okTasks)
-      return { label: b.label || '—', bandIndex: i, bandCount, pointsToNext, tasksToNext }
+      return { label: b.label || '—', bandIndex: i, bandCount, pointsToNext, tasksToNext, attendanceGateFailed }
   }
 
-  return { label: 'Не аттестован', bandIndex: null, bandCount, pointsToNext, tasksToNext }
+  return { label: 'Не аттестован', bandIndex: null, bandCount, pointsToNext, tasksToNext, attendanceGateFailed }
 }
 
 /** Цветовой тон вердикта: верхние банды — зелёные, ниже — жёлтые, без банды — красный. */

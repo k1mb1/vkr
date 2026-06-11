@@ -120,6 +120,14 @@ const exportItems = computed<DropdownMenuItem[]>(() => [
     />
 
     <div v-else class="flex flex-col gap-4">
+      <UAlert
+        color="neutral"
+        variant="soft"
+        icon="i-lucide-info"
+        title="Сводный журнал оценок"
+        description="Баллы по всем занятиям и заданиям. Показаны с учётом штрафов и бонусов за сроки (исходный балл — в подсказке к ячейке). Обязательные задания помечены, цвета настраиваются в «Подсветке таблицы оценок». Выставлять и менять оценки удобнее на странице конкретного занятия."
+      />
+
       <div class="flex flex-wrap items-center gap-4">
         <UTabs v-model="typeFilter" :items="typeTabItems" :content="false" />
         <USelectMenu

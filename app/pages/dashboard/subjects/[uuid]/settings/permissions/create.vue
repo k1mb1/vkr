@@ -127,11 +127,37 @@ const handleCreate = onSubmit(
       @submit="handleCreate"
       @error="onError"
     >
+      <UAlert
+        color="neutral"
+        variant="soft"
+        icon="i-lucide-info"
+        title="Как настроить доступ"
+      >
+        <template #description>
+          <div class="flex flex-col gap-1.5">
+            <p>
+              Выберите преподавателя и уровень доступа. <b>Все группы предмета</b> —
+              полные права: все группы, настройки предмета и выдача назначений.
+            </p>
+            <p class="text-muted">
+              Без этой галочки доступ ограничен: добавьте один или несколько «доступов»,
+              каждый — это группа (по желанию конкретная подгруппа) и тип занятия.
+              «Все» означает без ограничения.
+            </p>
+          </div>
+        </template>
+      </UAlert>
+
       <UFormField label="Преподаватель" name="teacherId" required>
         <TeachersSelectMenu v-model="state.teacherId" :exclude-id="excludedTeacherIds" />
       </UFormField>
 
-      <UCheckbox v-model="state.allPermissions" label="Все группы предмета" />
+      <UFormField>
+        <USwitch v-model="state.allPermissions" label="Все группы предмета" />
+        <template #help>
+          Полный доступ ко всем группам, настройкам предмета и управлению назначениями.
+        </template>
+      </UFormField>
 
       <template v-if="!state.allPermissions">
         <USeparator label="Доступы" />
@@ -161,10 +187,16 @@ const handleCreate = onSubmit(
               :loading="groupsPending"
               @update:model-value="(v) => { s.group = { groupId: v.groupId ?? '', allowedSubgroupId: v.subgroupId ?? undefined } }"
             />
+            <template #help>
+              Выберите группу и, по желанию, подгруппу. «Все» в подгруппе — доступ ко всей группе.
+            </template>
           </UFormField>
 
           <UFormField label="Тип занятия">
             <LessonTypesPermissionSelect v-model="s.allowedLessonType" :group-id="s.group!.groupId" />
+            <template #help>
+              Ограничить доступ лекциями или практиками. Не выбрано — оба типа.
+            </template>
           </UFormField>
         </UCard>
 

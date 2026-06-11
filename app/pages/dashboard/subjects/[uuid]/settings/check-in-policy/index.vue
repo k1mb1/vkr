@@ -8,8 +8,7 @@ definePageMeta({ middleware: 'subject-permission' })
 type CheckInPolicyRequest = components['schemas']['CheckInPolicyRequest']
 type CheckInPolicyResponse = components['schemas']['CheckInPolicyResponse']
 
-interface CheckInPolicyForm {
-  enabled: boolean
+type CheckInPolicyForm = Omit<CheckInPolicyRequest, 'onTimeSeconds' | 'lateSeconds'> & {
   onTimeMinutes: number
   lateMinutes: number
 }
@@ -131,16 +130,33 @@ const handleSave = onSubmit(
         @error="onError"
       >
         <UCard :ui="{ body: 'flex flex-col gap-4' }">
-          <UCheckbox
+          <USwitch
             v-model="state.enabled"
             label="Единые окна отметки для всего предмета"
           />
 
-          <p class="text-sm text-muted">
-            Когда включено — все сессии отметки этого предмета используют указанные окна,
-            а поля окон на экране запуска сессии игнорируются. Когда выключено — окна задаются
-            индивидуально при запуске каждой сессии.
-          </p>
+          <UAlert
+            color="neutral"
+            variant="soft"
+            icon="i-lucide-info"
+            title="Что такое окна отметки"
+          >
+            <template #description>
+              <div class="flex flex-col gap-1.5">
+                <p>
+                  Когда преподаватель запускает отметку на занятии, студенты отмечаются
+                  по QR-коду. <b>Основное окно</b> — время, пока отметка считается
+                  «Присутствовал». После него идёт <b>окно для опоздавших</b> — отметка
+                  даёт статус «Опоздал». Дальше отметиться нельзя.
+                </p>
+                <p class="text-muted">
+                  Включите, чтобы зафиксировать единые окна для всех занятий предмета —
+                  тогда поля времени на экране запуска отметки будут игнорироваться.
+                  Выключите — задавайте окна каждый раз вручную при запуске.
+                </p>
+              </div>
+            </template>
+          </UAlert>
 
           <template v-if="state.enabled">
             <USeparator />

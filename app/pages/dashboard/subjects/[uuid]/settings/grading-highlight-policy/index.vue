@@ -8,13 +8,7 @@ definePageMeta({ middleware: 'subject-permission' })
 type GradingHighlightPolicyRequest = components['schemas']['GradingHighlightPolicyRequest']
 type GradingHighlightPolicyResponse = components['schemas']['GradingHighlightPolicyResponse']
 
-interface GradingHighlightPolicyForm {
-  enabled: boolean
-  assignmentColor: string
-  fullColor: string
-  partialLowColor: string
-  partialHighColor: string
-}
+type GradingHighlightPolicyForm = Required<GradingHighlightPolicyRequest>
 
 const hexColorPattern = /^#[0-9A-F]{6}$/i
 
@@ -152,14 +146,15 @@ const handleSave = onSubmit(
         @error="onError"
       >
         <UCard :ui="{ body: 'flex flex-col gap-4' }">
-          <UCheckbox
+          <USwitch
             v-model="state.enabled"
             label="Включить цветовую подсветку таблицы оценок"
           />
 
           <p class="text-sm text-muted">
-            Раскраска ячеек таблицы оценок по цветам. Фронт применяет эти цвета
-            к колонкам заданий и ячейкам в зависимости от прогресса студента.
+            Ячейки таблицы оценок автоматически окрашиваются в зависимости от того,
+            насколько студент решил задание: полностью (балл равен максимуму), больше
+            половины или половина и меньше. Отдельный цвет — для фона шапки колонок заданий.
           </p>
 
           <template v-if="state.enabled">

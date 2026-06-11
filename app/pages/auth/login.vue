@@ -1,51 +1,93 @@
 <script setup lang="ts">
-import type { ButtonProps } from '@nuxt/ui'
+const { t } = useI18n({
+  messages: {
+    en: {
+      brand: 'Grade Journal',
+      title: 'Welcome back',
+      subtitle: 'Sign in to continue to your journal.',
+      action: 'Sign in',
+      hint: 'Single sign-on via your institution account.',
+      back: 'Back to home',
+    },
+    ru: {
+      brand: 'Классный журнал',
+      title: 'С возвращением',
+      subtitle: 'Войдите, чтобы продолжить работу с журналом.',
+      action: 'Войти',
+      hint: 'Единый вход через аккаунт вашего учебного заведения.',
+      back: 'На главную',
+    },
+  },
+})
 
 const route = useRoute()
 const { login, loggedIn } = useOidcAuth()
 
-const redirectTo = computed(() => {
-  return typeof route.query.redirect === 'string' ? route.query.redirect : '/dashboard'
-})
+const redirectTo = computed(() =>
+  typeof route.query.redirect === 'string' ? route.query.redirect : '/dashboard',
+)
 
-const providers = computed<ButtonProps[]>(() => [
-  {
-    label: 'Continue with Pocket ID',
-    icon: 'i-lucide-log-in',
-    color: 'neutral',
-    variant: 'soft',
-    block: true,
-    onClick: async () => {
-      await login(redirectTo.value)
-    },
-  },
-])
-
-if (loggedIn.value) {
-  await navigateTo(redirectTo.value)
+const pending = ref(false)
+async function signIn() {
+  pending.value = true
+  await login(redirectTo.value)
 }
+
+if (loggedIn.value)
+  await navigateTo(redirectTo.value)
 </script>
 
 <template>
-  <UPage>
-    <UPageSection
-      title="Sign in"
-      description="OIDC login via Pocket ID provider."
-      class="max-w-xl mx-auto"
-    >
-      <UPageCard>
-        <UAuthForm
-          title="Pocket ID"
-          description="OIDC login with server-side sealed session."
-          icon="i-lucide-shield-check"
-          :providers="providers"
-          separator=" "
+  <div class="min-h-svh flex flex-col bg-default">
+    <div class="flex items-center justify-end gap-2 p-4">
+      <AppLocaleSelect />
+      <UColorModeButton />
+    </div>
+
+    <div class="flex-1 flex items-center justify-center px-4 pb-16">
+      <div class="w-full max-w-sm flex flex-col items-center gap-8">
+        <NuxtLink to="/" class="flex items-center gap-2 font-semibold text-highlighted">
+          <UIcon name="i-lucide-notebook-pen" class="size-6 text-primary" />
+          <span>{{ t('brand') }}</span>
+        </NuxtLink>
+
+        <UPageCard class="w-full">
+          <div class="flex flex-col gap-6">
+            <div class="flex flex-col items-center text-center gap-1">
+              <h1 class="text-xl font-semibold text-highlighted">
+                {{ t('title') }}
+              </h1>
+              <p class="text-sm text-muted">
+                {{ t('subtitle') }}
+              </p>
+            </div>
+
+            <UButton
+              block
+              size="xl"
+              icon="i-lucide-log-in"
+              :loading="pending"
+              @click="signIn"
+            >
+              {{ t('action') }}
+            </UButton>
+
+            <p class="text-xs text-muted text-center">
+              {{ t('hint') }}
+            </p>
+          </div>
+        </UPageCard>
+
+        <UButton
+          to="/"
+          variant="link"
+          color="neutral"
+          size="sm"
+          icon="i-lucide-arrow-left"
         >
-          <template #footer>
-            Session is stored in sealed cookie via nuxt-auth-utils.
-          </template>
-        </UAuthForm>
-      </UPageCard>
-    </UPageSection>
-  </UPage>
+          {{ t('back') }}
+        </UButton>
+      </div>
+    </div>
+  </div>
 </template>

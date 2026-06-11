@@ -161,18 +161,9 @@ const columns = computed<TableColumn<FlatRow>[]>(() => [
 </script>
 
 <template>
-  <div class="flex flex-col gap-8">
-    <div class="flex items-center justify-between">
-      <div>
-        <p class="text-xs font-medium text-muted uppercase tracking-widest mb-1">
-          Предмет
-        </p>
-        <h1 class="text-2xl font-semibold text-highlighted">
-          Отметка присутствия сессии
-        </h1>
-      </div>
-
-      <div class="flex items-center gap-2">
+  <div class="flex flex-col gap-6">
+    <UPageHeader title="Сессии отметки присутствия">
+      <template #links>
         <UButton
           icon="i-lucide-refresh-cw"
           color="neutral"
@@ -186,8 +177,8 @@ const columns = computed<TableColumn<FlatRow>[]>(() => [
           :to="`/dashboard/subjects/${subjectId}/check-ins/create`"
           :disabled="!permission"
         />
-      </div>
-    </div>
+      </template>
+    </UPageHeader>
 
     <UAlert
       v-if="error"
@@ -211,6 +202,14 @@ const columns = computed<TableColumn<FlatRow>[]>(() => [
       v-else
       class="flex flex-col gap-4"
     >
+      <UAlert
+        color="neutral"
+        variant="soft"
+        icon="i-lucide-info"
+        title="Зачем это нужно"
+        description="Здесь запускаются и хранятся сессии отметки присутствия. Запустите опрос — студенты отметятся по QR-коду, а после закрытия вы подтвердите результаты, и они перенесутся в посещаемость. В списке видно состояние каждой сессии."
+      />
+
       <div class="grid gap-4 sm:grid-cols-2">
         <UFormField label="Группа">
           <GroupsPermissionScopeSelect v-model="scopeState.groupId" />

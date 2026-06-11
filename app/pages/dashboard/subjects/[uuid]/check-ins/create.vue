@@ -15,8 +15,7 @@ interface LessonScopeOption {
   scope: LessonScopeResponse
 }
 
-interface StartCheckInForm {
-  lessonScopeId: string
+type StartCheckInForm = Omit<StartCheckInRequest, 'onTimeSeconds' | 'lateSeconds'> & {
   onTimeMinutes: number
   lateMinutes: number
 }
@@ -64,10 +63,30 @@ const { data: lessonsData, pending: lessonsPending, refresh } = useBackend('/api
   immediate: false,
 })
 
+// Существующие сессии — чтобы не предлагать уже отмеченные (или идущие) проведения.
+const { data: sessionsData, refresh: refreshSessions } = useBackend('/api/check-in-sessions', {
+  method: 'GET',
+  query: computed(() => ({ permissionId: permissionId.value })),
+  immediate: false,
+})
+
 watch(permissionId, (pid) => {
-  if (pid)
+  if (pid) {
     refresh()
+    refreshSessions()
+  }
 }, { immediate: true })
+
+// lessonScopeId проведений, по которым уже есть не отменённая сессия
+// (подтверждённая или ещё идущая) — их исключаем из выбора.
+const takenScopeIds = computed(() => {
+  const taken = new Set<string>()
+  for (const s of sessionsData.value ?? []) {
+    if (s.lessonScopeId && s.state !== 'CANCELLED')
+      taken.add(s.lessonScopeId)
+  }
+  return taken
+})
 
 function formatScopeAudience(s: LessonScopeResponse): string {
   if (s.allGroups)
@@ -93,7 +112,7 @@ const scopeOptions = computed<LessonScopeOption[]>(() => {
   const out: LessonScopeOption[] = []
   for (const l of lessonsData.value ?? []) {
     for (const s of l.scopes ?? []) {
-      if (!s.id)
+      if (!s.id || takenScopeIds.value.has(s.id))
         continue
       out.push({
         value: s.id,
@@ -185,6 +204,14 @@ const handleStart = onSubmit(
       @submit="handleStart"
       @error="onError"
     >
+      <UAlert
+        color="neutral"
+        variant="soft"
+        icon="i-lucide-info"
+        title="Как проходит отметка"
+        description="Запуск открывает окно, в течение которого студенты выбранного проведения отмечаются по QR-коду. Отметившиеся в основном окне получают «Присутствовал», в окне для опоздавших — «Опоздал». Аудитория берётся из проведения занятия."
+      />
+
       <UFormField label="Проведение занятия" name="lessonScopeId" required>
         <USelectMenu
           v-model="selectedScopeOption"
@@ -194,6 +221,9 @@ const handleStart = onSubmit(
           placeholder="Выберите проведение занятия..."
           class="w-full"
         />
+        <template v-if="!lessonsPending && scopeOptions.length === 0" #help>
+          Нет доступных проведений: все занятия уже отмечены либо проведение ещё не назначено.
+        </template>
       </UFormField>
 
       <UFormField v-if="selectedScope" label="Аудитория">

@@ -46,5 +46,20 @@ const { alertProps } = useApiError()
       class="w-full"
     />
     <UAlert v-if="error" v-bind="alertProps(error, 'Ошибка загрузки')" />
+
+    <div
+      v-else-if="!pending && options.length === 0"
+      class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-dashed border-default p-3"
+    >
+      <span class="text-sm text-muted">Пока нет ни одной группы.</span>
+      <UButton
+        to="/dashboard/groups/create"
+        icon="i-lucide-plus"
+        label="Создать группу"
+        color="primary"
+        variant="subtle"
+        size="sm"
+      />
+    </div>
   </div>
 </template>

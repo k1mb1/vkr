@@ -125,7 +125,6 @@ const tableUi = sectionedTableUi({ center: true, checkbox: true })
                   {{ editTarget.maxPoints }}
                   <UBadge
                     v-if="editTarget.required"
-                    size="xs"
                     variant="solid"
                     color="error"
                     label="req"
@@ -179,7 +178,6 @@ const tableUi = sectionedTableUi({ center: true, checkbox: true })
                   v-if="editTarget.maxPoints != null"
                   color="neutral"
                   variant="soft"
-                  size="sm"
                   :label="`Макс. ${editTarget.maxPoints}`"
                   :disabled="editTarget.score === editTarget.maxPoints"
                   @click="editTarget.score = editTarget.maxPoints ?? null"

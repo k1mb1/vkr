@@ -125,6 +125,14 @@ const exportItems = computed<DropdownMenuItem[]>(() => [
     />
 
     <div v-else class="flex flex-col gap-4">
+      <UAlert
+        color="neutral"
+        variant="soft"
+        icon="i-lucide-info"
+        title="Сводная посещаемость"
+        description="Статусы по всем занятиям: присутствие, опоздание, отсутствие и уважительная причина. Заполняются автоматически после подтверждения отметки или вручную на странице занятия. Если включена «Политика учёта посещаемости», статусы дают баллы в оценках и итогах."
+      />
+
       <div class="flex flex-wrap items-center gap-4">
         <UTabs v-model="typeFilter" :items="typeTabItems" :content="false" />
         <USelectMenu

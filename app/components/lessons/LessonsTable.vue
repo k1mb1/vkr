@@ -159,6 +159,31 @@ async function handleSetActive() {
   )
 }
 
+function goEdit(lesson: LessonResponse) {
+  navigateTo({
+    path: `/dashboard/subjects/${props.subjectId}/lessons/${lesson.id}/edit`,
+    state: { lesson: JSON.parse(JSON.stringify(lesson)) },
+  })
+}
+
+function goScopesCreate(lesson: LessonResponse) {
+  navigateTo(`/dashboard/subjects/${props.subjectId}/lessons/${lesson.id}/scopes-create`)
+}
+
+function goAssignmentsCreate(lesson: LessonResponse) {
+  navigateTo({
+    path: `/dashboard/subjects/${props.subjectId}/lessons/${lesson.id}/assignments-create`,
+    state: { lesson: JSON.parse(JSON.stringify(lesson)) },
+  })
+}
+
+function goAssignmentsEdit(lesson: LessonResponse) {
+  navigateTo({
+    path: `/dashboard/subjects/${props.subjectId}/lessons/${lesson.id}/assignments-edit`,
+    state: { lesson: JSON.parse(JSON.stringify(lesson)) },
+  })
+}
+
 function lessonActions(lesson: LessonResponse): DropdownMenuItem[][] {
   return [
     [
@@ -172,28 +197,26 @@ function lessonActions(lesson: LessonResponse): DropdownMenuItem[][] {
       {
         label: 'Редактировать',
         icon: 'i-lucide-square-pen',
-        onSelect: () => navigateTo({
-          path: `/dashboard/subjects/${props.subjectId}/lessons/${lesson.id}/edit`,
-          state: { lesson: JSON.parse(JSON.stringify(lesson)) },
-        }),
+        onSelect: () => goEdit(lesson),
       },
       ...(!lesson.scopes?.length
         ? [{
             label: 'Назначить проведение',
             icon: 'i-lucide-calendar-plus',
-            onSelect: () => navigateTo(`/dashboard/subjects/${props.subjectId}/lessons/${lesson.id}/scopes-create`),
+            onSelect: () => goScopesCreate(lesson),
           }]
         : []),
       ...(!lesson.assignments?.length
         ? [{
             label: 'Добавить задания',
             icon: 'i-lucide-clipboard-list',
-            onSelect: () => navigateTo({
-              path: `/dashboard/subjects/${props.subjectId}/lessons/${lesson.id}/assignments-create`,
-              state: { lesson: JSON.parse(JSON.stringify(lesson)) },
-            }),
+            onSelect: () => goAssignmentsCreate(lesson),
           }]
-        : []),
+        : [{
+            label: 'Настроить задания',
+            icon: 'i-lucide-settings-2',
+            onSelect: () => goAssignmentsEdit(lesson),
+          }]),
     ],
     [
       ...(lesson.assignments?.length
@@ -247,12 +270,21 @@ function lessonActions(lesson: LessonResponse): DropdownMenuItem[][] {
 
       <!-- Группы -->
       <template #scopes-cell="{ row }">
-        <UTooltip v-if="shouldSpan(row.original)" text="Проведение не назначено — назначьте проведение">
-          <span class="inline-flex items-center gap-1 text-sm text-warning">
+        <template v-if="shouldSpan(row.original)">
+          <UButton
+            v-if="hasAllPermissions"
+            icon="i-lucide-calendar-plus"
+            label="Назначить проведение"
+            color="warning"
+            variant="subtle"
+            size="xs"
+            @click="goScopesCreate(row.original)"
+          />
+          <span v-else class="inline-flex items-center gap-1 text-sm text-warning">
             <span class="i-lucide-triangle-alert h-3.5 w-3.5 shrink-0" />
             Проведение не назначено
           </span>
-        </UTooltip>
+        </template>
 
         <div v-else class="flex flex-col gap-1">
           <UBadge
@@ -306,6 +338,15 @@ function lessonActions(lesson: LessonResponse): DropdownMenuItem[][] {
             Σ {{ row.original.assignments.reduce((s, a) => s + (a.maxPoints ?? 0), 0) }}
           </span>
         </div>
+        <UButton
+          v-else-if="hasAllPermissions"
+          icon="i-lucide-clipboard-list"
+          label="Добавить задания"
+          color="neutral"
+          variant="subtle"
+          size="xs"
+          @click="goAssignmentsCreate(row.original)"
+        />
         <span v-else class="text-sm text-muted">Нет</span>
       </template>
 
@@ -339,7 +380,16 @@ function lessonActions(lesson: LessonResponse): DropdownMenuItem[][] {
           description="Добавьте занятия по количеству или расписанию"
           variant="naked"
           class="py-6"
-        />
+        >
+          <template v-if="hasAllPermissions" #actions>
+            <UButton
+              icon="i-lucide-list-plus"
+              label="Добавить занятия"
+              color="primary"
+              :to="`/dashboard/subjects/${subjectId}/lessons/create`"
+            />
+          </template>
+        </UEmpty>
       </template>
     </UTable>
 

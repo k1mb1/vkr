@@ -1,34 +1,73 @@
 <script setup lang="ts">
 import type { components } from '#open-fetch-schemas/backend'
+import type { SchemaFor } from '~/utils/validation'
 import * as v from 'valibot'
 import { arrayMinLength } from '~/utils/validation'
 
 definePageMeta({ middleware: 'subject-permission' })
 
 type LessonResponse = components['schemas']['LessonResponse']
+type AssignmentResponse = components['schemas']['AssignmentResponse']
 type CreateAssignmentsRequest = components['schemas']['CreateAssignmentsRequest']
-type CreateAssignmentsForm = Omit<CreateAssignmentsRequest, 'items'> & {
-  items: Pick<CreateAssignmentsRequest['items'][number], 'maxPoints' | 'required'>[]
+type Band = components['schemas']['Band']
+
+type AdmissionMode = NonNullable<AssignmentResponse['admissionMode']>
+
+type AssignmentItemForm = Required<AssignmentResponse> & {
+  admissionTiers: { bandId: string, minScore: number }[]
 }
+
+type CreateAssignmentsForm = Omit<CreateAssignmentsRequest, 'items'> & {
+  items: AssignmentItemForm[]
+}
+
+const ItemSchema: SchemaFor<AssignmentItemForm> = v.pipe(
+  v.object({
+    id: v.string(),
+    lessonId: v.string(),
+    order: v.pipe(v.number(), v.integer(), v.minValue(0)),
+    maxPoints: v.pipe(
+      v.union(
+        [v.number(), v.pipe(v.string(), v.transform(Number))],
+        'Введите число',
+      ),
+      v.number('Введите число'),
+      v.integer('Только целое число'),
+      v.minValue(1, 'Минимум 1 балл'),
+    ),
+    required: v.boolean(),
+    admissionMode: v.picklist(['NONE', 'PASS_FAIL', 'MIN_SCORE', 'TIERED']),
+    admissionMinScore: v.pipe(v.number(), v.minValue(0)),
+    admissionTiers: v.array(
+      v.object({
+        bandId: v.pipe(v.string(), v.minLength(1)),
+        minScore: v.pipe(v.number(), v.minValue(0)),
+      }),
+    ),
+  }),
+  v.forward(
+    v.check((input) => {
+      if (input.admissionMode === 'NONE' || input.admissionMode === 'PASS_FAIL')
+        return true
+      if (input.admissionMode === 'TIERED')
+        return input.admissionTiers.length > 0
+      return input.admissionMinScore != null
+    }, 'Заполните условия допуска'),
+    ['admissionMinScore'],
+  ),
+  v.forward(
+    v.check((input) => {
+      if (input.admissionMode !== 'TIERED')
+        return true
+      return input.admissionTiers.length > 0
+    }, 'Нет доступных банд для уровней допуска'),
+    ['admissionTiers'],
+  ),
+)
 
 const CreateAssignmentsSchema: SchemaFor<CreateAssignmentsForm> = v.object({
   lessonId: v.string(),
-  items: arrayMinLength(
-    v.object({
-      maxPoints: v.pipe(
-        v.union(
-          [v.number(), v.pipe(v.string(), v.transform(Number))],
-          'Введите число',
-        ),
-        v.number('Введите число'),
-        v.integer('Только целое число'),
-        v.minValue(1, 'Минимум 1 балл'),
-      ),
-      required: v.boolean(),
-    }),
-    1,
-    'Добавьте хотя бы одно задание',
-  ),
+  items: arrayMinLength(ItemSchema, 1, 'Добавьте хотя бы одно задание'),
 })
 
 const route = useRoute()
@@ -39,16 +78,54 @@ const targetLesson = (history.state?.lesson ?? null) as LessonResponse | null
 
 const { $backend } = useNuxtApp()
 
+// ── Policy for bands ────────────────────────────────────────────────────────
+const { data: policyData } = useBackend('/api/final-assessment-policy/subjects/{subjectId}', {
+  method: 'GET',
+  path: { subjectId },
+})
+
+const bands = computed<Band[]>(() => policyData.value?.bands ?? [])
+const policyEnabled = computed(() => policyData.value?.enabled ?? false)
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+function ensureTiers(item: AssignmentItemForm) {
+  if (item.admissionMode !== 'TIERED')
+    return
+  const existing = new Map(item.admissionTiers.map(t => [t.bandId, t.minScore]))
+  item.admissionTiers = bands.value.map(b => ({
+    bandId: b.id ?? '',
+    minScore: existing.get(b.id ?? '') ?? 0,
+  })).filter(t => t.bandId)
+}
+
+// ── Form ────────────────────────────────────────────────────────────────────
 const { state, formRef, loading, onSubmit, onError } = useResourceForm<typeof CreateAssignmentsSchema>({
   initialState: () => ({
     lessonId,
-    items: [{ maxPoints: 10, required: true }],
+    items: [{ id: '', lessonId: '', order: 0, maxPoints: 10, required: true, admissionMode: 'NONE' as AdmissionMode, admissionMinScore: 0, admissionTiers: [] }],
   }),
 })
 
 function addItem() {
-  state.items.push({ maxPoints: 10, required: true })
+  state.items.push({ id: '', lessonId: '', order: 0, maxPoints: 10, required: true, admissionMode: 'NONE', admissionMinScore: 0, admissionTiers: [] })
 }
+
+watch(bands, () => {
+  for (const item of state.items) {
+    ensureTiers(item)
+  }
+}, { immediate: true })
+
+watch(
+  () => state.items,
+  (items) => {
+    for (const item of items) {
+      if (item.admissionMode !== 'NONE')
+        item.required = false
+    }
+  },
+  { deep: true },
+)
 
 function removeItem(idx: number) {
   state.items.splice(idx, 1)
@@ -58,12 +135,42 @@ const totalMaxPoints = computed(() =>
   state.items.reduce((sum, it) => sum + (Number(it.maxPoints) || 0), 0),
 )
 
+const modeOptions = [
+  { value: 'NONE' as const, label: 'Нет' },
+  { value: 'PASS_FAIL' as const, label: 'Сдал / не сдал' },
+  { value: 'MIN_SCORE' as const, label: 'Мин. балл' },
+  { value: 'TIERED' as const, label: 'По уровням' },
+]
+
 const handleCreate = onSubmit(
-  data => $backend('/api/assignments', {
-    method: 'POST',
-    // Item type requires id/order, but backend assigns them on creation.
-    body: data as CreateAssignmentsRequest,
-  }),
+  (data) => {
+    const body = {
+      lessonId: data.lessonId,
+      items: data.items.map(item => ({
+        maxPoints: item.maxPoints,
+        required: item.required,
+        order: 0,
+        id: '',
+        admissionMode: item.admissionMode,
+        ...(item.admissionMode === 'MIN_SCORE'
+          ? { admissionMinScore: item.admissionMinScore ?? 0 }
+          : {}),
+        ...(item.admissionMode === 'TIERED'
+          ? {
+              admissionTiers: item.admissionTiers.map(t => ({
+                bandId: t.bandId,
+                minScore: t.minScore,
+              })),
+            }
+          : {}),
+      })),
+    }
+
+    return $backend('/api/assignments', {
+      method: 'POST',
+      body: body as unknown as CreateAssignmentsRequest,
+    })
+  },
   {
     successMessage: result => (result?.length ?? 0) > 1
       ? `Создано заданий: ${result!.length}`
@@ -92,6 +199,36 @@ const handleCreate = onSubmit(
       </template>
     </UPageHeader>
 
+    <UAlert
+      color="neutral"
+      variant="soft"
+      icon="i-lucide-info"
+      title="Как добавить задания"
+    >
+      <template #description>
+        <div class="flex flex-col gap-1.5">
+          <p>
+            Для каждого задания укажите максимум баллов. Отметьте <b>обязательное</b>,
+            если оно должно быть закрыто для аттестации.
+          </p>
+          <p class="text-muted">
+            <b>Режим допуска</b> задаёт условие, по которому задание влияет на допуск:
+            «Нет» — обычное задание; «Сдал / не сдал» — по факту сдачи; «Мин. балл» —
+            нужно набрать минимум; «По уровням» — свой минимум под каждый итоговый уровень.
+          </p>
+        </div>
+      </template>
+    </UAlert>
+
+    <UAlert
+      v-if="!policyEnabled"
+      color="warning"
+      variant="soft"
+      icon="i-lucide-triangle-alert"
+      title="Итоговая аттестация не настроена"
+      description="Режим допуска «По уровням» будет недоступен, пока не созданы итоговые уровни в настройках предмета."
+    />
+
     <UForm
       ref="formRef"
       :schema="CreateAssignmentsSchema"
@@ -106,44 +243,118 @@ const handleCreate = onSubmit(
         <UCard
           v-for="(item, idx) in state.items"
           :key="idx"
-          :ui="{ body: 'p-3' }"
+          :ui="{ body: 'flex flex-col gap-4 p-4' }"
         >
           <div class="flex items-start gap-3">
-            <span class="mt-2 w-8 shrink-0 text-sm font-medium text-muted">
+            <span class="mt-5 w-8 shrink-0 text-sm font-medium text-muted">
               №{{ idx + 1 }}
             </span>
 
+            <div class="flex flex-1 flex-wrap items-start gap-3">
+              <UFormField
+                label="Макс. баллов"
+                :name="`items.${idx}.maxPoints`"
+                required
+                class="w-32"
+              >
+                <UInput
+                  v-model.number="item.maxPoints"
+                  type="number"
+                  :min="1"
+                  class="w-full"
+                />
+              </UFormField>
+
+              <UFormField
+                v-if="item.admissionMode === 'NONE'"
+                label="Обязательное"
+                :name="`items.${idx}.required`"
+                class="mt-5"
+              >
+                <UCheckbox v-model="item.required" label="Да" />
+              </UFormField>
+
+              <UFormField
+                label="Режим допуска"
+                :name="`items.${idx}.admissionMode`"
+                required
+                class="w-44"
+              >
+                <USelect
+                  v-model="item.admissionMode"
+                  :items="modeOptions"
+                  class="w-full"
+                  @update:model-value="ensureTiers(item)"
+                />
+              </UFormField>
+
+              <UButton
+                class="mt-5"
+                icon="i-lucide-x"
+                color="neutral"
+                variant="ghost"
+                :disabled="state.items.length <= 1"
+                :aria-label="`Удалить задание №${idx + 1}`"
+                @click="removeItem(idx)"
+              />
+            </div>
+          </div>
+
+          <!-- MIN_SCORE -->
+          <div v-if="item.admissionMode === 'MIN_SCORE'" class="pl-11">
             <UFormField
-              label="Макс. баллов"
-              :name="`items.${idx}.maxPoints`"
+              :name="`items.${idx}.admissionMinScore`"
+              label="Мин. балл для допуска"
               required
               class="w-40"
             >
               <UInput
-                v-model.number="item.maxPoints"
+                :model-value="item.admissionMinScore"
                 type="number"
-                :min="1"
+                :min="0"
+                :max="item.maxPoints"
                 class="w-full"
+                @update:model-value="v => item.admissionMinScore = v == null ? 0 : Number(v)"
               />
             </UFormField>
+          </div>
 
-            <UFormField
-              label="Обязательное"
-              :name="`items.${idx}.required`"
-              class="flex-1"
+          <!-- TIERED -->
+          <div v-if="item.admissionMode === 'TIERED'" class="flex flex-col gap-3 pl-11">
+            <p
+              v-if="bands.length === 0"
+              class="text-sm text-muted italic"
             >
-              <UCheckbox v-model="item.required" label="Да" />
-            </UFormField>
+              Нет доступных уровней. Создайте итоговые уровни в настройках предмета.
+            </p>
 
-            <UButton
-              class="mt-6"
-              icon="i-lucide-x"
-              color="neutral"
-              variant="ghost"
-              :disabled="state.items.length <= 1"
-              :aria-label="`Удалить задание №${idx + 1}`"
-              @click="removeItem(idx)"
-            />
+            <div
+              v-for="(tier, tIdx) in item.admissionTiers"
+              :key="tier.bandId"
+              class="flex items-center gap-3"
+            >
+              <UBadge
+                :label="bands.find(b => b.id === tier.bandId)?.label ?? '—'"
+                color="primary"
+                variant="subtle"
+                class="shrink-0"
+              />
+
+              <UFormField
+                :name="`items.${idx}.admissionTiers.${tIdx}.minScore`"
+                label="Мин. балл"
+                required
+                class="w-32"
+              >
+                <UInput
+                  v-model.number="tier.minScore"
+                  type="number"
+                  :min="0"
+                  :max="item.maxPoints"
+                  class="w-full"
+                />
+              </UFormField>
+            </div>
           </div>
         </UCard>
 

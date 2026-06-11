@@ -454,7 +454,6 @@ const resultStatusLabel = computed(() => {
               <UButton
                 color="neutral"
                 variant="outline"
-                size="xs"
                 icon="i-lucide-pencil"
                 label="Изменить код"
                 @click="resetCode"

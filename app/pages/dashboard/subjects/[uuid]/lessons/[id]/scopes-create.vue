@@ -76,6 +76,14 @@ async function handleCreate() {
       </template>
     </UPageHeader>
 
+    <UAlert
+      color="neutral"
+      variant="soft"
+      icon="i-lucide-info"
+      title="Что такое проведение"
+      description="Проведение — это когда и для кого проходит занятие: выберите группы (при необходимости конкретные подгруппы) и дату. Можно добавить сразу несколько проведений — например, если занятие идёт у разных групп в разные дни."
+    />
+
     <UForm
       ref="formRef"
       :schema="LessonScopeFormSchema"

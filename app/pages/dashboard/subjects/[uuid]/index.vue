@@ -53,7 +53,10 @@ const cards = computed(() => {
 
 <template>
   <div class="flex flex-col gap-6">
-    <UPageHeader title="Обзор предмета" />
+    <UPageHeader
+      title="Обзор предмета"
+      description="Разделы предмета: занятия, отметка присутствия, посещаемость, оценки и итоги. Доступ к разделам зависит от вашего назначения."
+    />
 
     <UAlert
       v-if="error"

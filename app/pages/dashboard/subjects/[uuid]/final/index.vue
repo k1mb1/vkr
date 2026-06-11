@@ -3,7 +3,10 @@ import { useFinalGradesExport } from '~/composables/useFinalGradesExport'
 import { useFinalTable } from '~/composables/useFinalTable'
 import { sectionedTableUi } from '~/utils/tableUi'
 
-const { permissionId } = usePermissions()
+const { permissionId, hasAllPermissions } = usePermissions()
+
+const route = useRoute()
+const subjectId = computed(() => String(route.params.uuid ?? ''))
 
 const { exportLoading: finalExportLoading, downloadExcel: downloadFinalExcel } = useFinalGradesExport()
 
@@ -71,6 +74,14 @@ const tableUi = sectionedTableUi()
     />
 
     <template v-else>
+      <UAlert
+        color="neutral"
+        variant="soft"
+        icon="i-lucide-info"
+        title="Сводные итоги по студентам"
+        description="Суммы баллов по лекциям и практикам с учётом штрафов, бонусов и посещаемости. Если включена промежуточная аттестация, в колонке «Вердикт» студенту присваивается самый высокий уровень, условия которого он выполнил; при невыполнении порога посещаемости — «Не аттестован»."
+      />
+
       <!-- Filters -->
       <div class="flex flex-wrap items-center gap-4">
         <USelectMenu
@@ -106,11 +117,10 @@ const tableUi = sectionedTableUi()
             :label="band.label"
             variant="subtle"
             color="neutral"
-            size="xs"
             class="font-semibold"
           />
           <span v-if="band.minPoints != null">Мин. баллов: {{ band.minPoints }}</span>
-          <span v-if="band.requiredTasks != null">Мин. задач: {{ band.requiredTasks }}</span>
+          <span>{{ band.requiredTasks != null ? `Мин. задач: ${band.requiredTasks}` : 'Все обязательные задачи' }}</span>
         </span>
       </div>
 
@@ -132,7 +142,16 @@ const tableUi = sectionedTableUi()
         description="Нет студентов или занятий для отображения итогов."
         variant="naked"
         class="py-6"
-      />
+      >
+        <template v-if="hasAllPermissions" #actions>
+          <UButton
+            icon="i-lucide-plus"
+            label="Создать занятия"
+            color="primary"
+            :to="`/dashboard/subjects/${subjectId}/lessons/create`"
+          />
+        </template>
+      </UEmpty>
 
       <template v-else>
         <section
@@ -155,7 +174,6 @@ const tableUi = sectionedTableUi()
                 icon="i-lucide-maximize-2"
                 color="neutral"
                 variant="ghost"
-                size="xs"
                 title="На весь экран"
                 @click="fullscreenSectionKey = section.key"
               />

@@ -52,14 +52,6 @@ const canEdit = computed<boolean>(() => {
   return scopes.value.some(s => !s.allowedLessonType || s.allowedLessonType === type)
 })
 
-const scopeDates = computed<string[]>(() => {
-  const dates = (lesson.value?.scopes ?? [])
-    .map(s => s.startedAt)
-    .filter((d): d is string => !!d)
-    .sort()
-  return dates.map(date => d(new Date(date), 'numeric'))
-})
-
 const totalPoints = computed(() =>
   (lesson.value?.assignments ?? []).reduce((s, a) => s + (a.maxPoints ?? 0), 0),
 )
@@ -304,7 +296,7 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnloadHan
       />
 
       <template v-else>
-        <UPageGrid class="lg:grid-cols-4 sm:grid-cols-2 gap-3">
+        <UPageGrid class="lg:grid-cols-3 sm:grid-cols-2 gap-3">
           <UPageCard
             icon="i-lucide-graduation-cap"
             title="Тип"
@@ -312,28 +304,33 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnloadHan
             variant="subtle"
           />
 
-          <UPageCard title="Аудитория" icon="i-lucide-users" variant="subtle">
+          <UPageCard title="Аудитория и даты" icon="i-lucide-users" variant="subtle">
             <template #description>
-              <div v-if="lesson?.scopes?.length" class="flex flex-col gap-1">
-                <template v-if="lesson.scopes.some(s => s.allGroups)">
-                  <UBadge label="Все группы" color="primary" variant="outline" class="self-start" />
-                </template>
-                <UBadge
-                  v-for="scope in lesson.scopes.filter(s => !s.allGroups)"
+              <div v-if="lesson?.scopes?.length" class="flex flex-col gap-1.5">
+                <div
+                  v-for="scope in lesson.scopes"
                   :key="scope.id"
-                  :label="scope.allowedSubgroupIndex
-                    ? `${scope.groupName ?? '—'} / подгруппа ${scope.allowedSubgroupIndex}`
-                    : scope.groupName ?? '—'"
-                  color="neutral"
-                  variant="subtle"
-                  class="self-start"
-                />
+                  class="flex items-center justify-between gap-2"
+                >
+                  <UBadge
+                    :label="scope.allGroups
+                      ? 'Все группы'
+                      : scope.allowedSubgroupIndex
+                        ? `${scope.groupName ?? '—'} / подгруппа ${scope.allowedSubgroupIndex}`
+                        : scope.groupName ?? '—'"
+                    :color="scope.allGroups ? 'primary' : 'neutral'"
+                    :variant="scope.allGroups ? 'outline' : 'subtle'"
+                    class="self-start"
+                  />
+                  <span class="text-muted text-sm whitespace-nowrap">
+                    {{ scope.startedAt ? d(new Date(scope.startedAt), 'numeric') : '—' }}
+                  </span>
+                </div>
               </div>
               <div v-else class="flex flex-col items-start gap-2">
                 <span class="text-warning text-sm">Проведение не назначено.</span>
                 <UButton
                   v-if="hasAllPermissions"
-                  size="xs"
                   color="primary"
                   variant="subtle"
                   icon="i-lucide-calendar-plus"
@@ -341,21 +338,6 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnloadHan
                   @click="navigateTo(`/dashboard/subjects/${subjectId}/lessons/${lessonId}/scopes-create`)"
                 />
               </div>
-            </template>
-          </UPageCard>
-
-          <UPageCard title="Даты проведения" icon="i-lucide-calendar" variant="subtle">
-            <template #description>
-              <div v-if="scopeDates.length" class="flex flex-col gap-1">
-                <span
-                  v-for="date in scopeDates"
-                  :key="date"
-                  class="text-default text-sm"
-                >
-                  {{ date }}
-                </span>
-              </div>
-              <span v-else class="text-warning text-sm">Проведение не назначено.</span>
             </template>
           </UPageCard>
 
@@ -379,7 +361,6 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnloadHan
                 <span class="text-warning text-sm">Задания не назначены — добавьте хотя бы одно задание.</span>
                 <UButton
                   v-if="hasAllPermissions && lesson"
-                  size="xs"
                   color="primary"
                   variant="subtle"
                   icon="i-lucide-clipboard-list"

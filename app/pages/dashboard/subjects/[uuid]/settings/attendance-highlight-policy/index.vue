@@ -8,13 +8,7 @@ definePageMeta({ middleware: 'subject-permission' })
 type AttendanceHighlightPolicyRequest = components['schemas']['AttendanceHighlightPolicyRequest']
 type AttendanceHighlightPolicyResponse = components['schemas']['AttendanceHighlightPolicyResponse']
 
-interface AttendanceHighlightPolicyForm {
-  enabled: boolean
-  presentColor: string
-  lateColor: string
-  absentColor: string
-  excusedColor: string
-}
+type AttendanceHighlightPolicyForm = Required<AttendanceHighlightPolicyRequest>
 
 const hexColorPattern = /^#[0-9A-F]{6}$/i
 
@@ -152,14 +146,15 @@ const handleSave = onSubmit(
         @error="onError"
       >
         <UCard :ui="{ body: 'flex flex-col gap-4' }">
-          <UCheckbox
+          <USwitch
             v-model="state.enabled"
             label="Включить цветовую подсветку таблицы посещаемости"
           />
 
           <p class="text-sm text-muted">
-            Раскраска ячеек таблицы посещаемости по цветам. Фронт применяет эти цвета
-            к ячейкам в зависимости от статуса attendance.
+            Ячейки таблицы посещаемости автоматически окрашиваются в зависимости от
+            статуса студента на занятии: присутствие, опоздание, отсутствие или
+            уважительная причина.
           </p>
 
           <template v-if="state.enabled">

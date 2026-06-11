@@ -51,6 +51,39 @@ export function useFinalTable(
   const finalPolicy = computed(() => data.value?.finalAssessmentPolicy ?? null)
   const finalEnabled = computed(() => finalPolicy.value?.enabled ?? false)
 
+  // ─── режим учёта посещаемости ───────────────────────────────────────────────────
+
+  const attendancePolicy = computed(() => data.value?.attendancePolicy ?? null)
+
+  // Посещаемость как отдельный порог-допуск (SEPARATE) — тогда баллы за неё в итог не идут.
+  const attendanceGateMode = computed<'PERCENT' | 'COUNT' | null>(() => {
+    if (finalEnabled.value && finalPolicy.value?.attendanceMode === 'SEPARATE')
+      return (finalPolicy.value.attendanceRequirementMode as 'PERCENT' | 'COUNT' | undefined) ?? null
+    return null
+  })
+
+  // Баллы за посещаемость прибавляются к итогу только когда это не отдельный порог.
+  const attendanceInScore = computed(() => !!attendancePolicy.value?.enabled && attendanceGateMode.value == null)
+
+  // Лучший возможный балл за посещаемость за одно занятие — для «до N».
+  const maxAttPointsPerLesson = computed(() => {
+    const p = attendancePolicy.value
+    if (!p?.enabled)
+      return 0
+    return Math.max(p.pointsPresent ?? 0, p.pointsLate ?? 0, p.pointsAbsent ?? 0, p.pointsExcused ?? 0)
+  })
+
+  // Что показывать в колонке «Посещ.»: баллы, процент, количество или ничего.
+  const attendanceDisplay = computed<'points' | 'percent' | 'count' | 'none'>(() => {
+    if (attendanceInScore.value)
+      return 'points'
+    if (attendanceGateMode.value === 'PERCENT')
+      return 'percent'
+    if (attendanceGateMode.value === 'COUNT')
+      return 'count'
+    return 'none'
+  })
+
   // ─── derived maps ─────────────────────────────────────────────────────────────
 
   const assignmentsByLesson = computed(() => indexAssignmentsByLesson(data.value?.assignments))
@@ -136,6 +169,7 @@ export function useFinalTable(
     const id = student.id!
     const accum: Record<TypeKey, TypeAccum> = { lecture: emptyAccum(), practice: emptyAccum() }
     let closedRequired = 0
+    let totalRequired = 0
 
     for (const lesson of sectionLessons) {
       if (!lesson.id)
@@ -156,8 +190,11 @@ export function useFinalTable(
           acc.rawRequired += rawScore(key)
           // Обязательная задача считается закрытой, когда raw-балл достиг максимума.
           const max = a.maxPoints ?? 0
-          if (max > 0 && rawScore(key) >= max)
-            closedRequired++
+          if (max > 0) {
+            totalRequired++
+            if (rawScore(key) >= max)
+              closedRequired++
+          }
         }
         else {
           acc.optional += adjustedScore(key)
@@ -170,11 +207,13 @@ export function useFinalTable(
     const counts = attCountsByStudent.value.get(id)
     const r = round2
 
+    const fp = finalPolicy.value
     const buildType = (tk: TypeKey): TypeBreakdown => {
       const acc = accum[tk]
       const c = counts?.[tk] ?? { present: 0, late: 0, absent: 0, excused: 0 }
+      // Баллы за посещаемость — только если они идут в итог (не отдельный порог).
       let attendance = 0
-      if (attPolicy?.enabled) {
+      if (attendanceInScore.value && attPolicy) {
         attendance = (
           c.present * (attPolicy.pointsPresent ?? 0)
           + c.late * (attPolicy.pointsLate ?? 0)
@@ -182,6 +221,17 @@ export function useFinalTable(
           + c.excused * (attPolicy.pointsExcused ?? 0)
         )
       }
+      // Засчитанные посещения (по статусам из политики аттестации) — для режима порога.
+      let attCounted = 0
+      if (fp?.attendanceCountPresent)
+        attCounted += c.present
+      if (fp?.attendanceCountLate)
+        attCounted += c.late
+      if (fp?.attendanceCountAbsent)
+        attCounted += c.absent
+      if (fp?.attendanceCountExcused)
+        attCounted += c.excused
+      const attTracked = c.present + c.late + c.absent + c.excused
       const subtotal = r(acc.required + acc.optional + acc.extra + attendance)
       const rawSubtotal = r(acc.rawRequired + acc.rawOptional + acc.rawExtra + attendance)
       return {
@@ -195,6 +245,8 @@ export function useFinalTable(
         attLate: c.late,
         attAbsent: c.absent,
         attExcused: c.excused,
+        attCounted,
+        attTracked,
         attendance: r(attendance),
         subtotal,
         rawSubtotal,
@@ -203,6 +255,23 @@ export function useFinalTable(
 
     const lecture = buildType('lecture')
     const practice = buildType('practice')
+
+    // Гейт посещаемости SEPARATE: лекции и практики считаем вместе.
+    let attendanceCounted = 0
+    let attendanceTracked = 0
+    for (const tk of ['lecture', 'practice'] as TypeKey[]) {
+      const c = counts?.[tk] ?? { present: 0, late: 0, absent: 0, excused: 0 }
+      attendanceTracked += c.present + c.late + c.absent + c.excused
+      if (fp?.attendanceCountPresent)
+        attendanceCounted += c.present
+      if (fp?.attendanceCountLate)
+        attendanceCounted += c.late
+      if (fp?.attendanceCountAbsent)
+        attendanceCounted += c.absent
+      if (fp?.attendanceCountExcused)
+        attendanceCounted += c.excused
+    }
+
     return {
       id,
       username: student.username ?? '—',
@@ -211,10 +280,13 @@ export function useFinalTable(
       total: r(lecture.subtotal + practice.subtotal),
       rawTotal: r(lecture.rawSubtotal + practice.rawSubtotal),
       closedRequired,
+      totalRequired,
+      attendanceCounted,
+      attendanceTracked,
     }
   }
 
-  function typeMaxes(sectionLessons: GradingTableLesson[], tk: TypeKey, hasAttendance: boolean): TypeMaxes {
+  function typeMaxes(sectionLessons: GradingTableLesson[], tk: TypeKey): TypeMaxes {
     let maxRequired = 0
     let maxOptional = 0
     let lessonCount = 0
@@ -229,8 +301,10 @@ export function useFinalTable(
           maxOptional += a.maxPoints ?? 0
       }
     }
-    // Max attendance: 1 point per lesson, i.e. the number of lessons of this type.
-    const maxAttendance = hasAttendance ? lessonCount : 0
+    // Максимум за посещаемость: лучший балл за занятие × число занятий (только если идёт в итог).
+    const maxAttendance = attendanceInScore.value
+      ? round2(lessonCount * maxAttPointsPerLesson.value)
+      : 0
     const maxSubtotal = round2(maxRequired + maxOptional + maxAttendance)
     return { maxRequired, maxOptional, maxAttendance, maxSubtotal, lessonCount }
   }
@@ -273,7 +347,7 @@ export function useFinalTable(
   const sections = computed<SummarySection[]>(() => {
     const grouped = groupBySection(data.value?.students ?? [])
     const visible = grouped.filter(g => selectedSections.value.includes(g.meta.key))
-    const hasAttendance = !!(data.value?.attendancePolicy?.enabled)
+    const hasAttendance = attendanceInScore.value
 
     return visible.map(({ meta, items }) => {
       const sectionLessons = sortedLessons.value.filter(l =>
@@ -301,8 +375,8 @@ export function useFinalTable(
       }))
       const totals = rows.map(r => r.total)
       const avgTotal = totals.length ? round2(totals.reduce((a, b) => a + b, 0) / totals.length) : 0
-      const lecture = typeMaxes(sectionLessons, 'lecture', hasAttendance)
-      const practice = typeMaxes(sectionLessons, 'practice', hasAttendance)
+      const lecture = typeMaxes(sectionLessons, 'lecture')
+      const practice = typeMaxes(sectionLessons, 'practice')
 
       return {
         key: meta.key,
@@ -315,6 +389,9 @@ export function useFinalTable(
         maxTotal: totals.length ? Math.max(...totals) : 0,
         minTotal: totals.length ? Math.min(...totals) : 0,
         hasAttendance,
+        attendanceDisplay: attendanceDisplay.value,
+        attendanceMinPercent: finalPolicy.value?.attendanceMinPercent ?? null,
+        attendanceMinCount: finalPolicy.value?.attendanceMinCount ?? null,
       }
     })
   })
@@ -343,6 +420,15 @@ export function useFinalTable(
       h('span', { class: opts?.bold ? 'font-bold text-highlighted' : 'font-semibold text-highlighted', title: opts?.title }, label),
       max > 0
         ? h('span', { class: 'text-[10px] text-muted tabular-nums' }, `до ${max}`)
+        : null,
+    ])
+  }
+
+  function headerWithSub(label: string, sub: string | null, title?: string) {
+    return h('div', { class: 'flex flex-col items-center' }, [
+      h('span', { class: 'font-semibold text-highlighted', title }, label),
+      sub
+        ? h('span', { class: 'text-[10px] text-muted tabular-nums' }, sub)
         : null,
     ])
   }
@@ -414,7 +500,10 @@ export function useFinalTable(
       })
     }
 
-    if (section.hasAttendance) {
+    const attMeta = { class: { th: 'min-w-[64px] text-center', td: 'min-w-[64px] text-center' } }
+    const pctOf = (b: TypeBreakdown) => (b.attTracked > 0 ? round2((b.attCounted / b.attTracked) * 100) : 0)
+
+    if (section.attendanceDisplay === 'points') {
       leaf.push({
         id: `${tk}-attendance`,
         header: () => headerWithMax('Посещ.', m.maxAttendance, { title: 'Балл за посещаемость' }),
@@ -423,7 +512,39 @@ export function useFinalTable(
           return h('span', { class: v !== 0 ? 'tabular-nums font-semibold text-default' : 'tabular-nums text-muted/50' }, String(v))
         },
         footer: () => sumFooter(section.key, r => pick(r).attendance, { bold: true }),
-        meta: { class: { th: 'min-w-[64px] text-center', td: 'min-w-[64px] text-center' } },
+        meta: attMeta,
+      })
+    }
+    else if (section.attendanceDisplay === 'count') {
+      const sub = section.attendanceMinCount != null ? `мин ${section.attendanceMinCount}` : `до ${m.lessonCount}`
+      leaf.push({
+        id: `${tk}-attendance`,
+        header: () => headerWithSub('Посещ.', sub, 'Засчитанных посещений (порог-допуск)'),
+        cell: ({ row }) => {
+          const v = pick(row.original).attCounted
+          return h('span', { class: v > 0 ? 'tabular-nums font-semibold text-default' : 'tabular-nums text-muted/50' }, String(v))
+        },
+        footer: () => sumFooter(section.key, r => pick(r).attCounted, { int: true, bold: true }),
+        meta: attMeta,
+      })
+    }
+    else if (section.attendanceDisplay === 'percent') {
+      const sub = section.attendanceMinPercent != null ? `мин ${section.attendanceMinPercent}%` : '%'
+      leaf.push({
+        id: `${tk}-attendance`,
+        header: () => headerWithSub('Посещ.', sub, 'Процент посещений (порог-допуск)'),
+        cell: ({ row }) => {
+          const pct = pctOf(pick(row.original))
+          return h('span', { class: pct > 0 ? 'tabular-nums font-semibold text-default' : 'tabular-nums text-muted/50' }, `${pct}%`)
+        },
+        footer: () => {
+          const sec = sections.value.find(s => s.key === section.key)
+          if (!sec || !sec.rows.length)
+            return null
+          const avg = round2(sec.rows.reduce((a, r) => a + pctOf(pick(r)), 0) / sec.rows.length)
+          return h('span', { class: 'tabular-nums font-bold text-default', title: 'Средний процент по группе' }, `${avg}%`)
+        },
+        meta: attMeta,
       })
     }
 
@@ -444,10 +565,13 @@ export function useFinalTable(
 
   // ─── итоговый вердикт (промежуточная аттестация) ────────────────────────────────
 
-  function verdictForRow(row: Pick<StudentSummaryRow, 'total' | 'closedRequired'>) {
+  function verdictForRow(row: Pick<StudentSummaryRow, 'total' | 'closedRequired' | 'totalRequired' | 'attendanceCounted' | 'attendanceTracked'>) {
     return computeVerdict(finalPolicy.value!, {
       total: row.total,
       closedRequired: row.closedRequired,
+      totalRequired: row.totalRequired,
+      attendanceCounted: row.attendanceCounted,
+      attendanceTracked: row.attendanceTracked,
     })
   }
 
@@ -460,6 +584,8 @@ export function useFinalTable(
         const tone = verdictTone(verdict)
         const parts: string[] = []
         parts.push(`Закрыто обязательных задач: ${row.original.closedRequired}`)
+        if (verdict.attendanceGateFailed)
+          parts.push('Не пройден порог посещаемости')
         if (verdict.pointsToNext != null)
           parts.push(`До следующего уровня по баллам: +${verdict.pointsToNext}`)
         if (verdict.tasksToNext != null)

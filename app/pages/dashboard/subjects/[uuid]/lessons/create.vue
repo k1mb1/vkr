@@ -93,6 +93,14 @@ const handleCreate = onSubmit(
       @submit="handleCreate"
       @error="onError"
     >
+      <UAlert
+        color="neutral"
+        variant="soft"
+        icon="i-lucide-info"
+        title="Создание занятий по количеству"
+        description="Укажите, сколько лекций и практик создать — они появятся пустыми, пронумерованными по порядку. Темы, даты проведения (группы) и задания добавляются позже на странице каждого занятия."
+      />
+
       <UFormField label="Количество лекций" name="lectureCount" required>
         <UInput
           v-model.number="state.lectureCount"

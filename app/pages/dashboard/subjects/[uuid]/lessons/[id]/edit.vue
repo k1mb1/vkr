@@ -266,6 +266,14 @@ const isReady = !!targetLesson
       class="flex flex-col gap-6"
       @error="onError"
     >
+      <UAlert
+        color="neutral"
+        variant="soft"
+        icon="i-lucide-info"
+        title="Что можно изменить"
+        description="Здесь меняются тема и тип занятия, а также даты его проведения для групп. Тип может быть заблокирован, если ваш доступ ограничен конкретным типом занятий. Задания настраиваются отдельно — на странице занятия."
+      />
+
       <div class="flex flex-col gap-4">
         <UFormField label="Тема" name="topic">
           <UInput

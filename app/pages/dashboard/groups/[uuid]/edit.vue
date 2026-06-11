@@ -7,14 +7,7 @@ import { arrayMinLength, string, uuidV4 } from '~/utils/validation'
 type GroupResponse = components['schemas']['GroupResponse']
 type UpdateGroupRequest = components['schemas']['UpdateGroupRequest']
 
-interface FormSchema {
-  name: string
-  students: {
-    id?: string
-    username: string
-    subgroupId?: string
-  }[]
-}
+type FormSchema = Required<Pick<UpdateGroupRequest, 'name' | 'students'>>
 
 const UpdateGroupRequestSchema: SchemaFor<FormSchema> = v.object({
   name: string('Введите название группы'),
@@ -29,7 +22,6 @@ const UpdateGroupRequestSchema: SchemaFor<FormSchema> = v.object({
     'Добавьте хотя бы одного студента',
   ),
 })
-type Schema = v.InferOutput<typeof UpdateGroupRequestSchema>
 
 const route = useRoute()
 const groupId = computed(() => String(route.params.uuid ?? ''))
@@ -92,7 +84,7 @@ function removeStudent(draftIndex: number) {
 // new students
 const newStudentsInput = ref('')
 
-const { addStudents: addStudentsRaw, handlePaste: handlePasteRaw } = useStudentInput<Schema['students'][number]>({ separator: /\n+/ })
+const { addStudents: addStudentsRaw, handlePaste: handlePasteRaw } = useStudentInput<FormSchema['students'][number]>({ separator: /\n+/ })
 
 function addStudents(raw: string, subgroupId: string | undefined) {
   addStudentsRaw(raw, subgroupId, state.students, (username, sid) => ({
@@ -135,7 +127,7 @@ const {
   tabsData,
   groupTabs,
   availableTabValues,
-} = useGroupTabs<Schema['students'][number]>({
+} = useGroupTabs<FormSchema['students'][number]>({
   students: toRef(() => state.students),
   subgroups: computed(() => (group.value?.subgroups ?? []).map(sg => ({ id: sg.id!, index: sg.index }))),
   getId: s => s.id ?? null,
@@ -255,6 +247,14 @@ function handleCancel() {
         @submit="handleSave"
         @error="onError"
       >
+        <UAlert
+          color="neutral"
+          variant="soft"
+          icon="i-lucide-info"
+          title="Редактирование группы"
+          description="Измените название или состав студентов. Вкладки сверху — это подгруппы; на каждой можно добавить студентов (Enter или вставка списка) и сменить их подгруппу. Новые студенты подсвечены зелёным до сохранения."
+        />
+
         <UFormField name="name">
           <UInput
             v-model="state.name"

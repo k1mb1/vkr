@@ -191,7 +191,7 @@
       "put": {
         "tags": ["Lessons"],
         "summary": "Обновить занятие целиком одним запросом",
-        "description": "В body можно передать любую комбинацию из header / scopes / assignments — null = не трогать. Транзакция атомарная.",
+        "description": "В body можно передать любую комбинацию из header / scopes — null = не трогать. Транзакция атомарная.",
         "operationId": "updateLesson",
         "parameters": [
           {
@@ -664,6 +664,58 @@
             }
           }
         }
+      }
+    },
+    "/api/assignments/lessons/{lessonId}": {
+      "put": {
+        "tags": ["Assignments"],
+        "summary": "Массовое обновление заданий урока",
+        "operationId": "updateByLesson",
+        "parameters": [
+          {
+            "name": "lessonId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkUpdateAssignmentsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/AssignmentResponse" }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Assignments"],
+        "summary": "Удалить все задания занятия (связанные оценки удаляются каскадно)",
+        "operationId": "deleteAllOfLesson",
+        "parameters": [
+          {
+            "name": "lessonId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": { "200": { "description": "OK" } }
       }
     },
     "/api/teacher-subject-permissions": {
@@ -1834,22 +1886,6 @@
         ],
         "responses": { "200": { "description": "OK" } }
       }
-    },
-    "/api/assignments/lessons/{lessonId}": {
-      "delete": {
-        "tags": ["Assignments"],
-        "summary": "Удалить все задания занятия (связанные оценки удаляются каскадно)",
-        "operationId": "deleteAllOfLesson",
-        "parameters": [
-          {
-            "name": "lessonId",
-            "in": "path",
-            "required": true,
-            "schema": { "type": "string", "format": "uuid" }
-          }
-        ],
-        "responses": { "200": { "description": "OK" } }
-      }
     }
   },
   "components": {
@@ -2104,44 +2140,43 @@
         },
         "required": ["items"]
       },
-      "BulkUpdateAssignmentsRequest": {
-        "type": "object",
-        "description": "Массовое обновление заданий по id. В одном запросе можно править задания\nнескольких уроков. Внутри одного урока итоговые порядковые номера должны быть уникальны.\n",
-        "properties": {
-          "items": {
-            "type": "array",
-            "description": "Список целевых состояний",
-            "items": { "$ref": "#/components/schemas/Item" },
-            "minItems": 1
-          }
-        },
-        "required": ["items"]
-      },
       "Item": {
         "type": "object",
-        "description": "Целевое состояние задания",
+        "description": "Целевое состояние одного scope",
         "properties": {
           "id": {
             "type": "string",
             "format": "uuid",
-            "description": "ID задания"
+            "description": "ID scope"
           },
-          "order": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Порядковый номер в рамках занятия (1..N)"
+          "audience": {
+            "$ref": "#/components/schemas/LessonScopeAudienceRequest",
+            "description": "Аудитория. null = allGroups=true; иначе — конкретная группа"
           },
-          "maxPoints": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Максимальное количество баллов (>0)"
-          },
-          "required": {
-            "type": "boolean",
-            "description": "Обязательное ли задание"
+          "startedAt": {
+            "type": "string",
+            "format": "date",
+            "description": "Дата проведения"
           }
         },
-        "required": ["id", "maxPoints", "order", "required"]
+        "required": ["id", "startedAt"]
+      },
+      "LessonScopeAudienceRequest": {
+        "type": "object",
+        "description": "Аудитория scope занятия: группа + опциональная подгруппа",
+        "properties": {
+          "groupId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID группы"
+          },
+          "allowedSubgroupId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID разрешённой подгруппы (null = вся группа)"
+          }
+        },
+        "required": ["groupId"]
       },
       "UpdateLessonHeaderRequest": {
         "type": "object",
@@ -2179,10 +2214,22 @@
           "scopes": {
             "$ref": "#/components/schemas/BulkReplaceLessonScopesRequest",
             "description": "Замена scope'ов по id. Все scope'ы должны принадлежать этому уроку. null — не трогать."
+          }
+        }
+      },
+      "AdmissionTier": {
+        "type": "object",
+        "description": "Уровень допуска задания: ссылка на банду и минимальный балл",
+        "properties": {
+          "bandId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID банды итоговой аттестации"
           },
-          "assignments": {
-            "$ref": "#/components/schemas/BulkUpdateAssignmentsRequest",
-            "description": "Обновление заданий по id. Все задания должны принадлежать этому уроку. null — не трогать."
+          "minScore": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Минимальный балл за задание для этой банды (включительно)"
           }
         }
       },
@@ -2213,6 +2260,21 @@
           "required": {
             "type": "boolean",
             "description": "Обязательное ли задание"
+          },
+          "admissionMode": {
+            "type": "string",
+            "description": "Режим допуска: используется ли задание как условие для итоговой оценки",
+            "enum": ["NONE", "PASS_FAIL", "MIN_SCORE", "TIERED"]
+          },
+          "admissionMinScore": {
+            "type": "integer",
+            "format": "int32",
+            "description": "PASS_FAIL / MIN_SCORE: минимальный балл для прохождения допуска"
+          },
+          "admissionTiers": {
+            "type": "array",
+            "description": "TIERED: уровни допуска по убыванию старшинства (ссылки на банды)",
+            "items": { "$ref": "#/components/schemas/AdmissionTier" }
           }
         }
       },
@@ -2443,6 +2505,11 @@
         "type": "object",
         "description": "Банда: ярлык и условия его получения (minPoints и/или requiredTasks, AND)",
         "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID банды (null при создании новой)"
+          },
           "label": {
             "type": "string",
             "description": "Ярлык, напр. «5», «зачтено»",
@@ -2765,6 +2832,19 @@
             "description": "Цвет ячейки со статусом EXCUSED, HEX вида #00C16A"
           }
         }
+      },
+      "BulkUpdateAssignmentsRequest": {
+        "type": "object",
+        "description": "Массовое обновление заданий по id. В одном запросе можно править задания\nнескольких уроков. Внутри одного урока итоговые порядковые номера должны быть уникны.\n",
+        "properties": {
+          "items": {
+            "type": "array",
+            "description": "Список целевых состояний",
+            "items": { "$ref": "#/components/schemas/Item" },
+            "minItems": 1
+          }
+        },
+        "required": ["items"]
       },
       "CreateTeacherSubjectPermissionRequest": {
         "type": "object",

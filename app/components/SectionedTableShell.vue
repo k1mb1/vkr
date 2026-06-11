@@ -40,6 +40,15 @@ defineSlots<{
 
 const fullscreenKey = ref<string | null>(null)
 const fullscreenSection = computed(() => props.sections.find(s => s.key === fullscreenKey.value) ?? null)
+
+// Ссылка на создание занятий для пустого состояния (страницы оценок/посещаемости
+// живут под subjects/[uuid]). Кнопку показываем только при полном доступе.
+const route = useRoute()
+const { hasAllPermissions } = usePermissions()
+const createLessonsTo = computed(() => {
+  const uuid = String(route.params.uuid ?? '')
+  return uuid ? `/dashboard/subjects/${uuid}/lessons/create` : ''
+})
 </script>
 
 <template>
@@ -54,7 +63,16 @@ const fullscreenSection = computed(() => props.sections.find(s => s.key === full
       :description="emptyDescription"
       variant="naked"
       class="py-6"
-    />
+    >
+      <template v-if="hasAllPermissions && createLessonsTo" #actions>
+        <UButton
+          icon="i-lucide-plus"
+          label="Создать занятия"
+          color="primary"
+          :to="createLessonsTo"
+        />
+      </template>
+    </UEmpty>
 
     <!-- Sections -->
     <template v-else>
@@ -73,7 +91,6 @@ const fullscreenSection = computed(() => props.sections.find(s => s.key === full
             icon="i-lucide-maximize-2"
             color="neutral"
             variant="ghost"
-            size="xs"
             title="На весь экран"
             class="ml-auto"
             @click="fullscreenKey = section.key"

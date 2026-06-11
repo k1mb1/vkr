@@ -58,6 +58,14 @@ const handleCreate = onSubmit(
       </template>
     </UPageHeader>
 
+    <UAlert
+      color="neutral"
+      variant="soft"
+      icon="i-lucide-info"
+      title="Что такое предмет"
+      description="Предмет объединяет группы, занятия, оценки и преподавателей. Укажите название, при желании описание, и выберите группы, которые будут его изучать. Доступы преподавателей и политики оценивания настраиваются позже — в разделе «Настройки» предмета."
+    />
+
     <UForm
       ref="formRef"
       :schema="CreateSubjectRequestSchema"

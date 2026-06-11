@@ -120,6 +120,14 @@ const handleCreate = onSubmit(
       </template>
     </UPageHeader>
 
+    <UAlert
+      color="neutral"
+      variant="soft"
+      icon="i-lucide-info"
+      title="Как создать группу"
+      description="Задайте название и добавьте студентов по логину: введите логин и нажмите Enter либо вставьте сразу список (по одному в строке). Подгруппы — необязательны: добавьте их, если группа делится на потоки или бригады; тогда студентов распределяют по карточкам подгрупп."
+    />
+
     <UForm
       ref="formRef"
       :schema="CreateGroupRequestSchema"

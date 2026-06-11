@@ -105,6 +105,14 @@ const lessonTypeFilter = computed<LessonTypeFilter>(() => {
     />
 
     <UAlert
+      color="neutral"
+      variant="soft"
+      icon="i-lucide-info"
+      title="Зачем это нужно"
+      description="Список занятий предмета — лекции и практики, их темы, проведение (группы и даты) и задания. Чтобы выставить посещаемость или оценки по занятию, откройте его кнопкой «Открыть»."
+    />
+
+    <UAlert
       v-if="!pending && activeLesson"
       color="primary"
       variant="subtle"

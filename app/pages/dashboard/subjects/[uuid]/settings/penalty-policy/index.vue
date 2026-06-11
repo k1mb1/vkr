@@ -8,20 +8,7 @@ definePageMeta({ middleware: 'subject-permission' })
 type PenaltyPolicyRequest = components['schemas']['PenaltyPolicyRequest']
 type PenaltyPolicyResponse = components['schemas']['PenaltyPolicyResponse']
 
-interface PenaltyPolicyForm {
-  enabled: boolean
-  operation: 'SUBTRACT' | 'MULTIPLY'
-  step: number
-  gracePeriodLessons: number
-  intervalLessons: number
-  maxReductions: number
-  bonusEnabled: boolean
-  bonusOperation: 'ADD' | 'MULTIPLY'
-  bonusStep: number
-  bonusGracePeriodLessons: number
-  bonusIntervalLessons: number
-  bonusMaxIncreases: number
-}
+type PenaltyPolicyForm = PenaltyPolicyRequest
 
 const PenaltyPolicySchema: SchemaFor<PenaltyPolicyForm> = v.pipe(
   v.object({
@@ -202,6 +189,34 @@ const handleSave = onSubmit(
         @submit="handleSave"
         @error="onError"
       >
+        <UAlert
+          color="neutral"
+          variant="soft"
+          icon="i-lucide-info"
+          title="Как это работает"
+        >
+          <template #description>
+            <div class="flex flex-col gap-1.5">
+              <p>
+                Сроки сдачи считаются <b>в занятиях</b>, а не в днях: отсчёт идёт от
+                дедлайна — <b>активного занятия</b> предмета. Чем позже сдано, тем
+                больше понижений; чем раньше — тем больше бонусов.
+              </p>
+              <p>
+                <b>Отсрочка</b> — бесплатный запас занятий до первого изменения,
+                <b>интервал</b> — через сколько занятий применяется следующее,
+                <b>максимум</b> — предел числа изменений.
+              </p>
+              <p class="text-muted">
+                Пример: вычитание, шаг 5, отсрочка 1, интервал 2. Сдал на 1 занятие
+                позже — без штрафа; на 3 — минус 5; на 5 и позже — минус 10.
+                В таблицах оценок и итогов балл уже показан с учётом корректировки
+                (исходный виден в подсказке к ячейке).
+              </p>
+            </div>
+          </template>
+        </UAlert>
+
         <!-- Штраф -->
         <UCard :ui="{ body: 'flex flex-col gap-4' }">
           <div class="flex items-center gap-2">
@@ -209,7 +224,7 @@ const handleSave = onSubmit(
             <span class="font-semibold text-default">Понижение балла за просрочку</span>
           </div>
 
-          <UCheckbox v-model="state.enabled" label="Включить понижение балла" />
+          <USwitch v-model="state.enabled" label="Включить понижение балла" />
 
           <template v-if="state.enabled">
             <USeparator />
@@ -283,7 +298,7 @@ const handleSave = onSubmit(
             <span class="font-semibold text-default">Повышение балла за досрочную сдачу</span>
           </div>
 
-          <UCheckbox v-model="state.bonusEnabled" label="Включить бонус за досрочную сдачу" />
+          <USwitch v-model="state.bonusEnabled" label="Включить бонус за досрочную сдачу" />
 
           <template v-if="state.bonusEnabled">
             <USeparator />

@@ -9,6 +9,10 @@ export interface TypeBreakdown {
   attLate: number
   attAbsent: number
   attExcused: number
+  /** Засчитанных посещений по выбранным статусам (для режима «отдельный порог»). */
+  attCounted: number
+  /** Всего отслеженных занятий этого типа (знаменатель процента). */
+  attTracked: number
   attendance: number
   subtotal: number
   rawSubtotal: number
@@ -24,6 +28,12 @@ export interface StudentSummaryRow {
   rank: number
   /** Число полностью закрытых обязательных задач (raw-балл ≥ макс). */
   closedRequired: number
+  /** Всего обязательных задач (с ненулевым максимумом). */
+  totalRequired: number
+  /** Засчитанных посещений по выбранным статусам (для гейта SEPARATE). */
+  attendanceCounted: number
+  /** Всего отслеженных занятий студента (знаменатель процента). */
+  attendanceTracked: number
   /** Ярлык вердикта промежуточной аттестации (если включена). */
   verdict?: string
 }
@@ -46,7 +56,14 @@ export interface SummarySection {
   avgTotal: number
   maxTotal: number
   minTotal: number
+  /** Идут ли баллы за посещаемость в итог (режим «включена в балл»). */
   hasAttendance: boolean
+  /** Как показывать колонку посещаемости: баллы, процент, количество или скрыть. */
+  attendanceDisplay: 'points' | 'percent' | 'count' | 'none'
+  /** Порог процента посещений (режим «отдельное требование» + PERCENT). */
+  attendanceMinPercent?: number | null
+  /** Порог количества посещений (режим «отдельное требование» + COUNT). */
+  attendanceMinCount?: number | null
 }
 
 interface LeafDesc {
@@ -59,7 +76,7 @@ interface LeafDesc {
 export function useFinalGradesExport() {
   const exportLoading = ref(false)
 
-  function leafDescriptors(m: TypeMaxes, hasAttendance: boolean): LeafDesc[] {
+  function leafDescriptors(m: TypeMaxes, section: SummarySection): LeafDesc[] {
     const cols: LeafDesc[] = [
       { label: 'Обяз.', sub: m.maxRequired > 0 ? `до ${m.maxRequired}` : '', get: b => b.required, rawGet: b => b.rawRequired },
       { label: 'Необяз.', sub: m.maxOptional > 0 ? `до ${m.maxOptional}` : '', get: b => b.optional, rawGet: b => b.rawOptional },
@@ -69,8 +86,12 @@ export function useFinalGradesExport() {
       { label: 'Н', sub: '', get: b => b.attAbsent },
       { label: 'У', sub: '', get: b => b.attExcused },
     ]
-    if (hasAttendance)
+    if (section.attendanceDisplay === 'points')
       cols.push({ label: 'Посещ.', sub: m.maxAttendance > 0 ? `до ${m.maxAttendance}` : '', get: b => b.attendance })
+    else if (section.attendanceDisplay === 'count')
+      cols.push({ label: 'Посещ.', sub: section.attendanceMinCount != null ? `мин ${section.attendanceMinCount}` : `до ${m.lessonCount}`, get: b => b.attCounted })
+    else if (section.attendanceDisplay === 'percent')
+      cols.push({ label: 'Посещ. %', sub: section.attendanceMinPercent != null ? `мин ${section.attendanceMinPercent}%` : '', get: b => (b.attTracked > 0 ? Math.round((b.attCounted / b.attTracked) * 10000) / 100 : 0) })
     cols.push({ label: 'Подитог', sub: m.maxSubtotal > 0 ? `до ${m.maxSubtotal}` : '', get: b => b.subtotal })
     return cols
   }
@@ -86,8 +107,8 @@ export function useFinalGradesExport() {
       wb.Props = { Title: 'Итоговые оценки', Subject: 'Итоговые оценки' }
 
       for (const section of sections) {
-        const lecCols = leafDescriptors(section.lecture, section.hasAttendance)
-        const praCols = leafDescriptors(section.practice, section.hasAttendance)
+        const lecCols = leafDescriptors(section.lecture, section)
+        const praCols = leafDescriptors(section.practice, section)
         const hasVerdict = section.rows.some(r => r.verdict != null)
 
         // Row 0: title · 1: blank · 2: group row · 3: header · 4: subheader · 5+: data
