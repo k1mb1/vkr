@@ -1,0 +1,32 @@
+# Build outputs
+.output
+.nuxt
+.nitro
+.cache
+.data
+dist
+
+# Dependencies
+node_modules
+
+# VCS / CI
+.git
+.github
+
+# Local env (never bake secrets into the image)
+.env
+.env.*
+!.env.example
+
+# Editor / tooling
+.idea
+.zed
+.fleet
+.DS_Store
+.eslintcache
+.agents
+.claude
+
+# Logs
+logs
+*.log
