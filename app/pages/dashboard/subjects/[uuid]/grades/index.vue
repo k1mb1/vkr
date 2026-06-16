@@ -11,7 +11,7 @@ type LessonType = NonNullable<GradingTableLesson['type']>
 const route = useRoute()
 const subjectId = computed(() => String(route.params.uuid ?? ''))
 
-const { permissionId } = usePermissions()
+const { permissionId, hasAllPermissions, scopes } = usePermissions()
 const { exportLoading, downloadExcel } = useGradesExport()
 
 const { data, pending, error, refresh } = useBackend('/api/grades', {
@@ -23,14 +23,11 @@ const { data, pending, error, refresh } = useBackend('/api/grades', {
   immediate: false,
 })
 
-watch(permissionId, (pid) => {
-  if (pid)
-    refresh()
-}, { immediate: true })
+useRefreshOnPermission(permissionId, refresh)
 
 // ── Filters ──────────────────────────────────────────────
 
-const typeFilter = ref<'ALL' | LessonType>('ALL')
+const typeFilter = useStoredTab<'ALL' | LessonType>('grades-type-filter', 'ALL')
 
 const typeTabItems = [
   { label: 'Все', value: 'ALL' as const },
@@ -83,6 +80,29 @@ const exportItems = computed<DropdownMenuItem[]>(() => [
     onSelect: () => downloadExcel(data.value, selectedSections.value, 'PRACTICE'),
   },
 ])
+
+// ── Sorting ──────────────────────────────────────────────
+
+const { sortBy, sortItems } = useStudentSort()
+
+// ── Inline editing ───────────────────────────────────────
+
+// Полный доступ либо хотя бы один scope — точечные права бэкенд перепроверяет
+// при сохранении, поэтому видимые ячейки можно редактировать прямо здесь.
+const canEdit = computed<boolean>(() => hasAllPermissions.value || scopes.value.length > 0)
+
+const editMode = ref(false)
+
+const {
+  dirty: gradeDirty,
+  saving: gradeSaving,
+  pendingView: gradePendingView,
+  onChange: onGradeChange,
+  reset: resetGrades,
+  save: saveGrades,
+} = useGradeDrafts({ onSaved: () => refresh() })
+
+const { leaveModalOpen, confirmLeave, cancelLeave } = useUnsavedGuard(() => gradeDirty.value > 0, resetGrades)
 </script>
 
 <template>
@@ -125,7 +145,7 @@ const exportItems = computed<DropdownMenuItem[]>(() => [
         variant="soft"
         icon="i-lucide-info"
         title="Сводный журнал оценок"
-        description="Баллы по всем занятиям и заданиям. Показаны с учётом штрафов и бонусов за сроки (исходный балл — в подсказке к ячейке). Обязательные задания помечены, цвета настраиваются в «Подсветке таблицы оценок». Выставлять и менять оценки удобнее на странице конкретного занятия."
+        description="Баллы по всем занятиям и заданиям. Показаны с учётом штрафов и бонусов за сроки (исходный балл — в подсказке к ячейке). Обязательные задания помечены, цвета настраиваются в «Подсветке таблицы оценок». Включите «Редактирование», чтобы выставлять баллы по любым занятиям прямо здесь, не переключаясь между занятиями, — затем нажмите «Сохранить»."
       />
 
       <div class="flex flex-wrap items-center gap-4">
@@ -138,6 +158,40 @@ const exportItems = computed<DropdownMenuItem[]>(() => [
           placeholder="Группы"
           class="w-64"
         />
+        <USelect
+          v-model="sortBy"
+          :items="sortItems"
+          value-key="value"
+          icon="i-lucide-arrow-down-up"
+          class="w-44"
+        />
+
+        <div v-if="canEdit" class="flex items-center gap-3 ml-auto">
+          <USwitch
+            v-model="editMode"
+            label="Редактирование"
+          />
+          <template v-if="editMode || gradeDirty > 0">
+            <UButton
+              v-if="gradeDirty > 0"
+              color="neutral"
+              variant="ghost"
+              icon="i-lucide-undo-2"
+              label="Сбросить"
+              :disabled="gradeSaving"
+              @click="resetGrades"
+            />
+            <UButton
+              color="primary"
+              variant="solid"
+              icon="i-lucide-save"
+              :label="gradeDirty > 0 ? `Сохранить (${gradeDirty})` : 'Сохранить'"
+              :loading="gradeSaving"
+              :disabled="gradeDirty === 0"
+              @click="saveGrades"
+            />
+          </template>
+        </div>
       </div>
 
       <USkeleton v-if="pending && !data" class="h-64 w-full" />
@@ -157,8 +211,24 @@ const exportItems = computed<DropdownMenuItem[]>(() => [
         :all-lessons="data?.lessons"
         :pending="pending"
         :sections-filter="selectedSections"
+        :sort-by="sortBy"
+        :editable="editMode && canEdit"
+        :pending-changes="gradePendingView"
         empty-description="Для отображения оценок нужны и студенты, и занятия."
+        @change="onGradeChange"
       />
     </div>
+
+    <ConfirmModal
+      :open="leaveModalOpen"
+      title="Несохранённые изменения"
+      :description="`У вас есть несохранённые оценки: ${gradeDirty}. Если уйти со страницы, изменения будут потеряны.`"
+      confirm-label="Уйти без сохранения"
+      confirm-color="error"
+      confirm-icon="i-lucide-log-out"
+      cancel-label="Остаться"
+      @close="cancelLeave"
+      @confirm="confirmLeave"
+    />
   </div>
 </template>

@@ -6,7 +6,7 @@ import { computed, h } from 'vue'
 import { UButton, UDropdownMenu, UIcon } from '#components'
 import { useGridCellNav } from '~/composables/useGridCellNav'
 import { groupBySection, scopeVisibleForSection } from '~/composables/useTableSections'
-import { highlightChipBg, softHighlightBg } from '~/utils/highlight'
+import { ATTENDANCE_HIGHLIGHT_DEFAULTS, highlightChipBg, softHighlightBg } from '~/utils/highlight'
 import { round2 } from '~/utils/number'
 
 type AttendanceTableResponse = components['schemas']['AttendanceTableResponse']
@@ -27,6 +27,8 @@ export interface AttendanceTableProps {
   pendingChanges?: Record<string, AttendanceStatus>
   tableMaxHeight?: string
   attendancePolicy?: AttendancePolicyResponse | null
+  /** Сортировка студентов: по алфавиту (по умолчанию) или по рейтингу посещаемости. */
+  sortBy?: 'name' | 'rating'
 }
 
 export type AttendanceTableEmit = (e: 'change', payload: UpsertAttendanceRequest) => void
@@ -64,10 +66,10 @@ const statusIcon: Record<AttendanceStatus, string> = {
 }
 
 const defaultHighlightColors: Record<AttendanceStatus, string> = {
-  PRESENT: '#dcfce7',
-  LATE: '#fef3c7',
-  ABSENT: '#fee2e2',
-  EXCUSED: '#dbeafe',
+  PRESENT: ATTENDANCE_HIGHLIGHT_DEFAULTS.presentColor,
+  LATE: ATTENDANCE_HIGHLIGHT_DEFAULTS.lateColor,
+  ABSENT: ATTENDANCE_HIGHLIGHT_DEFAULTS.absentColor,
+  EXCUSED: ATTENDANCE_HIGHLIGHT_DEFAULTS.excusedColor,
 }
 
 const lessonTypeLabel: Record<NonNullable<AttendanceTableLesson['type']>, string> = {
@@ -92,6 +94,10 @@ export function useAttendanceTable(props: AttendanceTableProps, emit: Attendance
 
   const policyEnabled = computed(() => !!props.attendancePolicy?.enabled)
 
+  // Подсветка статусов работает всегда: при выключенной политике (или незаданном
+  // цвете) берутся стандартные цвета, при включённой — пользовательские.
+  const highlightEnabled = computed(() => !!props.data?.highlightPolicy?.enabled)
+
   const highlightColors = computed<Record<AttendanceStatus, string | undefined>>(() => ({
     PRESENT: props.data?.highlightPolicy?.presentColor ?? undefined,
     LATE: props.data?.highlightPolicy?.lateColor ?? undefined,
@@ -100,7 +106,8 @@ export function useAttendanceTable(props: AttendanceTableProps, emit: Attendance
   }))
 
   function statusHighlightColor(status: AttendanceStatus): string {
-    return highlightColors.value[status] ?? defaultHighlightColors[status]
+    const custom = highlightColors.value[status]
+    return (highlightEnabled.value && custom) ? custom : defaultHighlightColors[status]
   }
 
   const legendItems = computed(() => STATUSES.map(s => ({
@@ -427,6 +434,22 @@ export function useAttendanceTable(props: AttendanceTableProps, emit: Attendance
     }
   }
 
+  // Рейтинг для сортировки: балл за посещаемость, если включена политика, иначе —
+  // число фактических посещений (присутствовал / опоздал / уважительная).
+  const ATTENDED_STATUSES: AttendanceStatus[] = ['PRESENT', 'LATE', 'EXCUSED']
+
+  function studentRating(
+    student: AttendanceTableStudent,
+    scopes: AttendanceTableLesson[],
+  ): number {
+    if (policyEnabled.value)
+      return attendanceScoreForStudent(student, scopes, cellIndex.value)
+    return ATTENDED_STATUSES.reduce(
+      (n, s) => n + countStatusForStudent(student, scopes, cellIndex.value, s),
+      0,
+    )
+  }
+
   // ─── sections ─────────────────────────────────────────────────────────────────
 
   function countFilledCells(
@@ -460,9 +483,14 @@ export function useAttendanceTable(props: AttendanceTableProps, emit: Attendance
     return visible.map(({ meta, items }) => {
       const sectionScopes = lessons.value.filter(sc => scopeVisibleForSection(sc, meta))
 
-      const sortedStudents = items.sort((a, b) =>
-        (a.username ?? '').localeCompare(b.username ?? '', 'ru'),
-      )
+      const sortedStudents = [...items].sort((a, b) => {
+        if (props.sortBy === 'rating') {
+          const diff = studentRating(b, sectionScopes) - studentRating(a, sectionScopes)
+          if (diff !== 0)
+            return diff
+        }
+        return (a.username ?? '').localeCompare(b.username ?? '', 'ru')
+      })
 
       const cols: TableColumn<AttendanceTableStudent>[] = [
         {

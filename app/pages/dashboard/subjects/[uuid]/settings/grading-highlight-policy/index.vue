@@ -2,6 +2,8 @@
 import type { components } from '#open-fetch-schemas/backend'
 import type { SchemaFor } from '~/utils/validation'
 import * as v from 'valibot'
+import { GRADING_HIGHLIGHT_DEFAULTS } from '~/utils/highlight'
+import { hexColor } from '~/utils/validation'
 
 definePageMeta({ middleware: 'subject-permission' })
 
@@ -10,26 +12,12 @@ type GradingHighlightPolicyResponse = components['schemas']['GradingHighlightPol
 
 type GradingHighlightPolicyForm = Required<GradingHighlightPolicyRequest>
 
-const hexColorPattern = /^#[0-9A-F]{6}$/i
-
 const GradingHighlightPolicySchema: SchemaFor<GradingHighlightPolicyForm> = v.object({
   enabled: v.boolean(),
-  assignmentColor: v.pipe(
-    v.string('Введите цвет'),
-    v.regex(hexColorPattern, 'Формат HEX: #RRGGBB'),
-  ),
-  fullColor: v.pipe(
-    v.string('Введите цвет'),
-    v.regex(hexColorPattern, 'Формат HEX: #RRGGBB'),
-  ),
-  partialLowColor: v.pipe(
-    v.string('Введите цвет'),
-    v.regex(hexColorPattern, 'Формат HEX: #RRGGBB'),
-  ),
-  partialHighColor: v.pipe(
-    v.string('Введите цвет'),
-    v.regex(hexColorPattern, 'Формат HEX: #RRGGBB'),
-  ),
+  assignmentColor: hexColor(),
+  fullColor: hexColor(),
+  partialLowColor: hexColor(),
+  partialHighColor: hexColor(),
 })
 
 const colorFields: { key: Exclude<keyof GradingHighlightPolicyForm, 'enabled'>, label: string, help?: string }[] = [
@@ -52,13 +40,7 @@ const { data, pending, error, refresh } = useBackend('/api/grading-highlight-pol
 const policy = computed<GradingHighlightPolicyResponse | null>(() => data.value ?? null)
 
 const { state, formRef, loading, onSubmit, onError } = useResourceForm<typeof GradingHighlightPolicySchema>({
-  initialState: () => ({
-    enabled: false,
-    assignmentColor: '#BFDBFE',
-    fullColor: '#86EFAC',
-    partialLowColor: '#FCD34D',
-    partialHighColor: '#BEF264',
-  }),
+  initialState: () => ({ enabled: false, ...GRADING_HIGHLIGHT_DEFAULTS }),
   successMessage: 'Политика сохранена',
 })
 
@@ -68,10 +50,10 @@ watch(
     if (!p)
       return
     state.enabled = p.enabled ?? false
-    state.assignmentColor = p.assignmentColor ?? '#BFDBFE'
-    state.fullColor = p.fullColor ?? '#86EFAC'
-    state.partialLowColor = p.partialLowColor ?? '#FCD34D'
-    state.partialHighColor = p.partialHighColor ?? '#BEF264'
+    state.assignmentColor = p.assignmentColor ?? GRADING_HIGHLIGHT_DEFAULTS.assignmentColor
+    state.fullColor = p.fullColor ?? GRADING_HIGHLIGHT_DEFAULTS.fullColor
+    state.partialLowColor = p.partialLowColor ?? GRADING_HIGHLIGHT_DEFAULTS.partialLowColor
+    state.partialHighColor = p.partialHighColor ?? GRADING_HIGHLIGHT_DEFAULTS.partialHighColor
   },
   { immediate: true },
 )
@@ -145,55 +127,14 @@ const handleSave = onSubmit(
         @submit="handleSave"
         @error="onError"
       >
-        <UCard :ui="{ body: 'flex flex-col gap-4' }">
-          <USwitch
-            v-model="state.enabled"
-            label="Включить цветовую подсветку таблицы оценок"
-          />
-
-          <p class="text-sm text-muted">
-            Ячейки таблицы оценок автоматически окрашиваются в зависимости от того,
-            насколько студент решил задание: полностью (балл равен максимуму), больше
-            половины или половина и меньше. Отдельный цвет — для фона шапки колонок заданий.
-          </p>
-
-          <template v-if="state.enabled">
-            <USeparator />
-
-            <div class="grid gap-4 sm:grid-cols-2">
-              <UFormField
-                v-for="field in colorFields"
-                :key="field.key"
-                :label="field.label"
-                :name="field.key"
-                required
-              >
-                <ColorPickerPopover v-model="state[field.key]" />
-                <template v-if="field.help" #help>
-                  {{ field.help }}
-                </template>
-              </UFormField>
-            </div>
-          </template>
-        </UCard>
-
-        <div class="flex justify-end gap-2">
-          <UButton
-            :to="`/dashboard/subjects/${subjectId}/settings`"
-            color="neutral"
-            variant="ghost"
-            type="button"
-          >
-            Отмена
-          </UButton>
-          <UButton
-            type="submit"
-            icon="i-lucide-check"
-            :loading="loading"
-          >
-            Сохранить
-          </UButton>
-        </div>
+        <PoliciesHighlightPolicyFields
+          :state="state"
+          :color-fields="colorFields"
+          switch-label="Использовать свои цвета подсветки оценок"
+          description="Ячейки таблицы оценок всегда окрашиваются по тому, насколько решено задание: полностью (балл равен максимуму), больше половины или половина и меньше; отдельный цвет — фон шапки колонок заданий. Если переключатель выключен, используются стандартные цвета; включите его, чтобы задать свои."
+          :loading="loading"
+          :settings-path="`/dashboard/subjects/${subjectId}/settings`"
+        />
       </UForm>
     </template>
   </div>

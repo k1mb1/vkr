@@ -45,10 +45,7 @@ const { data, pending: sessionsPending, error, refresh } = useBackend('/api/chec
   immediate: false,
 })
 
-watch(permissionId, (id) => {
-  if (id)
-    refresh()
-}, { immediate: true })
+useRefreshOnPermission(permissionId, refresh)
 
 const pending = computed(() => permissionPending.value || sessionsPending.value)
 

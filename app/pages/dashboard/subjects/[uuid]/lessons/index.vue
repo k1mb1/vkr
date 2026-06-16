@@ -14,10 +14,7 @@ const { data, pending: lessonsPending, error, refresh } = useBackend('/api/lesso
   immediate: false,
 })
 
-watch(permissionId, (pid) => {
-  if (pid)
-    refresh()
-}, { immediate: true })
+useRefreshOnPermission(permissionId, refresh)
 
 const pending = computed(() => permissionPending.value || lessonsPending.value)
 
@@ -45,7 +42,7 @@ const activeLesson = computed(() =>
   sortedData.value.find(l => l.active) ?? null,
 )
 
-const activeTab = ref('all')
+const activeTab = useStoredTab<'all' | 'lectures' | 'practices'>('lessons-list-filter', 'all')
 
 const tabs = computed(() => [
   { label: 'Все', value: 'all', badge: sortedData.value.length || undefined },
@@ -84,6 +81,13 @@ const lessonTypeFilter = computed<LessonTypeFilter>(() => {
           @click="downloadExcel(sortedData, lessonTypeFilter)"
         />
         <SubjectPermissionGate>
+          <UButton
+            icon="i-lucide-calendar-plus"
+            label="По расписанию"
+            color="neutral"
+            variant="outline"
+            :to="`/dashboard/subjects/${subjectId}/lessons/schedule-create`"
+          />
           <UButton
             icon="i-lucide-list-plus"
             label="По количеству"

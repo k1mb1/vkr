@@ -26,7 +26,6 @@ const {
   isEmpty,
   hasAnyLessons,
   onKeydown,
-  highlightEnabled,
   highlightColors,
   editTarget,
   closeEdit,
@@ -37,16 +36,14 @@ const {
   editTargetFinalScore,
 } = useGradesTable(props, emit)
 
-const legendColors = computed(() => {
-  if (!highlightEnabled.value)
-    return []
-  return [
+const legendColors = computed(() =>
+  [
     { label: 'Колонка задания', color: highlightColors.value.assignment },
     { label: 'Решено полностью', color: highlightColors.value.full },
     { label: 'Меньше половины', color: highlightColors.value.partialLow },
     { label: 'Больше половины', color: highlightColors.value.partialHigh },
-  ].filter(item => item.color)
-})
+  ].filter(item => item.color),
+)
 
 const tableUi = sectionedTableUi({ center: true, checkbox: true })
 </script>

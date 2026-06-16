@@ -13,6 +13,7 @@ const subjectId = computed(() => String(route.params.uuid ?? ''))
 
 const { permissionId } = usePermissions()
 const { exportLoading, downloadExcel } = useAttendanceExport()
+const { sortBy, sortItems } = useStudentSort()
 
 const { data, pending, error, refresh } = useBackend('/api/attendances', {
   method: 'GET',
@@ -23,10 +24,7 @@ const { data, pending, error, refresh } = useBackend('/api/attendances', {
   immediate: false,
 })
 
-watch(permissionId, (pid) => {
-  if (pid)
-    refresh()
-}, { immediate: true })
+useRefreshOnPermission(permissionId, refresh)
 
 const { data: attendancePolicy } = useBackend('/api/attendance-policy/subjects/{subjectId}', {
   method: 'GET',
@@ -35,7 +33,7 @@ const { data: attendancePolicy } = useBackend('/api/attendance-policy/subjects/{
 
 // ── Filters ──────────────────────────────────────────────
 
-const typeFilter = ref<'ALL' | LessonType>('ALL')
+const typeFilter = useStoredTab<'ALL' | LessonType>('attendances-type-filter', 'ALL')
 
 const typeTabItems = [
   { label: 'Все', value: 'ALL' as const },
@@ -143,6 +141,13 @@ const exportItems = computed<DropdownMenuItem[]>(() => [
           placeholder="Группы"
           class="w-64"
         />
+        <USelect
+          v-model="sortBy"
+          :items="sortItems"
+          value-key="value"
+          icon="i-lucide-arrow-down-up"
+          class="w-44"
+        />
       </div>
 
       <USkeleton v-if="pending && !data" class="h-64 w-full" />
@@ -162,6 +167,7 @@ const exportItems = computed<DropdownMenuItem[]>(() => [
         :pending="pending"
         :sections-filter="selectedSections"
         :attendance-policy="attendancePolicy"
+        :sort-by="sortBy"
         empty-description="Для отображения посещаемости нужны и студенты, и занятия."
       />
     </div>

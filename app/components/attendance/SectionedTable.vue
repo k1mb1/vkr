@@ -14,6 +14,7 @@ const props = withDefaults(defineProps<AttendanceTableProps>(), {
   pendingChanges: () => ({}),
   tableMaxHeight: 'calc(100vh - 18rem)',
   attendancePolicy: null,
+  sortBy: 'name',
 })
 
 const emit = defineEmits<{

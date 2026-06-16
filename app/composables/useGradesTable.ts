@@ -8,7 +8,7 @@ import { useGridCellNav } from '~/composables/useGridCellNav'
 import { applyBonus, applyPenalty, computeBonusCount, computePenaltyCount } from '~/composables/usePenalty'
 import { groupBySection } from '~/composables/useTableSections'
 import { gradeCellKey, indexAssignmentsByLesson, indexGrades, sortGradingLessons } from '~/utils/grading'
-import { highlightChipBg, softHighlightBg } from '~/utils/highlight'
+import { GRADING_HIGHLIGHT_DEFAULTS, highlightChipBg, softHighlightBg } from '~/utils/highlight'
 import { round2 } from '~/utils/number'
 
 type GradingTableResponse = components['schemas']['GradingTableResponse']
@@ -35,6 +35,8 @@ export interface GradesTableProps {
   pendingChanges?: Record<string, PendingGrade>
   allLessons?: GradingTableLesson[]
   tableMaxHeight?: string
+  /** Сортировка студентов в каждой секции: по алфавиту (по умолчанию) или по рейтингу (сумме баллов). */
+  sortBy?: 'name' | 'rating'
 }
 
 export type GradesTableEmit = (e: 'change', payload: UpsertGradeRequest) => void
@@ -87,12 +89,20 @@ export function useGradesTable(props: GradesTableProps, emit: GradesTableEmit) {
     () => props.data?.highlightPolicy ?? undefined,
   )
   const highlightEnabled = computed(() => highlightPolicy.value?.enabled ?? false)
-  const highlightColors = computed(() => ({
-    assignment: highlightPolicy.value?.assignmentColor,
-    full: highlightPolicy.value?.fullColor,
-    partialLow: highlightPolicy.value?.partialLowColor,
-    partialHigh: highlightPolicy.value?.partialHighColor,
-  }))
+  // Подсветка работает всегда: включённая политика берёт пользовательские цвета
+  // (с откатом к стандартным для незаданных), выключенная — только стандартные.
+  const highlightColors = computed(() => {
+    const p = highlightPolicy.value
+    const on = highlightEnabled.value
+    const pick = (custom: string | undefined, fallback: string) =>
+      (on && custom) ? custom : fallback
+    return {
+      assignment: pick(p?.assignmentColor, GRADING_HIGHLIGHT_DEFAULTS.assignmentColor),
+      full: pick(p?.fullColor, GRADING_HIGHLIGHT_DEFAULTS.fullColor),
+      partialLow: pick(p?.partialLowColor, GRADING_HIGHLIGHT_DEFAULTS.partialLowColor),
+      partialHigh: pick(p?.partialHighColor, GRADING_HIGHLIGHT_DEFAULTS.partialHighColor),
+    }
+  })
 
   // ─── render helpers ───────────────────────────────────────────────────────────
 
@@ -115,7 +125,7 @@ export function useGradesTable(props: GradesTableProps, emit: GradesTableEmit) {
     original: number | null | undefined,
     maxPoints: number | undefined,
   ): string | undefined {
-    if (!highlightEnabled.value || original == null)
+    if (original == null)
       return undefined
     if (maxPoints != null && maxPoints > 0) {
       if (original >= maxPoints)
@@ -370,7 +380,7 @@ export function useGradesTable(props: GradesTableProps, emit: GradesTableEmit) {
     lesson: GradingTableLesson,
     sectionStudents: GradingTableStudent[],
   ): TableColumn<GradingTableStudent> {
-    const assignmentHex = computed(() => highlightEnabled.value ? highlightColors.value.assignment : undefined)
+    const assignmentHex = computed(() => highlightColors.value.assignment)
 
     return {
       id: assignment.id!,
@@ -755,9 +765,16 @@ export function useGradesTable(props: GradesTableProps, emit: GradesTableEmit) {
 
     return visible.map(({ meta, items }) => {
       const sectionLessons = lessons.value.filter(l => lessonVisibleForSection(l, meta))
-      const sortedStudents = items.sort((a, b) =>
-        (a.username ?? '').localeCompare(b.username ?? '', 'ru'),
-      )
+      const byName = (a: GradingTableStudent, b: GradingTableStudent) =>
+        (a.username ?? '').localeCompare(b.username ?? '', 'ru')
+      const sortedStudents = [...items].sort((a, b) => {
+        if (props.sortBy === 'rating') {
+          const diff = studentGrandTotal(b, sectionLessons) - studentGrandTotal(a, sectionLessons)
+          if (diff !== 0)
+            return diff
+        }
+        return byName(a, b)
+      })
 
       const cols: TableColumn<GradingTableStudent>[] = [
         {

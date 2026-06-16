@@ -1,9 +1,9 @@
 import type { TableColumn } from '@nuxt/ui'
-import type { ComputedRef } from 'vue'
+import type { ComputedRef, MaybeRefOrGetter, VNode } from 'vue'
 import type { components } from '#open-fetch-schemas/backend'
 import type { StudentSummaryRow, SummarySection, TypeBreakdown, TypeMaxes } from '~/composables/useFinalGradesExport'
-import { computed, h, ref, watch } from 'vue'
-import { UBadge } from '#components'
+import { computed, h, ref, toValue, watch } from 'vue'
+import { UBadge, UIcon } from '#components'
 import { computeVerdict, verdictTone } from '~/composables/useFinalVerdict'
 import { applyBonus, applyPenalty, computeBonusCount, computePenaltyCount } from '~/composables/usePenalty'
 import { groupBySection } from '~/composables/useTableSections'
@@ -47,6 +47,7 @@ interface TypeAccum {
 export function useFinalTable(
   data: ComputedRef<GradingTableResponse | null>,
   attData: ComputedRef<AttendanceTableResponse | null>,
+  sortBy: MaybeRefOrGetter<'name' | 'rating'> = 'name',
 ) {
   const finalPolicy = computed(() => data.value?.finalAssessmentPolicy ?? null)
   const finalEnabled = computed(() => finalPolicy.value?.enabled ?? false)
@@ -373,6 +374,13 @@ export function useFinalTable(
           ? verdictForRow(r)?.label
           : undefined,
       }))
+
+      // По рейтингу — от большего итога к меньшему, при равенстве по алфавиту.
+      if (toValue(sortBy) === 'rating') {
+        rows.sort((a, b) =>
+          b.total - a.total || a.username.localeCompare(b.username, 'ru'),
+        )
+      }
       const totals = rows.map(r => r.total)
       const avgTotal = totals.length ? round2(totals.reduce((a, b) => a + b, 0) / totals.length) : 0
       const lecture = typeMaxes(sectionLessons, 'lecture')
@@ -591,7 +599,24 @@ export function useFinalTable(
         if (verdict.tasksToNext != null)
           parts.push(`До следующего уровня по задачам: +${verdict.tasksToNext}`)
         const title = parts.join(' · ')
-        return h('div', { class: 'flex justify-center', title }, [
+
+        // Видимая подсказка «сколько не хватает до следующего уровня» — раньше она
+        // жила только в tooltip и была недоступна на мобильных.
+        const chip = (icon: string, text: string, cls: string): VNode =>
+          h('span', { class: `inline-flex items-center gap-0.5 ${cls}` }, [
+            h(UIcon, { name: icon, class: 'size-3 shrink-0' }),
+            text,
+          ])
+
+        const hintChips: VNode[] = []
+        if (verdict.attendanceGateFailed)
+          hintChips.push(chip('i-lucide-user-x', 'посещаемость', 'text-error'))
+        if (verdict.pointsToNext != null)
+          hintChips.push(chip('i-lucide-arrow-up', `${round2(verdict.pointsToNext)} б`, 'text-muted'))
+        if (verdict.tasksToNext != null)
+          hintChips.push(chip('i-lucide-arrow-up', `${verdict.tasksToNext} зад.`, 'text-muted'))
+
+        return h('div', { class: 'flex flex-col items-center gap-1', title }, [
           h(UBadge, {
             color: tone.color,
             variant: 'subtle',
@@ -599,10 +624,15 @@ export function useFinalTable(
             label: verdict.label,
             class: 'font-semibold',
           }),
+          hintChips.length
+            ? h('div', {
+                class: 'flex flex-wrap items-center justify-center gap-x-1.5 gap-y-0.5 text-[10px] leading-tight text-muted',
+              }, [h('span', 'ещё:'), ...hintChips])
+            : null,
         ])
       },
       meta: {
-        class: { th: 'min-w-[140px] text-center', td: 'min-w-[140px] text-center py-1.5' },
+        class: { th: 'min-w-[150px] text-center', td: 'min-w-[150px] text-center py-1.5' },
       },
     }
   }

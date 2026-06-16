@@ -37,7 +37,7 @@ async function onDeleteGroup() {
 
 // Tabs & Table
 const subgroupTabPrefix = 'subgroup:'
-const activeTab = ref('students')
+const activeTab = useStoredTab<string>(() => `group-view:${groupId.value}`, 'students')
 const sortDirection = ref<'asc' | 'desc'>('asc')
 const studentSearch = ref('')
 
@@ -107,10 +107,9 @@ watch(
 watch(
   availableTabValues,
   (values) => {
-    if (!values.length) {
-      activeTab.value = 'students'
+    // Пока вкладок нет (данные ещё грузятся) — не трогаем сохранённый выбор.
+    if (!values.length)
       return
-    }
     if (!activeTab.value || !values.includes(activeTab.value)) {
       const firstValue = values[0]
       if (firstValue)

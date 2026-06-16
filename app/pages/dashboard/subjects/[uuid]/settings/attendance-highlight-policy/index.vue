@@ -2,6 +2,8 @@
 import type { components } from '#open-fetch-schemas/backend'
 import type { SchemaFor } from '~/utils/validation'
 import * as v from 'valibot'
+import { ATTENDANCE_HIGHLIGHT_DEFAULTS } from '~/utils/highlight'
+import { hexColor } from '~/utils/validation'
 
 definePageMeta({ middleware: 'subject-permission' })
 
@@ -10,26 +12,12 @@ type AttendanceHighlightPolicyResponse = components['schemas']['AttendanceHighli
 
 type AttendanceHighlightPolicyForm = Required<AttendanceHighlightPolicyRequest>
 
-const hexColorPattern = /^#[0-9A-F]{6}$/i
-
 const AttendanceHighlightPolicySchema: SchemaFor<AttendanceHighlightPolicyForm> = v.object({
   enabled: v.boolean(),
-  presentColor: v.pipe(
-    v.string('Введите цвет'),
-    v.regex(hexColorPattern, 'Формат HEX: #RRGGBB'),
-  ),
-  lateColor: v.pipe(
-    v.string('Введите цвет'),
-    v.regex(hexColorPattern, 'Формат HEX: #RRGGBB'),
-  ),
-  absentColor: v.pipe(
-    v.string('Введите цвет'),
-    v.regex(hexColorPattern, 'Формат HEX: #RRGGBB'),
-  ),
-  excusedColor: v.pipe(
-    v.string('Введите цвет'),
-    v.regex(hexColorPattern, 'Формат HEX: #RRGGBB'),
-  ),
+  presentColor: hexColor(),
+  lateColor: hexColor(),
+  absentColor: hexColor(),
+  excusedColor: hexColor(),
 })
 
 const colorFields: { key: Exclude<keyof AttendanceHighlightPolicyForm, 'enabled'>, label: string }[] = [
@@ -52,13 +40,7 @@ const { data, pending, error, refresh } = useBackend('/api/attendance-highlight-
 const policy = computed<AttendanceHighlightPolicyResponse | null>(() => data.value ?? null)
 
 const { state, formRef, loading, onSubmit, onError } = useResourceForm<typeof AttendanceHighlightPolicySchema>({
-  initialState: () => ({
-    enabled: false,
-    presentColor: '#86EFAC',
-    lateColor: '#FCD34D',
-    absentColor: '#FCA5A5',
-    excusedColor: '#93C5FD',
-  }),
+  initialState: () => ({ enabled: false, ...ATTENDANCE_HIGHLIGHT_DEFAULTS }),
   successMessage: 'Политика сохранена',
 })
 
@@ -68,10 +50,10 @@ watch(
     if (!p)
       return
     state.enabled = p.enabled ?? false
-    state.presentColor = p.presentColor ?? '#86EFAC'
-    state.lateColor = p.lateColor ?? '#FCD34D'
-    state.absentColor = p.absentColor ?? '#FCA5A5'
-    state.excusedColor = p.excusedColor ?? '#93C5FD'
+    state.presentColor = p.presentColor ?? ATTENDANCE_HIGHLIGHT_DEFAULTS.presentColor
+    state.lateColor = p.lateColor ?? ATTENDANCE_HIGHLIGHT_DEFAULTS.lateColor
+    state.absentColor = p.absentColor ?? ATTENDANCE_HIGHLIGHT_DEFAULTS.absentColor
+    state.excusedColor = p.excusedColor ?? ATTENDANCE_HIGHLIGHT_DEFAULTS.excusedColor
   },
   { immediate: true },
 )
@@ -145,52 +127,14 @@ const handleSave = onSubmit(
         @submit="handleSave"
         @error="onError"
       >
-        <UCard :ui="{ body: 'flex flex-col gap-4' }">
-          <USwitch
-            v-model="state.enabled"
-            label="Включить цветовую подсветку таблицы посещаемости"
-          />
-
-          <p class="text-sm text-muted">
-            Ячейки таблицы посещаемости автоматически окрашиваются в зависимости от
-            статуса студента на занятии: присутствие, опоздание, отсутствие или
-            уважительная причина.
-          </p>
-
-          <template v-if="state.enabled">
-            <USeparator />
-
-            <div class="grid gap-4 sm:grid-cols-2">
-              <UFormField
-                v-for="field in colorFields"
-                :key="field.key"
-                :label="field.label"
-                :name="field.key"
-                required
-              >
-                <ColorPickerPopover v-model="state[field.key]" />
-              </UFormField>
-            </div>
-          </template>
-        </UCard>
-
-        <div class="flex justify-end gap-2">
-          <UButton
-            :to="`/dashboard/subjects/${subjectId}/settings`"
-            color="neutral"
-            variant="ghost"
-            type="button"
-          >
-            Отмена
-          </UButton>
-          <UButton
-            type="submit"
-            icon="i-lucide-check"
-            :loading="loading"
-          >
-            Сохранить
-          </UButton>
-        </div>
+        <PoliciesHighlightPolicyFields
+          :state="state"
+          :color-fields="colorFields"
+          switch-label="Использовать свои цвета подсветки посещаемости"
+          description="Ячейки таблицы посещаемости всегда окрашиваются по статусу студента: присутствие, опоздание, отсутствие или уважительная причина. Если переключатель выключен, используются стандартные цвета; включите его, чтобы задать свои."
+          :loading="loading"
+          :settings-path="`/dashboard/subjects/${subjectId}/settings`"
+        />
       </UForm>
     </template>
   </div>

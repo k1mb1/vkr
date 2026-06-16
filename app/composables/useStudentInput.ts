@@ -1,6 +1,11 @@
 export interface StudentInputOptions {
   /** Разделитель для парсинга (по умолчанию `/\\s+/`) */
   separator?: RegExp
+  /**
+   * Нормализация каждого имени при добавлении (по умолчанию — `formatStudentName`:
+   * каждое слово с заглавной буквы, остальные строчные, через один пробел).
+   */
+  normalize?: (username: string) => string
 }
 
 export interface UseStudentInputReturn<T extends { username: string }> {
@@ -23,11 +28,12 @@ export function useStudentInput<T extends { username: string }>(
   options: StudentInputOptions = {},
 ): UseStudentInputReturn<T> {
   const separator = options.separator ?? /\s+/
+  const normalize = options.normalize ?? formatStudentName
 
   function parseUsernames(raw: string): string[] {
     return raw
       .split(separator)
-      .map(s => s.trim())
+      .map(s => normalize(s.trim()))
       .filter(Boolean)
   }
 

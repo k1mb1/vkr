@@ -25,6 +25,10 @@ function isoDateTime(message = 'Must be a valid ISO datetime') {
   return v.pipe(v.string(), v.isoDateTime(message))
 }
 
+function hexColor(message = 'Формат HEX: #RRGGBB') {
+  return v.pipe(v.string('Введите цвет'), v.regex(/^#[0-9A-F]{6}$/i, message))
+}
+
 function nonNegativeInteger(integerMessage = 'Must be an integer', nonNegativeMessage = 'Must be non-negative') {
   return v.pipe(v.number(), v.integer(integerMessage), v.minValue(0, nonNegativeMessage))
 }
@@ -64,6 +68,7 @@ export {
   calendarDateTimeToIso,
   calendarDateToIso,
   email,
+  hexColor,
   isoDateTime,
   nonNegativeInteger,
   string,

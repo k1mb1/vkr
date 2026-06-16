@@ -70,12 +70,10 @@ const { data: sessionsData, refresh: refreshSessions } = useBackend('/api/check-
   immediate: false,
 })
 
-watch(permissionId, (pid) => {
-  if (pid) {
-    refresh()
-    refreshSessions()
-  }
-}, { immediate: true })
+useRefreshOnPermission(permissionId, () => {
+  refresh()
+  refreshSessions()
+})
 
 // lessonScopeId проведений, по которым уже есть не отменённая сессия
 // (подтверждённая или ещё идущая) — их исключаем из выбора.

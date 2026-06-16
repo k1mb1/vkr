@@ -23,7 +23,9 @@ function refreshAll() {
   refresh()
 }
 
-watch(permissionId, pid => pid && refreshAll(), { immediate: true })
+useRefreshOnPermission(permissionId, refreshAll)
+
+const { sortBy, sortItems } = useStudentSort()
 
 const {
   finalEnabled,
@@ -35,7 +37,7 @@ const {
   buildColumns,
   fullscreenSectionKey,
   fullscreenSection,
-} = useFinalTable(data, attData)
+} = useFinalTable(data, attData, sortBy)
 
 const tableUi = sectionedTableUi()
 </script>
@@ -92,6 +94,13 @@ const tableUi = sectionedTableUi()
           placeholder="Группы"
           class="w-64"
         />
+        <USelect
+          v-model="sortBy"
+          :items="sortItems"
+          value-key="value"
+          icon="i-lucide-arrow-down-up"
+          class="w-44"
+        />
       </div>
 
       <!-- Verdict legend -->
@@ -106,6 +115,11 @@ const tableUi = sectionedTableUi()
         </span>
         <span class="flex items-center gap-1">
           <UIcon name="i-lucide-circle-x" class="size-3.5 text-error" /> не аттестован
+        </span>
+        <span class="flex items-center gap-1">
+          <span class="text-default">ещё:</span>
+          <UIcon name="i-lucide-arrow-up" class="size-3.5" />
+          — сколько баллов / обязательных задач не хватает до следующего уровня
         </span>
       </div>
 

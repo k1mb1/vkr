@@ -3,7 +3,6 @@ import type { components } from '#open-fetch-schemas/backend'
 
 type LessonResponse = components['schemas']['LessonResponse']
 type BulkUpsertAttendanceRequest = components['schemas']['BulkUpsertAttendanceRequest']
-type BulkUpsertGradesRequest = components['schemas']['BulkUpsertGradesRequest']
 
 const route = useRoute()
 const subjectId = computed(() => String(route.params.uuid ?? ''))
@@ -11,7 +10,7 @@ const lessonId = computed(() => String(route.params.id ?? ''))
 
 const { permissionId, hasAllPermissions, scopes } = usePermissions()
 const { $backend } = useNuxtApp()
-const toast = useToast()
+const { toastError, toast } = useApiError()
 const { d } = useI18n()
 
 // ── Data ────────────────────────────────────────────────────────────────────
@@ -29,11 +28,7 @@ const { data: results, pending: resultsPending, refresh: resultsRefresh } = useB
 const attData = computed(() => results.value?.attendance ?? null)
 const gradesData = computed(() => results.value?.grading ?? null)
 
-watch(permissionId, (pid) => {
-  if (pid) {
-    resultsRefresh()
-  }
-}, { immediate: true })
+useRefreshOnPermission(permissionId, resultsRefresh)
 
 function refreshAll() {
   resultsRefresh()
@@ -93,13 +88,8 @@ async function saveAttendance() {
       icon: 'i-lucide-circle-check',
     })
   }
-  catch (e: any) {
-    toast.add({
-      title: 'Не удалось сохранить',
-      description: e?.data?.message ?? e?.message,
-      color: 'error',
-      icon: 'i-lucide-circle-alert',
-    })
+  catch (e) {
+    toastError(e as Parameters<typeof toastError>[0], 'Не удалось сохранить')
   }
   finally {
     attendanceSaving.value = false
@@ -107,76 +97,17 @@ async function saveAttendance() {
 }
 
 // ── Grade drafts ────────────────────────────────────────────────────────────
-type UpsertGradeRequest = BulkUpsertGradesRequest['items'][number]
-interface PendingGrade { score: number, comment?: string }
-
-const gradeChanges = reactive<Record<string, PendingGrade & { studentId: string, lessonId: string, assignmentId?: string }>>({})
-const gradeSaving = ref(false)
-const gradeDirty = computed(() => Object.keys(gradeChanges).length)
-
-const gradePendingView = computed<Record<string, PendingGrade>>(() => {
-  const out: Record<string, PendingGrade> = {}
-  for (const [k, v] of Object.entries(gradeChanges))
-    out[k] = { score: v.score, comment: v.comment }
-  return out
-})
-
-function onGradeChange(payload: UpsertGradeRequest) {
-  const key = payload.assignmentId
-    ? `${payload.studentId}:${payload.assignmentId}`
-    : `${payload.studentId}:${payload.lessonId}:extra`
-  gradeChanges[key] = {
-    studentId: payload.studentId,
-    lessonId: payload.lessonId,
-    assignmentId: payload.assignmentId,
-    score: payload.score,
-    comment: payload.comment,
-  }
-}
-
-function resetGrades() {
-  for (const k of Object.keys(gradeChanges))
-    delete gradeChanges[k]
-}
-
-async function saveGrades() {
-  if (gradeDirty.value === 0 || gradeSaving.value)
-    return
-  const items: UpsertGradeRequest[] = Object.values(gradeChanges).map(v => ({
-    studentId: v.studentId,
-    lessonId: v.lessonId,
-    score: v.score,
-    ...(v.assignmentId ? { assignmentId: v.assignmentId } : {}),
-    ...(v.comment ? { comment: v.comment } : {}),
-  }))
-  gradeSaving.value = true
-  try {
-    const body: BulkUpsertGradesRequest = { items }
-    await $backend('/api/grades', { method: 'PUT', body })
-    resetGrades()
-    await resultsRefresh()
-    toast.add({
-      title: 'Оценки сохранены',
-      description: `Обновлено ячеек: ${items.length}`,
-      color: 'success',
-      icon: 'i-lucide-circle-check',
-    })
-  }
-  catch (e: any) {
-    toast.add({
-      title: 'Не удалось сохранить',
-      description: e?.data?.message ?? e?.message,
-      color: 'error',
-      icon: 'i-lucide-circle-alert',
-    })
-  }
-  finally {
-    gradeSaving.value = false
-  }
-}
+const {
+  dirty: gradeDirty,
+  saving: gradeSaving,
+  pendingView: gradePendingView,
+  onChange: onGradeChange,
+  reset: resetGrades,
+  save: saveGrades,
+} = useGradeDrafts({ onSaved: () => resultsRefresh() })
 
 // ── Tabs ────────────────────────────────────────────────────────────────────
-const activeTab = ref<'attendance' | 'grades'>('attendance')
+const activeTab = useStoredTab<'attendance' | 'grades'>('lesson-detail-tab', 'attendance')
 
 const tabItems = computed(() => [
   {
@@ -196,43 +127,10 @@ const tabItems = computed(() => [
 // ── Leave guard (shared) ────────────────────────────────────────────────────
 const hasUnsaved = computed(() => attendanceDirty.value > 0 || gradeDirty.value > 0)
 
-const leaveModalOpen = ref(false)
-const pendingLeavePath = ref<string | null>(null)
-let confirmedLeave = false
-
-onBeforeRouteLeave((to) => {
-  if (confirmedLeave || !hasUnsaved.value)
-    return true
-  pendingLeavePath.value = to.fullPath
-  leaveModalOpen.value = true
-  return false
-})
-
-function confirmLeave() {
-  confirmedLeave = true
-  leaveModalOpen.value = false
+const { leaveModalOpen, confirmLeave, cancelLeave } = useUnsavedGuard(hasUnsaved, () => {
   resetAttendance()
   resetGrades()
-  const path = pendingLeavePath.value
-  pendingLeavePath.value = null
-  if (path)
-    navigateTo(path)
-}
-
-function cancelLeave() {
-  pendingLeavePath.value = null
-  leaveModalOpen.value = false
-}
-
-function beforeUnloadHandler(e: BeforeUnloadEvent) {
-  if (!hasUnsaved.value)
-    return
-  e.preventDefault()
-  e.returnValue = ''
-}
-
-onMounted(() => window.addEventListener('beforeunload', beforeUnloadHandler))
-onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnloadHandler))
+})
 </script>
 
 <template>

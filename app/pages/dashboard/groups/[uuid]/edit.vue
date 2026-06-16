@@ -65,10 +65,17 @@ const subgroupOptions = computed(() => {
 const hasSubgroups = computed(() => subgroupOptions.value.length > 0)
 
 // Student management
-function updateStudentUsername(studentId: string | null, username: string) {
-  const student = state.students.find(s => s.id === studentId)
+function updateStudentUsername(draftIndex: number, username: string) {
+  const student = state.students[draftIndex]
   if (student)
-    student.username = username.trim()
+    student.username = username
+}
+
+// Приводим имя к аккуратному виду, когда пользователь закончил правку поля.
+function formatStudentAt(draftIndex: number) {
+  const student = state.students[draftIndex]
+  if (student)
+    student.username = formatStudentName(student.username)
 }
 
 function updateStudentSubgroup(index: number, subgroupId: string | null) {
@@ -96,7 +103,7 @@ function addStudents(raw: string, subgroupId: string | undefined) {
 
 // Tabs
 const subgroupTabPrefix = 'subgroup:'
-const activeTab = ref('students')
+const activeTab = useStoredTab<string>(() => `group-edit:${groupId.value}`, 'students')
 const studentSearch = ref('')
 
 const activeSubgroupId = computed<string | undefined>(() => {
@@ -133,7 +140,7 @@ const {
   getId: s => s.id ?? null,
   getUsername: s => s.username,
   getSubgroupId: s => s.subgroupId ?? null,
-  showEmptyStudentsTab: false,
+  showEmptyStudentsTab: true,
   subgroupTabPrefix,
 })
 
@@ -142,10 +149,9 @@ const activeTabData = useActiveTab(tabsData, activeTab)
 watch(
   availableTabValues,
   (values) => {
-    if (!values.length) {
-      activeTab.value = 'students'
+    // Пока вкладок нет (данные ещё грузятся) — не трогаем сохранённый выбор.
+    if (!values.length)
       return
-    }
     if (!activeTab.value || !values.includes(activeTab.value)) {
       const firstValue = values[0]
       if (firstValue)
@@ -291,7 +297,8 @@ function handleCancel() {
               <UInput
                 :model-value="row.username"
                 class="flex-1"
-                @update:model-value="(v: string) => updateStudentUsername(row.id, v)"
+                @update:model-value="(v: string) => updateStudentUsername(row.draftIndex, v)"
+                @blur="() => formatStudentAt(row.draftIndex)"
               />
               <USelect
                 v-if="hasSubgroups"

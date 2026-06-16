@@ -31,3 +31,24 @@ export function softHighlightBg(hex: string | undefined | null, alpha = 0.2): Re
 export function highlightChipBg(hex: string | undefined | null): Record<string, string> {
   return softHighlightBg(hex, 0.28)
 }
+
+/**
+ * Стандартные цвета подсветки — единый источник для форм политик и для таблиц.
+ * Применяются, когда политика выключена (или конкретный цвет не задан), поэтому
+ * подсветка работает всегда: выключенная политика = стандартные цвета,
+ * включённая = пользовательские. Палитра «светофора» и согласована с цветами
+ * статусов (зелёный — хорошо, жёлтый — частично, красный — плохо, синий — инфо).
+ */
+export const GRADING_HIGHLIGHT_DEFAULTS = {
+  assignmentColor: '#BFDBFE',
+  fullColor: '#86EFAC',
+  partialHighColor: '#FDE68A',
+  partialLowColor: '#FCA5A5',
+} as const
+
+export const ATTENDANCE_HIGHLIGHT_DEFAULTS = {
+  presentColor: '#86EFAC',
+  lateColor: '#FDE68A',
+  absentColor: '#FCA5A5',
+  excusedColor: '#BFDBFE',
+} as const
