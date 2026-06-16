@@ -78,6 +78,7 @@ const { rows, totalElements } = toPageState(data)
       v-if="error"
       color="error"
       variant="soft"
+      icon="i-lucide-circle-alert"
       title="Ошибка загрузки"
       :description="error.message"
     />

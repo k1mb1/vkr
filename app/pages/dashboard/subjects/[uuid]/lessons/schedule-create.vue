@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { BulkScheduleRequest } from '~/composables/useBulkScheduleForm'
+import type { BulkScheduleAudience, BulkScheduleRequest } from '~/composables/useBulkScheduleForm'
 import {
   generateScheduleDates,
   validateSchedule,
@@ -28,9 +28,7 @@ const state = reactive({
   count: 1,
   // Недельный шаблон: внешний массив — недели, внутренний (длина 7) — дни пн…вс.
   weeks: [emptyWeek()] as boolean[][],
-  audienceMode: 'all' as 'all' | 'group',
-  groupId: '',
-  subgroupId: undefined as string | undefined,
+  audienceMode: 'all' as 'all' | 'groups',
 })
 
 // ── Groups for audience ──────────────────────────────────
@@ -39,23 +37,39 @@ const { data: groups, pending: groupsPending } = useBackend('/api/groups/by-subj
   query: { subjectId },
 })
 
-const groupOptions = computed(() =>
-  (groups.value ?? []).map(g => ({ label: g.name ?? g.id ?? '', value: g.id! })),
-)
+interface GroupAudienceEntry {
+  groupId: string
+  groupName: string
+  subgroups: { id: string, index: number }[]
+  /** если true — на каждую подгруппу создаётся своё проведение */
+  splitBySubgroups: boolean
+}
 
-const selectedGroup = computed(() =>
-  (groups.value ?? []).find(g => g.id === state.groupId) ?? null,
-)
+const groupEntries = ref<GroupAudienceEntry[]>([])
 
-const subgroupOptions = computed(() =>
-  (selectedGroup.value?.subgroups ?? []).map(s => ({
-    label: `Подгруппа ${s.index ?? ''}`.trim(),
-    value: s.id!,
-  })),
-)
+watch(groups, (val) => {
+  groupEntries.value = (val ?? []).map(g => ({
+    groupId: g.id!,
+    groupName: g.name ?? g.id ?? '',
+    subgroups: (g.subgroups ?? []).map(s => ({ id: s.id!, index: s.index ?? 0 })),
+    splitBySubgroups: false,
+  }))
+}, { immediate: true })
 
-watch(() => state.groupId, () => {
-  state.subgroupId = undefined
+// Аудитории по выбранным группам: целая группа — одна аудитория, разбивка по
+// подгруппам — по одной аудитории на каждую подгруппу.
+const audiences = computed<BulkScheduleAudience[]>(() => {
+  const out: BulkScheduleAudience[] = []
+  for (const entry of groupEntries.value) {
+    if (entry.splitBySubgroups && entry.subgroups.length) {
+      for (const sub of entry.subgroups)
+        out.push({ groupId: entry.groupId, allowedSubgroupId: sub.id })
+    }
+    else {
+      out.push({ groupId: entry.groupId })
+    }
+  }
+  return out
 })
 
 // ── Weekly pattern ───────────────────────────────────────
@@ -113,8 +127,8 @@ const scheduleErrors = computed(() => validateSchedule({
 }))
 
 const audienceError = computed(() =>
-  state.audienceMode === 'group' && !state.groupId
-    ? 'Выберите группу'
+  state.audienceMode === 'groups' && groupEntries.value.length === 0
+    ? 'К предмету не привязаны группы'
     : null,
 )
 
@@ -142,10 +156,8 @@ async function handleCreate() {
     firstLessonDate: state.firstLessonDate,
     count: state.count,
     days: daysPayload.value,
-    // null/отсутствие аудитории = все группы предмета.
-    audience: state.audienceMode === 'all'
-      ? undefined
-      : { groupId: state.groupId, allowedSubgroupId: state.subgroupId },
+    // null/пустой список аудиторий = все группы предмета.
+    audiences: state.audienceMode === 'all' ? undefined : audiences.value,
   }
 
   await submit(
@@ -200,7 +212,7 @@ async function handleCreate() {
         variant="soft"
         icon="i-lucide-info"
         title="Создание занятия по расписанию"
-        description="Создаётся одно занятие и серия проведений по недельному шаблону. Укажите дату первой пары, число проведений и дни недели. Несколько недель в шаблоне нужны для чередования (например, раз в две недели: дни в 1-й неделе, пустая 2-я)."
+        description="Создаётся одно занятие и серия проведений по недельному шаблону. Укажите дату первой пары, число проведений, дни недели и аудиторию. Несколько недель в шаблоне нужны для чередования (например, раз в две недели: дни в 1-й неделе, пустая 2-я). Аудитория «Выбранные группы» создаёт отдельные проведения на каждую группу (с разбивкой по подгруппам — на каждую подгруппу)."
       />
 
       <div class="flex flex-col gap-4">
@@ -232,33 +244,44 @@ async function handleCreate() {
             orientation="horizontal"
             :items="[
               { value: 'all', label: 'Все группы предмета' },
-              { value: 'group', label: 'Выбранная группа' },
+              { value: 'groups', label: 'Выбранные группы' },
             ]"
           />
         </UFormField>
 
-        <div v-if="state.audienceMode === 'group'" class="flex flex-wrap gap-4">
-          <UFormField label="Группа" required>
-            <USelect
-              v-model="state.groupId"
-              :items="groupOptions"
-              value-key="value"
-              :loading="groupsPending"
-              placeholder="Выберите группу"
-              class="w-64"
-            />
-          </UFormField>
+        <template v-if="state.audienceMode === 'groups'">
+          <div v-if="groupsPending && groupEntries.length === 0" class="flex flex-col gap-3">
+            <USkeleton v-for="i in 3" :key="i" class="h-16" />
+          </div>
 
-          <UFormField v-if="subgroupOptions.length" label="Подгруппа">
-            <USelect
-              v-model="state.subgroupId"
-              :items="subgroupOptions"
-              value-key="value"
-              placeholder="Вся группа"
-              class="w-48"
-            />
-          </UFormField>
-        </div>
+          <UEmpty
+            v-else-if="!groupsPending && groupEntries.length === 0"
+            icon="i-lucide-users"
+            title="Нет групп"
+            description="К этому предмету не привязаны группы"
+            variant="naked"
+            class="py-4"
+          />
+
+          <div v-else class="flex flex-col gap-3">
+            <UCard
+              v-for="entry in groupEntries"
+              :key="entry.groupId"
+              :ui="{ body: 'p-4' }"
+            >
+              <div class="flex flex-col gap-2">
+                <div class="font-medium">
+                  {{ entry.groupName }}
+                </div>
+                <UCheckbox
+                  v-if="entry.subgroups.length > 0"
+                  v-model="entry.splitBySubgroups"
+                  label="Разбить по подгруппам (отдельное проведение на каждую)"
+                />
+              </div>
+            </UCard>
+          </div>
+        </template>
 
         <!-- Недельный шаблон -->
         <UFormField label="Недельный шаблон" required>

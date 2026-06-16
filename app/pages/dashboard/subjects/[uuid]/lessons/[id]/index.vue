@@ -2,15 +2,12 @@
 import type { components } from '#open-fetch-schemas/backend'
 
 type LessonResponse = components['schemas']['LessonResponse']
-type BulkUpsertAttendanceRequest = components['schemas']['BulkUpsertAttendanceRequest']
 
 const route = useRoute()
 const subjectId = computed(() => String(route.params.uuid ?? ''))
 const lessonId = computed(() => String(route.params.id ?? ''))
 
 const { permissionId, hasAllPermissions, scopes } = usePermissions()
-const { $backend } = useNuxtApp()
-const { toastError, toast } = useApiError()
 const { d } = useI18n()
 
 // ── Data ────────────────────────────────────────────────────────────────────
@@ -52,49 +49,14 @@ const totalPoints = computed(() =>
 )
 
 // ── Attendance drafts ───────────────────────────────────────────────────────
-type UpsertAttendanceRequest = BulkUpsertAttendanceRequest['items'][number]
-type AttendanceStatus = UpsertAttendanceRequest['status']
-
-const attendanceChanges = reactive<Record<string, AttendanceStatus>>({})
-const attendanceSaving = ref(false)
-const attendanceDirty = computed(() => Object.keys(attendanceChanges).length)
-
-function onAttendanceChange(payload: UpsertAttendanceRequest) {
-  attendanceChanges[`${payload.studentId}|${payload.lessonScopeId}`] = payload.status
-}
-
-function resetAttendance() {
-  for (const k of Object.keys(attendanceChanges))
-    delete attendanceChanges[k]
-}
-
-async function saveAttendance() {
-  if (attendanceDirty.value === 0 || attendanceSaving.value)
-    return
-  const items: UpsertAttendanceRequest[] = Object.entries(attendanceChanges).map(([key, status]) => {
-    const [studentId, lessonScopeId] = key.split('|')
-    return { studentId: studentId!, lessonScopeId: lessonScopeId!, status }
-  })
-  attendanceSaving.value = true
-  try {
-    const body: BulkUpsertAttendanceRequest = { items }
-    await $backend('/api/attendances', { method: 'PUT', body })
-    resetAttendance()
-    await resultsRefresh()
-    toast.add({
-      title: 'Посещаемость сохранена',
-      description: `Обновлено ячеек: ${items.length}`,
-      color: 'success',
-      icon: 'i-lucide-circle-check',
-    })
-  }
-  catch (e) {
-    toastError(e as Parameters<typeof toastError>[0], 'Не удалось сохранить')
-  }
-  finally {
-    attendanceSaving.value = false
-  }
-}
+const {
+  changes: attendanceChanges,
+  saving: attendanceSaving,
+  dirty: attendanceDirty,
+  onChange: onAttendanceChange,
+  reset: resetAttendance,
+  save: saveAttendance,
+} = useAttendanceDrafts({ onSaved: () => resultsRefresh() })
 
 // ── Grade drafts ────────────────────────────────────────────────────────────
 const {

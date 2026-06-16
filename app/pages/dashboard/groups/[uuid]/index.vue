@@ -139,6 +139,7 @@ watch(
       v-else-if="error"
       color="error"
       variant="soft"
+      icon="i-lucide-circle-alert"
       title="Ошибка при загрузке группы"
       :description="error.message"
     />
