@@ -1,8 +1,5 @@
 <script setup lang="ts">
-import type {
-  BulkScheduleRequest,
-  BulkScheduleResponse,
-} from '~/composables/useBulkScheduleForm'
+import type { BulkScheduleRequest } from '~/composables/useBulkScheduleForm'
 import {
   generateScheduleDates,
   validateSchedule,
@@ -16,6 +13,7 @@ const route = useRoute()
 const subjectId = String(route.params.uuid ?? '')
 
 const { d } = useI18n()
+const { $backend } = useNuxtApp()
 const { permission } = usePermissions()
 const { loading, submit } = useFormSubmit()
 
@@ -25,7 +23,7 @@ function emptyWeek(): boolean[] {
 }
 
 const state = reactive({
-  lessonType: 'PRACTICE' as 'LECTURE' | 'PRACTICE',
+  lessonType: 'PRACTICE' as BulkScheduleRequest['lessonType'],
   firstLessonDate: '',
   count: 1,
   // Недельный шаблон: внешний массив — недели, внутренний (длина 7) — дни пн…вс.
@@ -144,15 +142,14 @@ async function handleCreate() {
     firstLessonDate: state.firstLessonDate,
     count: state.count,
     days: daysPayload.value,
+    // null/отсутствие аудитории = все группы предмета.
     audience: state.audienceMode === 'all'
-      ? null
-      : { groupId: state.groupId, allowedSubgroupId: state.subgroupId ?? null },
+      ? undefined
+      : { groupId: state.groupId, allowedSubgroupId: state.subgroupId },
   }
 
   await submit(
-    // Эндпоинта ещё нет в OpenAPI-схеме, поэтому идём напрямую через прокси
-    // (он добавляет авторизацию и проверяет Origin так же, как $backend).
-    () => $fetch<BulkScheduleResponse>('/api/proxy/api/lessons/bulk-schedule', {
+    () => $backend('/api/lessons/bulk-schedule', {
       method: 'POST',
       body,
     }),

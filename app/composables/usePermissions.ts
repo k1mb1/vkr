@@ -23,6 +23,8 @@ export function usePermissions(subjectIdOverride?: MaybeRefOrGetter<string>) {
     '/api/teacher-subject-permissions/single',
     {
       method: 'GET',
+      immediate: false,
+      watch: false,
       key: computed(() => `permission:${subjectId.value}:${teacherId.value}`),
       query: computed(() => ({
         subjectId: subjectId.value,
@@ -30,6 +32,13 @@ export function usePermissions(subjectIdOverride?: MaybeRefOrGetter<string>) {
       })),
     },
   )
+
+  watch([subjectId, teacherId], ([sid, tid]) => {
+    if (sid && tid)
+      execute()
+    else
+      clear()
+  }, { immediate: true })
 
   const hasAllPermissions = computed<boolean>(
     () => data.value?.allPermissions === true,

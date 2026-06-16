@@ -1,38 +1,13 @@
 import type { components } from '#open-fetch-schemas/backend'
 
-type LessonResponse = components['schemas']['LessonResponse']
+export type BulkScheduleRequest = components['schemas']['BulkScheduleLessonsRequest']
 
-export type DayOfWeek
-  = | 'MONDAY'
-    | 'TUESDAY'
-    | 'WEDNESDAY'
-    | 'THURSDAY'
-    | 'FRIDAY'
-    | 'SATURDAY'
-    | 'SUNDAY'
+export type BulkScheduleAudience = components['schemas']['LessonScopeAudienceRequest']
 
-export interface BulkScheduleAudience {
-  groupId: string
-  allowedSubgroupId?: string | null
-}
+export type DayOfWeek = NonNullable<BulkScheduleRequest['days']>[number][number]
 
-/**
- * Тело `POST /api/lessons/bulk-schedule`. Описано вручную: на момент написания
- * эндпоинт ещё не попал в OpenAPI-схему. Когда попадёт — заменить на
- * `components['schemas'][...]` и убрать локальные типы.
- */
-export interface BulkScheduleRequest {
-  subjectId: string
-  lessonType: 'LECTURE' | 'PRACTICE'
-  firstLessonDate: string
-  count: number
-  days: DayOfWeek[][]
-  audience: BulkScheduleAudience | null
-}
+export type BulkScheduleResponse = components['schemas']['LessonResponse']
 
-export type BulkScheduleResponse = LessonResponse
-
-/** Дни недели в порядке пн→вс. Индекс в массиве = смещение от понедельника. */
 export const WEEKDAYS: { value: DayOfWeek, short: string, label: string }[] = [
   { value: 'MONDAY', short: 'Пн', label: 'Понедельник' },
   { value: 'TUESDAY', short: 'Вт', label: 'Вторник' },
