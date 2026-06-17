@@ -66,7 +66,7 @@ export default defineNuxtConfig({
         'font-src': ['\'self\'', 'data:'],
         'connect-src': ['\'self\''],
         'form-action': ['\'self\''],
-        'frame-ancestors': ['\'none\''],
+        'frame-ancestors': ['*'],
         'object-src': ['\'none\''],
         'upgrade-insecure-requests': env.NODE_ENV === 'production',
       },
@@ -78,7 +78,7 @@ export default defineNuxtConfig({
         ? { maxAge: 15_552_000, includeSubdomains: true, preload: true }
         : false,
       xContentTypeOptions: 'nosniff',
-      xFrameOptions: 'DENY',
+      xFrameOptions: false,
       xXSSProtection: '0',
       permissionsPolicy: {
         camera: [],
