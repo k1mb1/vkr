@@ -66,8 +66,11 @@ async function handleCreate() {
       body: bulkScheduleBody(body),
     }),
     {
-      successMessage: result =>
-        `Создано занятие с ${result.scopes?.length ?? totalScopes.value} проведениями`,
+      successMessage: (result) => {
+        const lessons = result.length
+        const scopes = result.reduce((n, l) => n + (l.scopes?.length ?? 0), 0) || totalScopes.value
+        return `Создано занятий: ${lessons} (проведений: ${scopes})`
+      },
       onSuccess: () => navigateTo(`/dashboard/subjects/${subjectId}/lessons`),
     },
   )
@@ -111,8 +114,8 @@ async function handleCreate() {
         color="neutral"
         variant="soft"
         icon="i-lucide-info"
-        title="Создание занятия по расписанию"
-        description="Создаётся одно занятие и серия проведений. Укажите тип и число проведений, затем выберите аудиторию: «Все группы» — общее расписание, «Выбранные группы» — у каждой группы (и при разбивке у каждой подгруппы) своя дата первой пары и свой недельный шаблон. Для каждой аудитории создаётся ровно указанное число проведений. Несколько недель в шаблоне нужны для чередования (например, раз в две недели: дни в 1-й неделе, пустая 2-я)."
+        title="Создание занятий по расписанию"
+        description="Создаётся серия из указанного числа занятий: занятие k проходит на k-ю дату каждой аудитории. Укажите тип и число занятий, затем выберите аудиторию: «Все группы» — общее расписание, «Выбранные группы» — у каждой группы (и при разбивке у каждой подгруппы) своя дата первой пары и свой недельный шаблон. Для каждой аудитории создаётся ровно указанное число проведений. Несколько недель в шаблоне нужны для чередования (например, раз в две недели: дни в 1-й неделе, пустая 2-я)."
       />
 
       <div class="flex flex-col gap-4">
@@ -127,7 +130,7 @@ async function handleCreate() {
           />
         </UFormField>
 
-        <UFormField label="Количество проведений (на каждую аудиторию)" required>
+        <UFormField label="Количество занятий" required>
           <UInput v-model.number="count" type="number" :min="1" class="w-40" />
         </UFormField>
 
@@ -212,8 +215,8 @@ async function handleCreate() {
           class="ml-auto"
           @click="handleCreate"
         >
-          Создать занятие<template v-if="totalScopes">
-            ({{ totalScopes }} проведений)
+          Создать занятия<template v-if="count > 0">
+            ({{ count }} зан. · {{ totalScopes }} провед.)
           </template>
         </UButton>
       </div>
