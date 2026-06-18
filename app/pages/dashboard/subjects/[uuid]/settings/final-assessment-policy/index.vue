@@ -15,19 +15,20 @@ type AttendanceRequirementMode = NonNullable<FinalAssessmentPolicyRequest['atten
 type FinalAssessmentPolicyForm = Omit<FinalAssessmentPolicyRequest, 'bands'> & { bands: Band[] }
 
 // Пороги уровня для оценки достижимости.
-// Баллы: пусто = 0 (без ограничения). Задачи: пусто = «все обязательные» —
+// Баллы и процент: пусто = 0 (без ограничения). Задачи: пусто = «все обязательные» —
 // строжайшее требование, поэтому считаем его как +∞.
-function bandThreshold(b: Band): { points: number, tasks: number } {
+function bandThreshold(b: Band): { points: number, percent: number, tasks: number } {
   return {
     points: b.minPoints ?? 0,
+    percent: b.minPercent ?? 0,
     tasks: b.requiredTasks ?? Number.POSITIVE_INFINITY,
   }
 }
 
 /**
  * Первый недостижимый уровень. Уровень j недостижим, если выше него есть уровень i,
- * чьи условия не строже по обоим параметрам (баллы и задачи): тогда любой студент,
- * прошедший j, уже прошёл i, а i выбирается раньше — и j никогда не сработает.
+ * чьи условия не строже по всем параметрам (баллы, процент и задачи): тогда любой
+ * студент, прошедший j, уже прошёл i, а i выбирается раньше — и j никогда не сработает.
  * Возвращает индексы { lower, upper } либо null, если порядок корректный.
  */
 function firstUnreachableBand(bands: Band[]): { lower: number, upper: number } | null {
@@ -35,7 +36,7 @@ function firstUnreachableBand(bands: Band[]): { lower: number, upper: number } |
     const bj = bandThreshold(bands[j]!)
     for (let i = 0; i < j; i++) {
       const bi = bandThreshold(bands[i]!)
-      if (bi.points <= bj.points && bi.tasks <= bj.tasks)
+      if (bi.points <= bj.points && bi.percent <= bj.percent && bi.tasks <= bj.tasks)
         return { lower: j, upper: i }
     }
   }
@@ -46,6 +47,7 @@ const BandSchema: SchemaFor<Band> = v.object({
   id: v.optional(v.string()),
   label: v.pipe(v.string('Введите ярлык'), v.minLength(1, 'Ярлык обязателен')),
   minPoints: v.optional(v.pipe(v.number(), v.minValue(0))),
+  minPercent: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100))),
   requiredTasks: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))),
 })
 
@@ -155,6 +157,7 @@ function bandFromResponse(b: Band | undefined): Band {
     id: b?.id,
     label: b?.label ?? '',
     minPoints: b?.minPoints ?? undefined,
+    minPercent: b?.minPercent ?? undefined,
     requiredTasks: b?.requiredTasks ?? undefined,
   }
 }
@@ -179,7 +182,7 @@ watch(
 )
 
 function addBand() {
-  state.bands.push({ label: '', minPoints: undefined, requiredTasks: undefined })
+  state.bands.push({ label: '', minPoints: undefined, minPercent: undefined, requiredTasks: undefined })
 }
 
 function removeBand(index: number) {
@@ -215,6 +218,7 @@ const handleSave = onSubmit(
               ...(b.id ? { id: b.id } : {}),
               label: b.label,
               ...(b.minPoints != null ? { minPoints: b.minPoints } : {}),
+              ...(b.minPercent != null ? { minPercent: b.minPercent } : {}),
               ...(b.requiredTasks != null ? { requiredTasks: b.requiredTasks } : {}),
             })),
           }
@@ -401,7 +405,7 @@ const handleSave = onSubmit(
                   />
                 </UFormField>
 
-                <div class="grid gap-3 sm:grid-cols-2">
+                <div class="grid gap-3 sm:grid-cols-3">
                   <UFormField :name="`bands.${index}.minPoints`" label="Мин. баллов (опционально)">
                     <UInput
                       v-model.number="band.minPoints"
@@ -410,6 +414,20 @@ const handleSave = onSubmit(
                       placeholder="Без ограничения"
                       class="w-full"
                     />
+                  </UFormField>
+
+                  <UFormField :name="`bands.${index}.minPercent`" label="Мин. процент (опционально)">
+                    <UInput
+                      v-model.number="band.minPercent"
+                      type="number"
+                      :min="0"
+                      :max="100"
+                      placeholder="Без ограничения"
+                      class="w-full"
+                    />
+                    <template #help>
+                      Процент от макс. возможного балла (0–100).
+                    </template>
                   </UFormField>
 
                   <UFormField :name="`bands.${index}.requiredTasks`" label="Мин. количество обязательных задач">

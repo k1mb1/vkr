@@ -357,6 +357,10 @@ export function useFinalTable(
       const sorted = [...items].sort((a, b) => (a.username ?? '').localeCompare(b.username ?? '', 'ru'))
       const rawRows = sorted.map(s => buildStudentRow(s, sectionLessons))
 
+      const lecture = typeMaxes(sectionLessons, 'lecture')
+      const practice = typeMaxes(sectionLessons, 'practice')
+      const maxPossibleTotal = round2(lecture.maxSubtotal + practice.maxSubtotal)
+
       // rank by total desc, ties share rank
       const byTotal = [...rawRows].sort((a, b) => b.total - a.total)
       const rankMap = new Map<string, number>()
@@ -371,7 +375,7 @@ export function useFinalTable(
         ...r,
         rank: rankMap.get(r.id) ?? 1,
         verdict: finalEnabled.value && finalPolicy.value
-          ? verdictForRow(r)?.label
+          ? verdictForRow(r, maxPossibleTotal)?.label
           : undefined,
       }))
 
@@ -383,8 +387,6 @@ export function useFinalTable(
       }
       const totals = rows.map(r => r.total)
       const avgTotal = totals.length ? round2(totals.reduce((a, b) => a + b, 0) / totals.length) : 0
-      const lecture = typeMaxes(sectionLessons, 'lecture')
-      const practice = typeMaxes(sectionLessons, 'practice')
 
       return {
         key: meta.key,
@@ -392,7 +394,7 @@ export function useFinalTable(
         rows,
         lecture,
         practice,
-        maxPossibleTotal: round2(lecture.maxSubtotal + practice.maxSubtotal),
+        maxPossibleTotal,
         avgTotal,
         maxTotal: totals.length ? Math.max(...totals) : 0,
         minTotal: totals.length ? Math.min(...totals) : 0,
@@ -573,9 +575,13 @@ export function useFinalTable(
 
   // ─── итоговый вердикт (промежуточная аттестация) ────────────────────────────────
 
-  function verdictForRow(row: Pick<StudentSummaryRow, 'total' | 'closedRequired' | 'totalRequired' | 'attendanceCounted' | 'attendanceTracked'>) {
+  function verdictForRow(
+    row: Pick<StudentSummaryRow, 'total' | 'closedRequired' | 'totalRequired' | 'attendanceCounted' | 'attendanceTracked'>,
+    maxPoints: number,
+  ) {
     return computeVerdict(finalPolicy.value!, {
       total: row.total,
+      maxPoints,
       closedRequired: row.closedRequired,
       totalRequired: row.totalRequired,
       attendanceCounted: row.attendanceCounted,
@@ -583,12 +589,12 @@ export function useFinalTable(
     })
   }
 
-  function buildVerdictColumn(): TableColumn<StudentSummaryRow> {
+  function buildVerdictColumn(section: SummarySection): TableColumn<StudentSummaryRow> {
     return {
       id: 'verdict',
       header: () => h('span', { class: 'font-bold text-highlighted' }, 'Вердикт'),
       cell: ({ row }) => {
-        const verdict = verdictForRow(row.original)
+        const verdict = verdictForRow(row.original, section.maxPossibleTotal)
         const tone = verdictTone(verdict)
         const parts: string[] = []
         parts.push(`Закрыто обязательных задач: ${row.original.closedRequired}`)
@@ -662,7 +668,7 @@ export function useFinalTable(
         footer: () => avgFooter(section.key, r => r.total),
         meta: { class: { th: 'min-w-[80px] text-center', td: 'min-w-[80px] text-center py-1.5' } },
       },
-      ...(finalEnabled.value ? [buildVerdictColumn()] : []),
+      ...(finalEnabled.value ? [buildVerdictColumn(section)] : []),
     ]
   }
 

@@ -134,6 +134,7 @@ const tableUi = sectionedTableUi()
             class="font-semibold"
           />
           <span v-if="band.minPoints != null">Мин. баллов: {{ band.minPoints }}</span>
+          <span v-if="band.minPercent != null">Мин. %: {{ band.minPercent }}</span>
           <span>{{ band.requiredTasks != null ? `Мин. задач: ${band.requiredTasks}` : 'Все обязательные задачи' }}</span>
         </span>
       </div>

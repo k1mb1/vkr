@@ -5,6 +5,8 @@ type FinalAssessmentPolicyResponse = components['schemas']['FinalAssessmentPolic
 export interface VerdictInput {
   /** Итоговый балл студента. */
   total: number
+  /** Максимально возможный балл (знаменатель для условия minPercent). */
+  maxPoints?: number
   /** Число полностью закрытых обязательных задач. */
   closedRequired: number
   /** Всего обязательных задач (для уровней с пустым «мин. задач» — нужно закрыть все). */
@@ -58,7 +60,10 @@ function attendanceGateFails(policy: FinalAssessmentPolicyResponse, input: Verdi
 
 /**
  * Вердикт для студента: первая (самая старшая) банда, чьи условия выполнены.
- * Условия банды (minPoints, requiredTasks) комбинируются по AND; пустое — без ограничения.
+ * Условия банды (minPoints, minPercent, requiredTasks) комбинируются по AND;
+ * пустое — без ограничения. minPercent — отдельный порог в процентах от
+ * максимально возможного балла; вместе с minPoints он задаёт эффективный
+ * минимум баллов (берётся наибольший из двух).
  * Поверх банд действует отдельный гейт посещаемости (SEPARATE): если он не пройден,
  * студент «Не аттестован» независимо от набранных баллов и закрытых задач.
  */
@@ -69,17 +74,28 @@ export function computeVerdict(
   const bands = policy.bands ?? []
   const bandCount = bands.length
   const totalRequired = input.totalRequired ?? 0
+  const maxPoints = input.maxPoints ?? 0
+  const percent = maxPoints > 0 ? (input.total / maxPoints) * 100 : 0
 
   // Требование по задачам для уровня: пусто — закрыть ВСЕ обязательные задачи.
   const taskReqOf = (b: typeof bands[number]) => b.requiredTasks ?? totalRequired
+
+  // Эффективный минимум баллов уровня: наибольший из minPoints и порога,
+  // эквивалентного minPercent (minPercent% от максимально возможного балла).
+  const minPointsOf = (b: typeof bands[number]): number => {
+    const byPoints = b.minPoints ?? 0
+    const byPercent = b.minPercent != null && maxPoints > 0 ? (b.minPercent / 100) * maxPoints : 0
+    return Math.max(byPoints, byPercent)
+  }
 
   // Считаем, сколько не хватает до ближайшей более старшей банды
   let pointsToNext: number | null = null
   let tasksToNext: number | null = null
 
   for (const b of bands) {
-    if (b.minPoints != null && input.total < b.minPoints) {
-      const diff = b.minPoints - input.total
+    const minPoints = minPointsOf(b)
+    if (minPoints > 0 && input.total < minPoints) {
+      const diff = minPoints - input.total
       if (pointsToNext == null || diff < pointsToNext)
         pointsToNext = diff
     }
@@ -98,8 +114,9 @@ export function computeVerdict(
   for (let i = 0; i < bands.length; i++) {
     const b = bands[i]!
     const okPoints = b.minPoints == null || input.total >= b.minPoints
+    const okPercent = b.minPercent == null || (maxPoints > 0 && percent >= b.minPercent)
     const okTasks = input.closedRequired >= taskReqOf(b)
-    if (okPoints && okTasks)
+    if (okPoints && okPercent && okTasks)
       return { label: b.label || '—', bandIndex: i, bandCount, pointsToNext, tasksToNext, attendanceGateFailed }
   }
 
