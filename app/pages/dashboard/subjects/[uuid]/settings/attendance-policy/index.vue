@@ -47,13 +47,6 @@ const handleSave = onSubmit(
           :loading="pending"
           @click="refresh()"
         />
-        <UButton
-          :to="`/dashboard/subjects/${subjectId}/settings`"
-          icon="i-lucide-arrow-left"
-          color="neutral"
-          variant="ghost"
-          label="Назад"
-        />
       </template>
     </UPageHeader>
 

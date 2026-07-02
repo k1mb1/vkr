@@ -3,7 +3,7 @@ import type { Cell } from '@tanstack/vue-table'
 import type { AssignmentResponse, GradeCellResponse, GradingHighlightPolicyResponse, GradingTableLesson, GradingTableResponse, GradingTableStudent, UpsertGradeRequest } from '#hey-api'
 import type { SectionKey } from '~/composables/useTableSections'
 import { computed, h, ref } from 'vue'
-import { UButton, UIcon, UTooltip } from '#components'
+import { UButton, UDropdownMenu, UIcon, UTooltip } from '#components'
 import { useGridCellNav } from '~/composables/useGridCellNav'
 import { applyBonus, applyPenalty, computeBonusCount, computePenaltyCount } from '~/composables/usePenalty'
 import { groupBySection } from '~/composables/useTableSections'
@@ -29,6 +29,8 @@ export interface GradesTableProps {
   tableMaxHeight?: string
   /** Сортировка студентов в каждой секции: по алфавиту (по умолчанию) или по рейтингу (сумме баллов). */
   sortBy?: 'name' | 'rating'
+  /** Плотность строк таблицы. */
+  density?: import('~/utils/tableUi').TableDensity
 }
 
 export type GradesTableEmit = (e: 'change', payload: UpsertGradeRequest) => void
@@ -366,6 +368,27 @@ export function useGradesTable(props: GradesTableProps, emit: GradesTableEmit) {
     return h(UTooltip, { text: tooltipText }, { default: () => trigger })
   }
 
+  // Массовое проставление балла всему столбцу задания. Как в посещаемости,
+  // не эмитим ячейки, где значение уже совпадает — иначе лишние upsert'ы.
+  function bulkSetAssignmentScore(
+    assignment: AssignmentResponse,
+    sectionStudents: GradingTableStudent[],
+    score: number,
+  ) {
+    const assignmentId = assignment.id
+    const lessonId = assignment.lessonId
+    if (!assignmentId || !lessonId)
+      return
+    for (const s of sectionStudents) {
+      if (!s.id)
+        continue
+      const key = `${s.id}:${assignmentId}`
+      if (effectiveScoreFor(key) === score)
+        continue
+      emit('change', { studentId: s.id, lessonId, assignmentId, score })
+    }
+  }
+
   function buildAssignmentColumn(
     assignment: AssignmentResponse,
     gradeIndex: Map<string, GradeCellResponse>,
@@ -373,6 +396,28 @@ export function useGradesTable(props: GradesTableProps, emit: GradesTableEmit) {
     sectionStudents: GradingTableStudent[],
   ): TableColumn<GradingTableStudent> {
     const assignmentHex = computed(() => highlightColors.value.assignment)
+    const maxPoints = assignment.maxPoints ?? 0
+    const bulkItems = maxPoints > 0
+      ? [
+          {
+            label: `Всем: макс. балл (${maxPoints})`,
+            icon: 'i-lucide-check-check',
+            onSelect: () => bulkSetAssignmentScore(assignment, sectionStudents, maxPoints),
+          },
+          {
+            label: 'Только пустым: макс. балл',
+            icon: 'i-lucide-list-plus',
+            onSelect: () => {
+              for (const s of sectionStudents) {
+                if (!s.id)
+                  continue
+                if (effectiveScoreFor(`${s.id}:${assignment.id}`) == null)
+                  emit('change', { studentId: s.id, lessonId: assignment.lessonId!, assignmentId: assignment.id!, score: maxPoints })
+              }
+            },
+          },
+        ]
+      : []
 
     return {
       id: assignment.id!,
@@ -391,6 +436,23 @@ export function useGradesTable(props: GradesTableProps, emit: GradesTableEmit) {
               : null,
           ]),
           span('text-[10px] text-muted tabular-nums', `${assignment.maxPoints} б`),
+          // Массовое проставление балла всему столбцу
+          props.editable && bulkItems.length
+            ? h(
+                UDropdownMenu,
+                { items: bulkItems, arrow: true, popper: { placement: 'bottom' } },
+                {
+                  default: () => h(UButton, {
+                    variant: 'ghost',
+                    color: 'neutral',
+                    size: 'xs',
+                    trailingIcon: 'i-lucide-chevron-down',
+                    label: 'Всем',
+                    title: 'Проставить балл всей группе',
+                  }),
+                },
+              )
+            : null,
         ])
       },
       cell: ({ row }) => {

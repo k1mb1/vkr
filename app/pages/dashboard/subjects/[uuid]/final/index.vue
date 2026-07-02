@@ -3,6 +3,7 @@ import { getResults } from '#hey-api'
 import { useFinalGradesExport } from '~/composables/useFinalGradesExport'
 import { useFinalTable } from '~/composables/useFinalTable'
 import { sectionedTableUi } from '~/utils/tableUi'
+import { toolbarButton } from '~/utils/toolbarButtons'
 
 const { permissionId, hasAllPermissions } = usePermissions()
 
@@ -40,7 +41,10 @@ const {
   fullscreenSection,
 } = useFinalTable(data, attData, sortBy)
 
-const tableUi = sectionedTableUi()
+const { density } = useTableDensity()
+// center: true — все числовые колонки итогов центрированы через meta; без общего
+// центрирования базовый text-left конфликтовал с ним и ячейки «плыли».
+const tableUi = computed(() => sectionedTableUi({ density: density.value, center: true }))
 </script>
 
 <template>
@@ -48,19 +52,17 @@ const tableUi = sectionedTableUi()
     <UPageHeader title="Итоговые оценки">
       <template #links>
         <UButton
-          icon="i-lucide-file-spreadsheet"
-          color="neutral"
-          variant="ghost"
+          v-bind="toolbarButton.export"
+          :trailing-icon="undefined"
           :loading="finalExportLoading"
           :disabled="!sections.length"
           @click="downloadFinalExcel(sections)"
         >
-          Export Excel
+          Экспорт Excel
         </UButton>
+        <AppDensityToggle />
         <UButton
-          icon="i-lucide-refresh-cw"
-          color="neutral"
-          variant="ghost"
+          v-bind="toolbarButton.refresh"
           :loading="pending"
           @click="refreshAll()"
         />
@@ -195,23 +197,25 @@ const tableUi = sectionedTableUi()
           </div>
 
           <!-- Table -->
-          <UTable
-            :data="section.rows"
-            :columns="buildColumns(section)"
-            :loading="pending && section.rows.length === 0"
-            loading-color="primary"
-            loading-animation="carousel"
-            sticky
-            class="rounded-lg border border-default"
-            :ui="tableUi"
-          >
-            <template #username-cell="{ row }">
-              <span
-                :title="row.original.username"
-                class="line-clamp-1 font-medium text-highlighted"
-              >{{ row.original.username }}</span>
-            </template>
-          </UTable>
+          <AppScrollHint>
+            <UTable
+              :data="section.rows"
+              :columns="buildColumns(section)"
+              :loading="pending && section.rows.length === 0"
+              loading-color="primary"
+              loading-animation="carousel"
+              sticky
+              class="rounded-lg border border-default"
+              :ui="tableUi"
+            >
+              <template #username-cell="{ row }">
+                <span
+                  :title="row.original.username"
+                  class="line-clamp-1 font-medium text-highlighted"
+                >{{ row.original.username }}</span>
+              </template>
+            </UTable>
+          </AppScrollHint>
         </section>
       </template>
     </template>
@@ -223,22 +227,23 @@ const tableUi = sectionedTableUi()
       @update:open="(v) => { if (!v) fullscreenSectionKey = null }"
     >
       <template #body>
-        <UTable
-          v-if="fullscreenSection"
-          :data="fullscreenSection.rows"
-          :columns="buildColumns(fullscreenSection)"
-          sticky
-          style="max-height: calc(100vh - 8rem)"
-          class="rounded-lg border border-default"
-          :ui="tableUi"
-        >
-          <template #username-cell="{ row }">
-            <span
-              :title="row.original.username"
-              class="line-clamp-1 font-medium text-highlighted"
-            >{{ row.original.username }}</span>
-          </template>
-        </UTable>
+        <AppScrollHint v-if="fullscreenSection">
+          <UTable
+            :data="fullscreenSection.rows"
+            :columns="buildColumns(fullscreenSection)"
+            sticky
+            style="max-height: calc(100vh - 8rem)"
+            class="rounded-lg border border-default"
+            :ui="tableUi"
+          >
+            <template #username-cell="{ row }">
+              <span
+                :title="row.original.username"
+                class="line-clamp-1 font-medium text-highlighted"
+              >{{ row.original.username }}</span>
+            </template>
+          </UTable>
+        </AppScrollHint>
       </template>
     </UModal>
   </div>

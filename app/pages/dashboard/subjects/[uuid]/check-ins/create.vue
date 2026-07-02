@@ -127,16 +127,28 @@ const { state, formRef, loading, onSubmit, onError } = useResourceForm<typeof St
   successMessage: 'Опрос запущен',
 })
 
-// Переход с карточки занятия (`?lessonId=`) — предвыбираем проведение, если
-// для этого занятия доступно ровно одно (при нескольких оставляем выбор за
-// преподавателем, чтобы не отметить не ту группу/дату).
+// Переход с карточки занятия. Два варианта предвыбора:
+//  - `?lessonScopeId=` — конкретное проведение (карточка сама предложила выбор,
+//    когда их несколько) → выбираем именно его;
+//  - `?lessonId=` — занятие целиком: предвыбираем, только если доступно ровно
+//    одно проведение (иначе оставляем выбор, чтобы не отметить не ту группу/дату).
+const preselectScopeId = computed(() => {
+  const q = route.query.lessonScopeId ?? route.query.scopeId
+  return typeof q === 'string' ? q : null
+})
 const preselectLessonId = computed(() => {
   const q = route.query.lessonId
   return typeof q === 'string' ? q : null
 })
 
 watch(scopeOptions, (opts) => {
-  if (state.lessonScopeId || !preselectLessonId.value)
+  if (state.lessonScopeId)
+    return
+  if (preselectScopeId.value && opts.some(o => o.value === preselectScopeId.value)) {
+    state.lessonScopeId = preselectScopeId.value
+    return
+  }
+  if (!preselectLessonId.value)
     return
   const matching = opts.filter(o => o.lesson.id === preselectLessonId.value)
   if (matching.length === 1)

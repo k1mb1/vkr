@@ -469,27 +469,27 @@ export function useFinalTable(
             title: incomplete ? `Обязательное выполнено не полностью (${b.rawRequired}/${m.maxRequired})` : undefined,
           }, [
             incomplete
-              ? h('span', { class: 'i-lucide-triangle-alert w-3.5 h-3.5 text-warning shrink-0' })
+              ? h(UIcon, { name: 'i-lucide-triangle-alert', class: 'size-3.5 text-warning shrink-0' })
               : null,
             renderScoreCell(b.required, b.rawRequired),
           ])
         },
         footer: () => sumFooter(section.key, r => pick(r).required),
-        meta: { class: { th: 'min-w-[80px] text-center', td: 'min-w-[80px] text-center py-1.5' } },
+        meta: { class: { th: 'min-w-[80px] text-center', td: 'min-w-[80px] text-center p-1' } },
       },
       {
         id: `${tk}-optional`,
         header: () => headerWithMax('Необяз.', m.maxOptional),
         cell: ({ row }) => renderScoreCell(pick(row.original).optional, pick(row.original).rawOptional),
         footer: () => sumFooter(section.key, r => pick(r).optional),
-        meta: { class: { th: 'min-w-[80px] text-center', td: 'min-w-[80px] text-center py-1.5' } },
+        meta: { class: { th: 'min-w-[80px] text-center', td: 'min-w-[80px] text-center p-1' } },
       },
       {
         id: `${tk}-extra`,
         header: () => h('span', { class: 'font-semibold text-highlighted' }, 'Доп.'),
         cell: ({ row }) => renderScoreCell(pick(row.original).extra, pick(row.original).rawExtra),
         footer: () => sumFooter(section.key, r => pick(r).extra),
-        meta: { class: { th: 'min-w-[72px] text-center', td: 'min-w-[72px] text-center py-1.5' } },
+        meta: { class: { th: 'min-w-[72px] text-center', td: 'min-w-[72px] text-center p-1' } },
       },
     ]
 
@@ -559,13 +559,16 @@ export function useFinalTable(
       header: () => headerWithMax('Подитог', m.maxSubtotal, { bold: true }),
       cell: ({ row }) => h('span', { class: 'tabular-nums font-bold text-default' }, String(pick(row.original).subtotal)),
       footer: () => avgFooter(section.key, r => pick(r).subtotal),
-      meta: { class: { th: 'min-w-[80px] text-center', td: 'min-w-[80px] text-center py-1.5' } },
+      meta: { class: { th: 'min-w-[80px] text-center', td: 'min-w-[80px] text-center p-1' } },
     })
 
     return {
       id: tk,
       header: () => h('span', { class: 'font-bold text-highlighted' }, label),
       columns: leaf,
+      // Как в таблице оценок: тип-группа (Лекции/Практики) отбивается вертикальными
+      // границами и центрируется, иначе группировка колонок «сливается».
+      meta: { class: { th: 'text-center border-x border-default' } },
     }
   }
 
@@ -602,8 +605,9 @@ export function useFinalTable(
           parts.push(`До следующего уровня по задачам: +${verdict.tasksToNext}`)
         const title = parts.join(' · ')
 
-        // Видимая подсказка «сколько не хватает до следующего уровня» — раньше она
-        // жила только в tooltip и была недоступна на мобильных.
+        // Компактная подсказка «сколько не хватает до следующего уровня»: одна
+        // строка без длинных слов (иконки вместо «посещаемость»/«ещё»), детали —
+        // в tooltip. Раньше она переносилась и раздувала колонку по ширине.
         const chip = (icon: string, text: string, cls: string): VNode =>
           h('span', { class: `inline-flex items-center gap-0.5 ${cls}` }, [
             h(UIcon, { name: icon, class: 'size-3 shrink-0' }),
@@ -612,29 +616,30 @@ export function useFinalTable(
 
         const hintChips: VNode[] = []
         if (verdict.attendanceGateFailed)
-          hintChips.push(chip('i-lucide-user-x', 'посещаемость', 'text-error'))
+          hintChips.push(chip('i-lucide-user-x', 'посещ.', 'text-error'))
         if (verdict.pointsToNext != null)
           hintChips.push(chip('i-lucide-arrow-up', `${round2(verdict.pointsToNext)} б`, 'text-muted'))
         if (verdict.tasksToNext != null)
-          hintChips.push(chip('i-lucide-arrow-up', `${verdict.tasksToNext} зад.`, 'text-muted'))
+          hintChips.push(chip('i-lucide-list-checks', `${verdict.tasksToNext} зад`, 'text-muted'))
 
-        return h('div', { class: 'flex flex-col items-center gap-1', title }, [
+        return h('div', { class: 'flex flex-col items-center gap-0.5', title }, [
           h(UBadge, {
             color: tone.color,
             variant: 'subtle',
+            size: 'sm',
             leadingIcon: tone.icon,
             label: verdict.label,
             class: 'font-semibold',
           }),
           hintChips.length
             ? h('div', {
-                class: 'flex flex-wrap items-center justify-center gap-x-1.5 gap-y-0.5 text-[10px] leading-tight text-muted',
-              }, [h('span', 'ещё:'), ...hintChips])
+                class: 'flex items-center justify-center gap-x-1.5 text-[10px] leading-tight text-muted whitespace-nowrap',
+              }, hintChips)
             : null,
         ])
       },
       meta: {
-        class: { th: 'min-w-[150px] text-center', td: 'min-w-[150px] text-center py-1.5' },
+        class: { th: 'min-w-[104px] text-center', td: 'min-w-[104px] text-center p-1' },
       },
     }
   }
@@ -646,8 +651,8 @@ export function useFinalTable(
         header: 'Студент',
         meta: {
           class: {
-            th: 'min-w-[220px] sticky left-0 z-10 bg-default',
-            td: 'min-w-[220px] sticky left-0 z-10 bg-default group-hover:bg-elevated/50 transition-colors',
+            th: 'min-w-[220px] sticky left-0 z-10 bg-default text-left',
+            td: 'min-w-[220px] sticky left-0 z-10 bg-default text-left group-hover:bg-elevated/50 transition-colors',
           },
         },
       },
@@ -662,7 +667,7 @@ export function useFinalTable(
         cell: ({ row }) =>
           h('span', { class: 'tabular-nums font-bold text-default' }, String(row.original.total)),
         footer: () => avgFooter(section.key, r => r.total),
-        meta: { class: { th: 'min-w-[80px] text-center', td: 'min-w-[80px] text-center py-1.5' } },
+        meta: { class: { th: 'min-w-[80px] text-center', td: 'min-w-[80px] text-center p-1' } },
       },
       ...(finalEnabled.value ? [buildVerdictColumn(section)] : []),
     ]

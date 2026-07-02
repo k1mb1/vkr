@@ -52,11 +52,17 @@ export function useApi<T>(
   const asyncData = useAsyncData<T | null>(
     key,
     async () => {
-      const res = await handler()
-      if (res.error !== undefined && res.error !== null)
-        throw res.error
-      const payload = res.data ?? null
-      return transform && payload !== null ? transform(payload) : payload
+      try {
+        const res = await handler()
+        if (res.error !== undefined && res.error !== null)
+          throw res.error
+        const payload = res.data ?? null
+        return transform && payload !== null ? transform(payload) : payload
+      }
+      catch (raw) {
+        logApiError(key, raw)
+        throw raw
+      }
     },
     {
       ...(options.lazy !== undefined ? { lazy: options.lazy } : {}),
@@ -95,11 +101,14 @@ export async function $api<T>(
 ): Promise<{ data: T | null, error: ApiError | null }> {
   try {
     const res = await handler()
-    if (res.error !== undefined && res.error !== null)
+    if (res.error !== undefined && res.error !== null) {
+      logApiError('$api', res.error)
       return { data: null, error: toApiError(res.error) }
+    }
     return { data: res.data ?? null, error: null }
   }
   catch (raw) {
+    logApiError('$api', raw)
     return { data: null, error: toApiError(raw) }
   }
 }
@@ -109,6 +118,38 @@ interface ErrorDtoLike {
   message?: string
   status?: number
   fieldErrors?: FieldError[]
+}
+
+/** valibot ValiError: путь до поля + что ждали / что пришло. */
+interface ValibotIssue {
+  message?: string
+  expected?: string
+  received?: string
+  path?: { key?: PropertyKey }[]
+}
+
+/**
+ * В dev валит сырую ошибку в консоль. Для valibot-ошибок SDK (request/response
+ * validator) дополнительно раскладывает issues: путь до поля + expected/received.
+ * Так «Expected string but received null» перестаёт быть анонимным — сразу
+ * видно, какое поле (например `content.0.description`) прислал бэкенд или какой
+ * query улетел пустым.
+ */
+function logApiError(key: string, raw: unknown): void {
+  if (!import.meta.dev)
+    return
+
+  const issues = (raw as { issues?: ValibotIssue[] })?.issues
+  if (Array.isArray(issues) && issues.length > 0) {
+    const details = issues.map((i) => {
+      const path = (i.path ?? []).map(p => String(p.key)).join('.') || '(root)'
+      return { path, expected: i.expected, received: i.received, message: i.message }
+    })
+    console.error(`[useApi:${key}] valibot validation failed`, details, raw)
+    return
+  }
+
+  console.error(`[useApi:${key}]`, raw)
 }
 
 export function toApiError(raw: unknown): ApiError {

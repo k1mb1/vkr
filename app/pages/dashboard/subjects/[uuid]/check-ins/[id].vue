@@ -265,11 +265,53 @@ const statusItems = computed(() =>
   STATUSES.map(s => ({ value: s, label: statusLabel[s] })),
 )
 
+// «Спорная» строка — студент не отметился сам (нет checkInStatus), поэтому
+// предложенный статус требует ручного решения преподавателя.
+function isDisputed(row: Row): boolean {
+  return !row.checkInStatus
+}
+
+const disputedFirst = ref(true)
+
 const previewRows = computed<Row[]>(() => {
   const arr = [...(preview.value?.rows ?? [])]
-  arr.sort((a, b) => (a.username ?? '').localeCompare(b.username ?? '', 'ru'))
+  arr.sort((a, b) => {
+    if (disputedFirst.value) {
+      const da = isDisputed(a) ? 0 : 1
+      const db = isDisputed(b) ? 0 : 1
+      if (da !== db)
+        return da - db
+    }
+    return (a.username ?? '').localeCompare(b.username ?? '', 'ru')
+  })
   return arr
 })
+
+const disputedCount = computed(() => previewRows.value.filter(isDisputed).length)
+
+// Число строк, где преподаватель отошёл от предложенного статуса.
+const changedCount = computed(() =>
+  previewRows.value.filter((r) => {
+    const id = r.studentId
+    if (!id)
+      return false
+    const ovr = overrides[id]
+    return ovr != null && ovr.status !== (r.proposedStatus ?? 'ABSENT')
+  }).length,
+)
+
+// «Принять все предложенные» — откатывает ручные правки статусов к тому, что
+// предложила система (комментарии сохраняем).
+function acceptAllProposed() {
+  for (const row of preview.value?.rows ?? []) {
+    if (!row.studentId)
+      continue
+    const ovr = overrides[row.studentId]
+    if (ovr)
+      ovr.status = (row.proposedStatus ?? 'ABSENT') as AttendanceStatus
+  }
+  editedStudentIds.clear()
+}
 
 // Живой список берём из preview: публичный эндпоинт ростер больше не отдаёт.
 const liveStudents = previewRows
@@ -737,6 +779,25 @@ async function handleConfirm() {
           <p class="text-muted text-sm">
             Проверьте предлагаемые статусы и при необходимости измените их перед переносом в основную посещаемость.
           </p>
+
+          <div class="flex flex-wrap items-center gap-2">
+            <UButton
+              icon="i-lucide-check-check"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              :disabled="confirming || changedCount === 0"
+              :title="changedCount ? `Откатить ${changedCount} ручных изменений к предложенным` : 'Ручных изменений нет'"
+              @click="acceptAllProposed"
+            >
+              Принять все предложенные{{ changedCount ? ` (${changedCount})` : '' }}
+            </UButton>
+            <USwitch
+              v-model="disputedFirst"
+              size="sm"
+              :label="disputedCount ? `Спорные сверху (${disputedCount})` : 'Спорные сверху'"
+            />
+          </div>
 
           <ClientOnly>
             <UTable

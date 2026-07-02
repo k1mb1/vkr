@@ -4,6 +4,7 @@ import type { AttendanceTableLesson, AttendanceTableResponse } from '#hey-api'
 import { getAttendancePolicy, getAttendanceTable } from '#hey-api'
 import { useAttendanceExport } from '~/composables/useAttendanceExport'
 import { groupBySection } from '~/composables/useTableSections'
+import { toolbarButton } from '~/utils/toolbarButtons'
 
 type LessonType = NonNullable<AttendanceTableLesson['type']>
 
@@ -13,6 +14,7 @@ const subjectId = computed(() => String(route.params.uuid ?? ''))
 const { permissionId, hasAllPermissions, scopes } = usePermissions()
 const { exportLoading, downloadExcel } = useAttendanceExport()
 const { sortBy, sortItems } = useStudentSort()
+const { density } = useTableDensity()
 
 const { data, pending, error, refresh } = useApi(
   { key: `attendance-table:${subjectId.value}`, immediate: false },
@@ -112,20 +114,16 @@ useRefreshOnFocus(refresh, { enabled: () => !editMode.value && attendanceDirty.v
       <template #links>
         <UDropdownMenu :items="exportItems" :ui="{ content: 'w-48' }">
           <UButton
-            icon="i-lucide-file-spreadsheet"
-            trailing-icon="i-lucide-chevron-down"
-            color="neutral"
-            variant="ghost"
+            v-bind="toolbarButton.export"
             :loading="exportLoading"
             :disabled="!data"
           >
-            Export Excel
+            Экспорт Excel
           </UButton>
         </UDropdownMenu>
+        <AppDensityToggle />
         <UButton
-          icon="i-lucide-refresh-cw"
-          color="neutral"
-          variant="ghost"
+          v-bind="toolbarButton.refresh"
           :loading="pending"
           @click="refresh()"
         />
@@ -173,17 +171,13 @@ useRefreshOnFocus(refresh, { enabled: () => !editMode.value && attendanceDirty.v
           <template v-if="editMode || attendanceDirty > 0">
             <UButton
               v-if="attendanceDirty > 0"
-              color="neutral"
-              variant="ghost"
-              icon="i-lucide-undo-2"
+              v-bind="toolbarButton.reset"
               label="Сбросить"
               :disabled="attendanceSaving"
               @click="resetAttendance"
             />
             <UButton
-              color="primary"
-              variant="solid"
-              icon="i-lucide-save"
+              v-bind="toolbarButton.save"
               :label="attendanceDirty > 0 ? `Сохранить (${attendanceDirty})` : 'Сохранить'"
               :loading="attendanceSaving"
               :disabled="attendanceDirty === 0"
@@ -211,6 +205,7 @@ useRefreshOnFocus(refresh, { enabled: () => !editMode.value && attendanceDirty.v
         :sections-filter="selectedSections"
         :attendance-policy="attendancePolicy"
         :sort-by="sortBy"
+        :density="density"
         :editable="editMode && canEdit"
         :pending-changes="attendancePendingView"
         empty-description="Для отображения посещаемости нужны и студенты, и занятия."

@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import type { User } from '#auth-utils'
 import type { SchemaFor } from '~/utils/validation'
 import * as v from 'valibot'
 import { createSubject } from '#hey-api'
@@ -15,8 +14,7 @@ const CreateSubjectRequestSchema = v.object({
   ),
 }) satisfies SchemaFor<unknown>
 
-const { user } = useOidcAuth()
-const { sub: myTeacherId } = user.value as User
+const teacherId = useTeacherId()
 
 const { state, formRef, loading, onSubmit, onError } = useResourceForm<typeof CreateSubjectRequestSchema>({
   initialState: () => ({ name: '', description: undefined, groupIds: [] }),
@@ -28,7 +26,7 @@ const handleCreate = onSubmit(
     body: {
       name: data.name,
       description: data.description || undefined,
-      teacherId: myTeacherId!,
+      teacherId: teacherId.value,
       groupIds: data.groupIds,
     },
   }),

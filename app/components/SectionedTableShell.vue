@@ -105,30 +105,31 @@ const createLessonsTo = computed(() => {
           :title="hasAnyLessons ? 'Нет занятий по выбранному фильтру' : 'Для этой группы пока нет занятий'"
         />
 
-        <UTable
-          v-else
-          :data="section.students"
-          :columns="section.columns"
-          :loading="pending && section.students.length === 0"
-          loading-color="primary"
-          loading-animation="carousel"
-          sticky
-          :style="{ maxHeight: tableMaxHeight }"
-          class="rounded-lg border border-default"
-          :ui="ui"
-          @keydown.capture="cellKeydown?.($event)"
-        >
-          <template #username-cell="{ row }">
-            <slot name="username-cell" :row="row">
-              <span
-                :title="(row.original as T).username ?? ''"
-                class="line-clamp-1 font-medium text-highlighted"
-              >
-                {{ (row.original as T).username ?? '—' }}
-              </span>
-            </slot>
-          </template>
-        </UTable>
+        <AppScrollHint v-else>
+          <UTable
+            :data="section.students"
+            :columns="section.columns"
+            :loading="pending && section.students.length === 0"
+            loading-color="primary"
+            loading-animation="carousel"
+            sticky
+            :style="{ maxHeight: tableMaxHeight }"
+            class="rounded-lg border border-default"
+            :ui="ui"
+            @keydown.capture="cellKeydown?.($event)"
+          >
+            <template #username-cell="{ row }">
+              <slot name="username-cell" :row="row">
+                <span
+                  :title="(row.original as T).username ?? ''"
+                  class="line-clamp-1 font-medium text-highlighted"
+                >
+                  {{ (row.original as T).username ?? '—' }}
+                </span>
+              </slot>
+            </template>
+          </UTable>
+        </AppScrollHint>
       </section>
     </template>
 
@@ -139,30 +140,31 @@ const createLessonsTo = computed(() => {
       @update:open="(v) => { if (!v) fullscreenKey = null }"
     >
       <template #body>
-        <UTable
-          v-if="fullscreenSection"
-          :data="fullscreenSection.students"
-          :columns="fullscreenSection.columns"
-          :loading="pending && fullscreenSection.students.length === 0"
-          loading-color="primary"
-          loading-animation="carousel"
-          sticky
-          style="max-height: calc(100vh - 8rem)"
-          class="rounded-lg border border-default"
-          :ui="ui"
-          @keydown.capture="cellKeydown?.($event)"
-        >
-          <template #username-cell="{ row }">
-            <slot name="username-cell" :row="row">
-              <span
-                :title="(row.original as T).username ?? ''"
-                class="line-clamp-1 font-medium text-highlighted"
-              >
-                {{ (row.original as T).username ?? '—' }}
-              </span>
-            </slot>
-          </template>
-        </UTable>
+        <AppScrollHint v-if="fullscreenSection">
+          <UTable
+            :data="fullscreenSection.students"
+            :columns="fullscreenSection.columns"
+            :loading="pending && fullscreenSection.students.length === 0"
+            loading-color="primary"
+            loading-animation="carousel"
+            sticky
+            style="max-height: calc(100vh - 8rem)"
+            class="rounded-lg border border-default"
+            :ui="ui"
+            @keydown.capture="cellKeydown?.($event)"
+          >
+            <template #username-cell="{ row }">
+              <slot name="username-cell" :row="row">
+                <span
+                  :title="(row.original as T).username ?? ''"
+                  class="line-clamp-1 font-medium text-highlighted"
+                >
+                  {{ (row.original as T).username ?? '—' }}
+                </span>
+              </slot>
+            </template>
+          </UTable>
+        </AppScrollHint>
       </template>
     </UModal>
 

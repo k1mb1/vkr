@@ -27,7 +27,7 @@ const {
   onKeydown,
 } = useAttendanceTable(props, emit)
 
-const tableUi = sectionedTableUi({ checkbox: true })
+const tableUi = computed(() => sectionedTableUi({ checkbox: true, density: props.density }))
 </script>
 
 <template>

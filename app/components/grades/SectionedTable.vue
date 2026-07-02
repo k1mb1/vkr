@@ -43,7 +43,7 @@ const legendColors = computed(() =>
   ].filter(item => item.color),
 )
 
-const tableUi = sectionedTableUi({ center: true, checkbox: true })
+const tableUi = computed(() => sectionedTableUi({ center: true, checkbox: true, density: props.density }))
 </script>
 
 <template>

@@ -2,17 +2,18 @@ import type { NavigationMenuItem } from '@nuxt/ui'
 import { getPage } from '#hey-api'
 
 export function useSubjectNavigation() {
-  const { user } = useOidcAuth()
+  const teacherId = useTeacherId()
   const route = useRoute()
-
-  const teacherId = computed(() => (user.value as { sub?: string }).sub ?? '')
 
   const { request, toPageState } = usePagable({
     pageSize: 100,
     filter: computed(() => ({ teacherId: teacherId.value })),
   })
 
-  const { data } = useApi({ key: 'subject-nav', watch: [request] }, () => getPage({ query: request.value }))
+  const { data } = useApi(
+    { key: 'subject-nav', watch: [request] },
+    () => teacherId.value ? getPage({ query: request.value }) : Promise.resolve({ data: null }),
+  )
 
   const { rows: subjects } = toPageState(data)
 

@@ -1,19 +1,16 @@
 <script setup lang="ts">
-import type { User } from '#auth-utils'
 import { getPage } from '#hey-api'
 import { usePagable } from '~/composables/usePagable'
 
-const { user } = useOidcAuth()
+const teacherId = useTeacherId()
 
 const search = ref('')
 const debouncedSearch = ref('')
 
-const { sub: teacherId } = user.value as User
-
 const { page, pageSize, request, toPageState } = usePagable({
   filter: () => ({
     name: debouncedSearch.value || undefined,
-    teacherId: teacherId!,
+    teacherId: teacherId.value,
   }),
 })
 
@@ -30,7 +27,7 @@ function clearSearch() {
 
 const { data, pending, error, refresh } = useApi(
   { key: 'subjects-list', watch: [request] },
-  () => getPage({ query: request.value }),
+  () => teacherId.value ? getPage({ query: request.value }) : Promise.resolve({ data: null }),
 )
 
 useRefreshOnFocus(refresh)

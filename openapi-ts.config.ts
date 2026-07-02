@@ -8,6 +8,11 @@ export default defineConfig({
   plugins: [
     '@hey-api/client-ofetch',
     'valibot',
-    { name: '@hey-api/sdk', validator: true },
+    // Валидируем только исходящий запрос. Ответы НЕ валидируем: Spring отдаёт
+    // отсутствующие опциональные поля как `null` ("description": null), а
+    // сгенерированный `v.optional(v.string())` принимает только `undefined`,
+    // не `null` — из-за чего валидный ответ падал с
+    // "Invalid type: Expected string but received null".
+    { name: '@hey-api/sdk', validator: { request: 'valibot', response: false } },
   ],
 })

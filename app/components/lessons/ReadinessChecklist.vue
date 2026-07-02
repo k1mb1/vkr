@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { CheckInSessionResponse, LessonResponse } from '#hey-api'
+import type { DropdownMenuItem } from '@nuxt/ui'
+import type { CheckInSessionResponse, LessonResponse, LessonScopeResponse } from '#hey-api'
 
 type CheckInState = NonNullable<CheckInSessionResponse['state']>
 
@@ -11,6 +12,8 @@ const props = defineProps<{
   hasAllPermissions: boolean
 }>()
 
+const { d } = useI18n()
+
 type StepStatus = 'done' | 'todo' | 'progress'
 
 interface Step {
@@ -19,12 +22,41 @@ interface Step {
   hint: string
   status: StepStatus
   action?: { label: string, icon: string, to: string, color?: 'primary' | 'neutral' }
+  /** Несколько проведений — выбор конкретного делаем прямо здесь через меню. */
+  menu?: { label: string, icon: string, color?: 'primary' | 'neutral', items: DropdownMenuItem[] }
 }
 
 const ACTIVE_STATES: CheckInState[] = ['OPEN', 'LATE_WINDOW', 'AWAITING_CONFIRMATION']
 
 const hasScopes = computed(() => (props.lesson?.scopes?.length ?? 0) > 0)
 const hasAssignments = computed(() => (props.lesson?.assignments?.length ?? 0) > 0)
+
+const createBase = computed(() => `/dashboard/subjects/${props.subjectId}/check-ins/create`)
+
+// Проведения, по которым ещё нет не отменённой сессии — их можно запускать.
+const launchableScopes = computed<LessonScopeResponse[]>(() => {
+  const taken = new Set<string>()
+  for (const s of props.sessions) {
+    if (s.lessonId === props.lessonId && s.lessonScopeId && s.state !== 'CANCELLED')
+      taken.add(s.lessonScopeId)
+  }
+  return (props.lesson?.scopes ?? []).filter(s => s.id && !taken.has(s.id))
+})
+
+function scopeLabel(s: LessonScopeResponse): string {
+  const parts: string[] = []
+  if (s.startedAt)
+    parts.push(d(new Date(s.startedAt), 'numeric'))
+  if (s.allGroups) {
+    parts.push('Все группы')
+  }
+  else {
+    parts.push(s.groupName ?? '—')
+    if (s.allowedSubgroupIndex != null)
+      parts.push(`Подгр. ${s.allowedSubgroupIndex}`)
+  }
+  return parts.join(' · ')
+}
 
 // Сессии этого занятия — матчим по lessonId (бэкенд отдаёт его в сессии).
 const lessonSessions = computed(() =>
@@ -103,22 +135,47 @@ const steps = computed<Step[]>(() => {
     })
   }
   else {
-    list.push({
+    const scopes = launchableScopes.value
+    const step: Step = {
       key: 'checkin',
       label: 'Отметка присутствия',
-      hint: hasScopes.value
-        ? 'Запустите опрос — студенты отметятся по QR-коду'
-        : 'Сначала назначьте проведение занятия',
+      hint: !hasScopes.value
+        ? 'Сначала назначьте проведение занятия'
+        : scopes.length > 1
+          ? 'У занятия несколько проведений — выберите, какое запустить'
+          : 'Запустите опрос — студенты отметятся по QR-коду',
       status: 'todo',
-      action: hasScopes.value
-        ? {
-            label: 'Запустить',
-            icon: 'i-lucide-qr-code',
-            to: `${checkInBase.value}/create?lessonId=${props.lessonId}`,
-            color: 'primary',
-          }
-        : undefined,
-    })
+    }
+
+    if (hasScopes.value && scopes.length > 1) {
+      // Несколько проведений (разные даты/группы) — даём выбор прямо на карточке,
+      // чтобы на форме запуска нужное проведение было уже предвыбрано.
+      step.menu = {
+        label: 'Запустить',
+        icon: 'i-lucide-qr-code',
+        color: 'primary',
+        items: scopes.map(s => ({
+          label: scopeLabel(s),
+          icon: 'i-lucide-qr-code',
+          to: `${createBase.value}?lessonScopeId=${s.id}`,
+        })),
+      }
+    }
+    else if (hasScopes.value) {
+      // Ровно одно проведение (или все, если сессий ещё нет) — запускаем сразу с
+      // предвыбором конкретного проведения, а не занятия целиком.
+      const only = scopes[0]
+      step.action = {
+        label: 'Запустить',
+        icon: 'i-lucide-qr-code',
+        to: only?.id
+          ? `${createBase.value}?lessonScopeId=${only.id}`
+          : `${createBase.value}?lessonId=${props.lessonId}`,
+        color: 'primary',
+      }
+    }
+
+    list.push(step)
   }
 
   return list
@@ -188,8 +245,24 @@ function statusClass(status: StepStatus): string {
             {{ step.hint }}
           </p>
         </div>
+        <UDropdownMenu
+          v-if="step.menu"
+          :items="step.menu.items"
+          :content="{ align: 'end' }"
+          :ui="{ content: 'w-64' }"
+        >
+          <UButton
+            :icon="step.menu.icon"
+            :label="step.menu.label"
+            trailing-icon="i-lucide-chevron-down"
+            :color="step.menu.color ?? 'neutral'"
+            variant="subtle"
+            size="xs"
+            class="shrink-0"
+          />
+        </UDropdownMenu>
         <UButton
-          v-if="step.action"
+          v-else-if="step.action"
           :icon="step.action.icon"
           :label="step.action.label"
           :to="step.action.to"

@@ -23,6 +23,8 @@ export interface AttendanceTableProps {
   attendancePolicy?: AttendancePolicyResponse | null
   /** Сортировка студентов: по алфавиту (по умолчанию) или по рейтингу посещаемости. */
   sortBy?: 'name' | 'rating'
+  /** Плотность строк таблицы. */
+  density?: import('~/utils/tableUi').TableDensity
 }
 
 export type AttendanceTableEmit = (e: 'change', payload: UpsertAttendanceRequest) => void

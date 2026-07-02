@@ -4,6 +4,7 @@ import type { GradingTableLesson, GradingTableResponse } from '#hey-api'
 import { getGradingTable } from '#hey-api'
 import { useGradesExport } from '~/composables/useGradesExport'
 import { groupBySection } from '~/composables/useTableSections'
+import { toolbarButton } from '~/utils/toolbarButtons'
 
 type LessonType = NonNullable<GradingTableLesson['type']>
 
@@ -79,6 +80,7 @@ const exportItems = computed<DropdownMenuItem[]>(() => [
 // ── Sorting ──────────────────────────────────────────────
 
 const { sortBy, sortItems } = useStudentSort()
+const { density } = useTableDensity()
 
 // ── Inline editing ───────────────────────────────────────
 
@@ -110,20 +112,16 @@ useRefreshOnFocus(refresh, { enabled: () => !editMode.value && gradeDirty.value 
       <template #links>
         <UDropdownMenu :items="exportItems" :ui="{ content: 'w-48' }">
           <UButton
-            icon="i-lucide-file-spreadsheet"
-            trailing-icon="i-lucide-chevron-down"
-            color="neutral"
-            variant="ghost"
+            v-bind="toolbarButton.export"
             :loading="exportLoading"
             :disabled="!data"
           >
-            Export Excel
+            Экспорт Excel
           </UButton>
         </UDropdownMenu>
+        <AppDensityToggle />
         <UButton
-          icon="i-lucide-refresh-cw"
-          color="neutral"
-          variant="ghost"
+          v-bind="toolbarButton.refresh"
           :loading="pending"
           @click="refresh()"
         />
@@ -171,17 +169,13 @@ useRefreshOnFocus(refresh, { enabled: () => !editMode.value && gradeDirty.value 
           <template v-if="editMode || gradeDirty > 0">
             <UButton
               v-if="gradeDirty > 0"
-              color="neutral"
-              variant="ghost"
-              icon="i-lucide-undo-2"
+              v-bind="toolbarButton.reset"
               label="Сбросить"
               :disabled="gradeSaving"
               @click="resetGrades"
             />
             <UButton
-              color="primary"
-              variant="solid"
-              icon="i-lucide-save"
+              v-bind="toolbarButton.save"
               :label="gradeDirty > 0 ? `Сохранить (${gradeDirty})` : 'Сохранить'"
               :loading="gradeSaving"
               :disabled="gradeDirty === 0"
@@ -209,6 +203,7 @@ useRefreshOnFocus(refresh, { enabled: () => !editMode.value && gradeDirty.value 
         :pending="pending"
         :sections-filter="selectedSections"
         :sort-by="sortBy"
+        :density="density"
         :editable="editMode && canEdit"
         :pending-changes="gradePendingView"
         empty-description="Для отображения оценок нужны и студенты, и занятия."
