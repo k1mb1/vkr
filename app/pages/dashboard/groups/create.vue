@@ -1,29 +1,13 @@
 <script setup lang="ts">
-import type { components } from '#open-fetch-schemas/backend'
-import * as v from 'valibot'
+import type { CreateGroupRequest, StudentGroupMemberRequest } from '#hey-api'
+import { createGroup } from '#hey-api'
+import { vCreateGroupRequest } from '#hey-api/valibot.gen'
 
-import { arrayMinLength, nonNegativeInteger, string } from '~/utils/validation'
-
-type CreateGroupRequest = components['schemas']['CreateGroupRequest']
-type Student = components['schemas']['StudentGroupMemberRequest']
+type Student = StudentGroupMemberRequest
 type SubgroupId = Student['subgroupIndex']
 
-const CreateGroupRequestSchema: SchemaFor<CreateGroupRequest> = v.object({
-  name: string('Введите название группы'),
-  students: arrayMinLength(
-    v.object({
-      username: string('Введите username студента'),
-      subgroupIndex: v.optional(v.pipe(nonNegativeInteger(), v.minValue(1))),
-    }),
-    1,
-    'Добавьте хотя бы одного студента',
-  ),
-})
-
-const { $backend } = useNuxtApp()
-
-const { state, formRef, loading, onSubmit, onError } = useResourceForm<typeof CreateGroupRequestSchema>({
-  initialState: () => ({ name: '', students: [] }),
+const { state, formRef, loading, onSubmit, onError } = useResourceForm<typeof vCreateGroupRequest>({
+  initialState: () => ({ name: '', students: [] }) as CreateGroupRequest,
   successMessage: 'Группа создана',
 })
 
@@ -96,10 +80,11 @@ function resetForm() {
 }
 
 const handleCreate = onSubmit(
-  data => $backend('/api/groups', { method: 'POST', body: data }),
+  data => createGroup({ body: data }),
   {
     onSuccess: async (result) => {
-      await navigateTo(`/dashboard/groups/${result.id}`)
+      if (result?.id)
+        await navigateTo(`/dashboard/groups/${result.id}`)
       resetForm()
     },
   },
@@ -130,7 +115,7 @@ const handleCreate = onSubmit(
 
     <UForm
       ref="formRef"
-      :schema="CreateGroupRequestSchema"
+      :schema="vCreateGroupRequest"
       :state="state"
       class="flex flex-1 flex-col gap-4 overflow-hidden"
       @submit="handleCreate"

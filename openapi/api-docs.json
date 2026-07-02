@@ -905,6 +905,27 @@
         }
       }
     },
+    "/api/lesson-scopes/{scopeId}": {
+      "delete": {
+        "tags": ["Lesson scopes"],
+        "summary": "Удалить проведение занятия",
+        "operationId": "deleteLessonScope",
+        "parameters": [
+          {
+            "name": "scopeId",
+            "in": "path",
+            "description": "ID проведения (scope)",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/lessons/bulk": {
       "post": {
         "tags": ["Lessons"],

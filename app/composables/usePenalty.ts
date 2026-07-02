@@ -1,6 +1,4 @@
-import type { components } from '#open-fetch-schemas/backend'
-
-type PenaltyPolicyResponse = components['schemas']['PenaltyPolicyResponse']
+import type { PenaltyPolicyResponse } from '#hey-api'
 
 export interface PenaltyInfo {
   originalScore: number

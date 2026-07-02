@@ -1,11 +1,9 @@
 <script setup lang="ts">
-import type { components } from '#open-fetch-schemas/backend'
+import type { GroupResponse, UpdateGroupRequest } from '#hey-api'
 import * as v from 'valibot'
+import { getGroupById, updateGroup } from '#hey-api'
 
 import { arrayMinLength, string, uuidV4 } from '~/utils/validation'
-
-type GroupResponse = components['schemas']['GroupResponse']
-type UpdateGroupRequest = components['schemas']['UpdateGroupRequest']
 
 type FormSchema = Required<Pick<UpdateGroupRequest, 'name' | 'students'>>
 
@@ -26,12 +24,10 @@ const UpdateGroupRequestSchema: SchemaFor<FormSchema> = v.object({
 const route = useRoute()
 const groupId = computed(() => String(route.params.uuid ?? ''))
 
-const { $backend } = useNuxtApp()
-
-const { data, pending, error, refresh } = useBackend('/api/groups/{id}', {
-  method: 'GET',
-  path: { id: groupId },
-})
+const { data, pending, error, refresh } = useApi(
+  { key: `group:${groupId.value}`, watch: [groupId] },
+  () => getGroupById({ path: { id: groupId.value } }),
+)
 
 const group = computed<GroupResponse | null>(() => data.value ?? null)
 
@@ -183,11 +179,7 @@ const handleSave = onSubmit(
     if (dirtyFields.value.has('students'))
       body.students = data.students
 
-    return $backend('/api/groups/{id}', {
-      method: 'PATCH',
-      path: { id: groupId.value },
-      body,
-    })
+    return updateGroup({ path: { id: groupId.value }, body })
   },
   {
     onSuccess: async () => {

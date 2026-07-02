@@ -1,14 +1,11 @@
 <script setup lang="ts">
-import type { components } from '#open-fetch-schemas/backend'
+import type { AttendancePolicyResponse, Band, FinalAssessmentPolicyRequest, FinalAssessmentPolicyResponse } from '#hey-api'
 import type { SchemaFor } from '~/utils/validation'
 import * as v from 'valibot'
+import { getAttendancePolicy, getFinalAssessmentPolicy, updateFinalAssessmentPolicy } from '#hey-api'
 
 definePageMeta({ middleware: 'subject-permission' })
 
-type FinalAssessmentPolicyRequest = components['schemas']['FinalAssessmentPolicyRequest']
-type FinalAssessmentPolicyResponse = components['schemas']['FinalAssessmentPolicyResponse']
-type AttendancePolicyResponse = components['schemas']['AttendancePolicyResponse']
-type Band = components['schemas']['Band']
 type AttendanceMode = NonNullable<FinalAssessmentPolicyRequest['attendanceMode']>
 type AttendanceRequirementMode = NonNullable<FinalAssessmentPolicyRequest['attendanceRequirementMode']>
 
@@ -120,17 +117,15 @@ const FinalAssessmentPolicySchema: SchemaFor<FinalAssessmentPolicyForm> = v.pipe
 const route = useRoute()
 const subjectId = String(route.params.uuid ?? '')
 
-const { $backend } = useNuxtApp()
+const { data, pending, error, refresh } = useApi(
+  { key: `final-assessment-policy:${subjectId}` },
+  () => getFinalAssessmentPolicy({ path: { subjectId } }),
+)
 
-const { data, pending, error, refresh } = useBackend('/api/final-assessment-policy/subjects/{subjectId}', {
-  method: 'GET',
-  path: { subjectId },
-})
-
-const { data: attendancePolicyData } = useBackend('/api/attendance-policy/subjects/{subjectId}', {
-  method: 'GET',
-  path: { subjectId },
-})
+const { data: attendancePolicyData } = useApi(
+  { key: `final-attendance-policy:${subjectId}` },
+  () => getAttendancePolicy({ path: { subjectId } }),
+)
 
 const policy = computed<FinalAssessmentPolicyResponse | null>(() => data.value ?? null)
 const attendancePolicy = computed<AttendancePolicyResponse | null>(() => attendancePolicyData.value ?? null)
@@ -241,11 +236,7 @@ const handleSave = onSubmit(
         : {}),
     }
 
-    return $backend('/api/final-assessment-policy/subjects/{subjectId}', {
-      method: 'PUT',
-      path: { subjectId },
-      body,
-    })
+    return updateFinalAssessmentPolicy({ path: { subjectId }, body })
   },
   {
     onSuccess: () => refresh(),

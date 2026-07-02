@@ -38,15 +38,6 @@ const cards = computed(() => {
     },
   ]
 
-  if (import.meta.dev) {
-    baseCards.push({
-      label: 'Test',
-      description: 'Dev only страница',
-      icon: 'i-lucide-flask-round',
-      to: `/dashboard/subjects/${subjectId.value}/test`,
-    })
-  }
-
   return baseCards
 })
 </script>

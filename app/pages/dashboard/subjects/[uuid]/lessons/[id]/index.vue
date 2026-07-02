@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import type { components } from '#open-fetch-schemas/backend'
-
-type LessonResponse = components['schemas']['LessonResponse']
+import type { LessonResponse } from '#hey-api'
+import { getLessonById, getResults, list } from '#hey-api'
 
 const route = useRoute()
 const subjectId = computed(() => String(route.params.uuid ?? ''))
@@ -11,24 +10,33 @@ const { permissionId, hasAllPermissions, scopes } = usePermissions()
 const { d } = useI18n()
 
 // ── Data ────────────────────────────────────────────────────────────────────
-const { data: lesson, pending: lessonPending, error: lessonError } = useBackend('/api/lessons/{id}', {
-  method: 'GET',
-  path: computed(() => ({ id: lessonId.value })),
-})
+const { data: lesson, pending: lessonPending, error: lessonError } = useApi(
+  { key: `lesson:${lessonId.value}`, watch: [lessonId] },
+  () => getLessonById({ path: { id: lessonId.value } }),
+)
 
-const { data: results, pending: resultsPending, refresh: resultsRefresh } = useBackend('/api/results', {
-  method: 'GET',
-  query: computed(() => ({ permissionId: permissionId.value, lessonId: lessonId.value })),
-  immediate: false,
-})
+const { data: results, pending: resultsPending, refresh: resultsRefresh } = useApi(
+  { key: `lesson-results:${lessonId.value}`, immediate: false, watch: [lessonId] },
+  () => getResults({ query: { permissionId: permissionId.value, lessonId: lessonId.value } }),
+)
+
+// Сессии отметки — для чеклиста готовности (статус: не начата / идёт / проведена).
+const { data: sessionsData, refresh: sessionsRefresh } = useApi(
+  { key: `lesson-sessions:${lessonId.value}`, immediate: false },
+  () => list({ query: { permissionId: permissionId.value } }),
+)
 
 const attData = computed(() => results.value?.attendance ?? null)
 const gradesData = computed(() => results.value?.grading ?? null)
 
-useRefreshOnPermission(permissionId, resultsRefresh)
+useRefreshOnPermission(permissionId, () => {
+  resultsRefresh()
+  sessionsRefresh()
+})
 
 function refreshAll() {
   resultsRefresh()
+  sessionsRefresh()
 }
 
 const lessonTypeLabel = (t?: LessonResponse['type']) => t === 'LECTURE' ? 'Лекция' : t === 'PRACTICE' ? 'Практика' : '—'
@@ -156,6 +164,14 @@ const { leaveModalOpen, confirmLeave, cancelLeave } = useUnsavedGuard(hasUnsaved
       />
 
       <template v-else>
+        <LessonsReadinessChecklist
+          :subject-id="subjectId"
+          :lesson-id="lessonId"
+          :lesson="lesson ?? null"
+          :sessions="sessionsData ?? []"
+          :has-all-permissions="hasAllPermissions"
+        />
+
         <UPageGrid class="lg:grid-cols-3 sm:grid-cols-2 gap-3">
           <UPageCard
             icon="i-lucide-graduation-cap"
@@ -187,17 +203,7 @@ const { leaveModalOpen, confirmLeave, cancelLeave } = useUnsavedGuard(hasUnsaved
                   </span>
                 </div>
               </div>
-              <div v-else class="flex flex-col items-start gap-2">
-                <span class="text-warning text-sm">Проведение не назначено.</span>
-                <UButton
-                  v-if="hasAllPermissions"
-                  color="primary"
-                  variant="subtle"
-                  icon="i-lucide-calendar-plus"
-                  label="Назначить проведение"
-                  @click="navigateTo(`/dashboard/subjects/${subjectId}/lessons/${lessonId}/scopes-create`)"
-                />
-              </div>
+              <span v-else class="text-warning text-sm">Проведение не назначено.</span>
             </template>
           </UPageCard>
 
@@ -217,20 +223,7 @@ const { leaveModalOpen, confirmLeave, cancelLeave } = useUnsavedGuard(hasUnsaved
                 </UTooltip>
                 <span class="text-muted text-xs">Σ {{ totalPoints }}</span>
               </div>
-              <div v-else class="flex flex-col items-start gap-2">
-                <span class="text-warning text-sm">Задания не назначены — добавьте хотя бы одно задание.</span>
-                <UButton
-                  v-if="hasAllPermissions && lesson"
-                  color="primary"
-                  variant="subtle"
-                  icon="i-lucide-clipboard-list"
-                  label="Добавить задания"
-                  @click="navigateTo({
-                    path: `/dashboard/subjects/${subjectId}/lessons/${lessonId}/assignments-create`,
-                    state: { lesson: JSON.parse(JSON.stringify(lesson)) },
-                  })"
-                />
-              </div>
+              <span v-else class="text-warning text-sm">Задания не назначены — добавьте хотя бы одно задание.</span>
             </template>
           </UPageCard>
         </UPageGrid>

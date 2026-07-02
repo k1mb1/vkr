@@ -1,10 +1,7 @@
-import type { components } from '#open-fetch-schemas/backend'
+import type { AttendanceCellResponse, AttendanceTableLesson, AttendanceTableResponse } from '#hey-api'
 import type { SectionKey } from '~/composables/useTableSections'
 import { groupBySection, scopeVisibleForSection } from '~/composables/useTableSections'
 
-type AttendanceTableResponse = components['schemas']['AttendanceTableResponse']
-type AttendanceTableLesson = components['schemas']['AttendanceTableLesson']
-type AttendanceCellResponse = components['schemas']['AttendanceCellResponse']
 type AttendanceStatus = NonNullable<AttendanceCellResponse['status']>
 type LessonType = NonNullable<AttendanceTableLesson['type']>
 type LessonTypeFilter = 'ALL' | LessonType

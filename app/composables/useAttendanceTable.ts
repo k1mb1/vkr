@@ -1,6 +1,6 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { Cell } from '@tanstack/vue-table'
-import type { components } from '#open-fetch-schemas/backend'
+import type { AttendanceCellResponse, AttendancePolicyResponse, AttendanceTableLesson, AttendanceTableResponse, AttendanceTableStudent, UpsertAttendanceRequest } from '#hey-api'
 import type { SectionKey } from '~/composables/useTableSections'
 import { computed, h } from 'vue'
 import { UButton, UDropdownMenu, UIcon } from '#components'
@@ -9,13 +9,7 @@ import { groupBySection, scopeVisibleForSection } from '~/composables/useTableSe
 import { ATTENDANCE_HIGHLIGHT_DEFAULTS, highlightChipBg, softHighlightBg } from '~/utils/highlight'
 import { round2 } from '~/utils/number'
 
-type AttendanceTableResponse = components['schemas']['AttendanceTableResponse']
-type AttendanceTableStudent = components['schemas']['AttendanceTableStudent']
-type AttendanceTableLesson = components['schemas']['AttendanceTableLesson']
-type AttendanceCellResponse = components['schemas']['AttendanceCellResponse']
 type AttendanceStatus = NonNullable<AttendanceCellResponse['status']>
-type UpsertAttendanceRequest = components['schemas']['UpsertAttendanceRequest']
-type AttendancePolicyResponse = components['schemas']['AttendancePolicyResponse']
 
 export interface AttendanceTableProps {
   data: AttendanceTableResponse | null | undefined

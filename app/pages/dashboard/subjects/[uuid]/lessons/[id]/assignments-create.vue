@@ -1,15 +1,11 @@
 <script setup lang="ts">
-import type { components } from '#open-fetch-schemas/backend'
+import type { AssignmentResponse, Band, CreateAssignmentsRequest, LessonResponse } from '#hey-api'
 import type { SchemaFor } from '~/utils/validation'
 import * as v from 'valibot'
+import { create1, getFinalAssessmentPolicy } from '#hey-api'
 import { arrayMinLength } from '~/utils/validation'
 
 definePageMeta({ middleware: 'subject-permission' })
-
-type LessonResponse = components['schemas']['LessonResponse']
-type AssignmentResponse = components['schemas']['AssignmentResponse']
-type CreateAssignmentsRequest = components['schemas']['CreateAssignmentsRequest']
-type Band = components['schemas']['Band']
 
 type AdmissionMode = NonNullable<AssignmentResponse['admissionMode']>
 
@@ -76,13 +72,11 @@ const lessonId = String(route.params.id ?? '')
 
 const targetLesson = (history.state?.lesson ?? null) as LessonResponse | null
 
-const { $backend } = useNuxtApp()
-
 // ── Policy for bands ────────────────────────────────────────────────────────
-const { data: policyData } = useBackend('/api/final-assessment-policy/subjects/{subjectId}', {
-  method: 'GET',
-  path: { subjectId },
-})
+const { data: policyData } = useApi(
+  { key: `final-assessment-policy:${subjectId}` },
+  () => getFinalAssessmentPolicy({ path: { subjectId } }),
+)
 
 const bands = computed<Band[]>(() => policyData.value?.bands ?? [])
 const policyEnabled = computed(() => policyData.value?.enabled ?? false)
@@ -166,10 +160,7 @@ const handleCreate = onSubmit(
       })),
     }
 
-    return $backend('/api/assignments', {
-      method: 'POST',
-      body: body as unknown as CreateAssignmentsRequest,
-    })
+    return create1({ body: body as unknown as CreateAssignmentsRequest })
   },
   {
     successMessage: result => (result?.length ?? 0) > 1

@@ -1,20 +1,19 @@
 <script setup lang="ts">
-import type { components } from '#open-fetch-schemas/backend'
-
-type LessonResponse = components['schemas']['LessonResponse']
+import type { LessonResponse } from '#hey-api'
+import { getLessons } from '#hey-api'
 
 const route = useRoute()
 const subjectId = computed(() => String(route.params.uuid ?? ''))
 
 const { permissionId, pending: permissionPending } = usePermissions()
 
-const { data, pending: lessonsPending, error, refresh } = useBackend('/api/lessons', {
-  method: 'GET',
-  query: computed(() => ({ permissionId: permissionId.value })),
-  immediate: false,
-})
+const { data, pending: lessonsPending, error, refresh } = useApi(
+  { key: `lessons:${subjectId.value}`, immediate: false },
+  () => getLessons({ query: { permissionId: permissionId.value } }),
+)
 
 useRefreshOnPermission(permissionId, refresh)
+useRefreshOnFocus(refresh)
 
 const pending = computed(() => permissionPending.value || lessonsPending.value)
 
@@ -108,10 +107,8 @@ const lessonTypeFilter = computed<LessonTypeFilter>(() => {
       :description="error.message"
     />
 
-    <UAlert
-      color="neutral"
-      variant="soft"
-      icon="i-lucide-info"
+    <AppHint
+      id="lessons-index"
       title="Зачем это нужно"
       description="Список занятий предмета — лекции и практики, их темы, проведение (группы и даты) и задания. Чтобы выставить посещаемость или оценки по занятию, откройте его кнопкой «Открыть»."
     />

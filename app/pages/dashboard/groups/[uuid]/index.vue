@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import type { components } from '#open-fetch-schemas/backend'
+import type { StudentResponse } from '#hey-api'
 import type { Subgroup } from '~/composables/useGroupTabs'
+import { deleteGroup, getGroupById } from '#hey-api'
 
 const route = useRoute()
 const groupId = computed(() => String(route.params.uuid ?? ''))
@@ -9,24 +10,19 @@ const activeGroupName = useState<string | null>(
   () => null,
 )
 
-const { data, pending, error } = useBackend('/api/groups/{id}', {
-  method: 'GET',
-  path: { id: groupId },
-})
+const { data, pending, error } = useApi(
+  { key: `group:${groupId.value}`, watch: [groupId] },
+  () => getGroupById({ path: { id: groupId.value } }),
+)
 
 const group = computed(() => data.value ?? null)
-
-const { $backend } = useNuxtApp()
 
 const deletingGroup = ref(false)
 const { loading: deleteGroupPending, submit } = useFormSubmit()
 
 async function onDeleteGroup() {
   await submit(
-    () => $backend('/api/groups/{id}', {
-      method: 'DELETE',
-      path: { id: groupId.value },
-    }),
+    () => deleteGroup({ path: { id: groupId.value } }),
     {
       successMessage: 'Группа удалена',
       onSuccess: () => navigateTo('/dashboard/groups'),
@@ -54,7 +50,7 @@ const {
   tabsData,
   groupTabs,
   availableTabValues,
-} = useGroupTabs<components['schemas']['StudentResponse']>({
+} = useGroupTabs<StudentResponse>({
   students: computed(() => (group.value?.students ?? [])),
   subgroups: computed(() => (group.value?.subgroups ?? []).map(sg => ({ id: sg.id!, index: sg.index })) as Subgroup[]),
   getId: s => s.id ?? null,

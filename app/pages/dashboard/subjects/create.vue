@@ -1,27 +1,22 @@
 <script setup lang="ts">
 import type { User } from '#auth-utils'
-import type { components } from '#open-fetch-schemas/backend'
 import type { SchemaFor } from '~/utils/validation'
-
 import * as v from 'valibot'
+import { createSubject } from '#hey-api'
 import { arrayMinLength, string } from '~/utils/validation'
 
-type CreateSubjectRequest = components['schemas']['CreateSubjectRequest']
-type CreateSubjectForm = Omit<CreateSubjectRequest, 'teacherId'>
-
-const CreateSubjectRequestSchema: SchemaFor<CreateSubjectForm> = v.object({
+// teacherId берётся из авторизации, поэтому схема формы отличается от vCreateSubjectRequest.
+const CreateSubjectRequestSchema = v.object({
   name: string('Введите название предмета'),
   description: v.optional(v.pipe(v.string(), v.trim())),
   groupIds: v.pipe(
     arrayMinLength(v.string(), 1, 'Выберите хотя бы одну группу'),
     v.check(ids => new Set(ids).size === ids.length, 'Группы не должны повторяться'),
   ),
-})
+}) satisfies SchemaFor<unknown>
 
 const { user } = useOidcAuth()
 const { sub: myTeacherId } = user.value as User
-
-const { $backend } = useNuxtApp()
 
 const { state, formRef, loading, onSubmit, onError } = useResourceForm<typeof CreateSubjectRequestSchema>({
   initialState: () => ({ name: '', description: undefined, groupIds: [] }),
@@ -29,18 +24,15 @@ const { state, formRef, loading, onSubmit, onError } = useResourceForm<typeof Cr
 })
 
 const handleCreate = onSubmit(
-  (data) => {
-    const body: CreateSubjectRequest = {
+  data => createSubject({
+    body: {
       name: data.name,
       description: data.description || undefined,
       teacherId: myTeacherId!,
       groupIds: data.groupIds,
-    }
-    return $backend('/api/subjects', { method: 'POST', body })
-  },
-  {
-    onSuccess: result => navigateTo(`/dashboard/subjects/${result.id}`),
-  },
+    },
+  }),
+  { onSuccess: result => result?.id && navigateTo(`/dashboard/subjects/${result.id}`) },
 )
 </script>
 

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { BulkScheduleRequest } from '~/composables/useBulkScheduleForm'
+import { bulkSchedule, getGroupsBySubject } from '#hey-api'
 import {
   buildBulkScheduleItems,
   bulkScheduleBody,
@@ -14,7 +15,6 @@ definePageMeta({ middleware: 'subject-permission' })
 const route = useRoute()
 const subjectId = String(route.params.uuid ?? '')
 
-const { $backend } = useNuxtApp()
 const toast = useToast()
 const { permission } = usePermissions()
 const { loading, submit } = useFormSubmit()
@@ -24,10 +24,10 @@ const lessonType = ref<BulkScheduleRequest['lessonType']>('PRACTICE')
 const count = ref(1)
 const form = reactive(initialBulkScheduleState())
 
-const { data: groups, pending: groupsPending } = useBackend('/api/groups/by-subject', {
-  method: 'GET',
-  query: { subjectId },
-})
+const { data: groups, pending: groupsPending } = useApi(
+  { key: `groups-by-subject:${subjectId}` },
+  () => getGroupsBySubject({ query: { subjectId } }),
+)
 
 watch(groups, (val) => {
   if (val)
@@ -61,10 +61,7 @@ async function handleCreate() {
   }
 
   await submit(
-    () => $backend('/api/lessons/bulk-schedule', {
-      method: 'POST',
-      body: bulkScheduleBody(body),
-    }),
+    () => bulkSchedule({ body: bulkScheduleBody(body) }),
     {
       successMessage: (result) => {
         const lessons = result.length

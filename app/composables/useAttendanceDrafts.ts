@@ -1,6 +1,6 @@
-import type { components } from '#open-fetch-schemas/backend'
+import type { BulkUpsertAttendanceRequest } from '#hey-api'
+import { upsertAll } from '#hey-api'
 
-type BulkUpsertAttendanceRequest = components['schemas']['BulkUpsertAttendanceRequest']
 type UpsertAttendanceRequest = BulkUpsertAttendanceRequest['items'][number]
 type AttendanceStatus = UpsertAttendanceRequest['status']
 
@@ -10,7 +10,6 @@ type AttendanceStatus = UpsertAttendanceRequest['status']
  * странице занятия, и в сводной таблице посещаемости.
  */
 export function useAttendanceDrafts(options: { onSaved?: () => Promise<void> | void } = {}) {
-  const { $backend } = useNuxtApp()
   const { toastError, toast } = useApiError()
 
   const changes = reactive<Record<string, AttendanceStatus>>({})
@@ -41,24 +40,22 @@ export function useAttendanceDrafts(options: { onSaved?: () => Promise<void> | v
       return { studentId: studentId!, lessonScopeId: lessonScopeId!, status }
     })
     saving.value = true
-    try {
-      const body: BulkUpsertAttendanceRequest = { items }
-      await $backend('/api/attendances', { method: 'PUT', body })
-      reset()
-      await options.onSaved?.()
-      toast.add({
-        title: 'Посещаемость сохранена',
-        description: `Обновлено ячеек: ${items.length}`,
-        color: 'success',
-        icon: 'i-lucide-circle-check',
-      })
+    const { error } = await $api(() => upsertAll({ body: { items } }))
+    saving.value = false
+
+    if (error) {
+      toastError(error, 'Не удалось сохранить')
+      return
     }
-    catch (e) {
-      toastError(e as Parameters<typeof toastError>[0], 'Не удалось сохранить')
-    }
-    finally {
-      saving.value = false
-    }
+
+    reset()
+    await options.onSaved?.()
+    toast.add({
+      title: 'Посещаемость сохранена',
+      description: `Обновлено ячеек: ${items.length}`,
+      color: 'success',
+      icon: 'i-lucide-circle-check',
+    })
   }
 
   return { changes, saving, dirty, pendingView, onChange, reset, save }

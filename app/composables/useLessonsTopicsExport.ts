@@ -1,7 +1,5 @@
-import type { components } from '#open-fetch-schemas/backend'
+import type { LessonResponse, LessonScopeResponse } from '#hey-api'
 
-type LessonResponse = components['schemas']['LessonResponse']
-type LessonScopeResponse = components['schemas']['LessonScopeResponse']
 export type LessonType = NonNullable<LessonResponse['type']>
 export type LessonTypeFilter = 'ALL' | LessonType
 

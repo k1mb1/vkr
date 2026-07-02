@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import type { components } from '#open-fetch-schemas/backend'
+import type { CreateTeacherSubjectPermissionRequest } from '#hey-api'
 import type { SchemaFor } from '~/utils/validation'
 import * as v from 'valibot'
+import { create, getGroupsBySubject, getPermissionsBySubject } from '#hey-api'
 import { string } from '~/utils/validation'
 
 definePageMeta({ middleware: 'subject-permission' })
 
-type CreateTeacherSubjectPermissionRequest = components['schemas']['CreateTeacherSubjectPermissionRequest']
 type CreatePermissionForm = Omit<CreateTeacherSubjectPermissionRequest, 'subjectId'>
 
 const CreatePermissionSchema: SchemaFor<CreatePermissionForm> = v.object({
@@ -24,15 +24,12 @@ const CreatePermissionSchema: SchemaFor<CreatePermissionForm> = v.object({
 const route = useRoute()
 const subjectId = String(route.params.uuid ?? '')
 
-const { $backend } = useNuxtApp()
-
 const { permission, pending: loadingScope } = usePermissions()
 
-const { data: subjectPermissions } = useBackend('/api/teacher-subject-permissions', {
-  method: 'GET',
-  key: `subject-permissions:${subjectId}`,
-  query: { subjectId },
-})
+const { data: subjectPermissions } = useApi(
+  { key: `subject-permissions:${subjectId}` },
+  () => getPermissionsBySubject({ query: { subjectId } }),
+)
 
 const excludedTeacherIds = computed<string[]>(() =>
   (subjectPermissions.value ?? [])
@@ -40,10 +37,10 @@ const excludedTeacherIds = computed<string[]>(() =>
     .filter((id): id is string => !!id),
 )
 
-const { data: groups, pending: groupsPending } = useBackend('/api/groups/by-subject', {
-  method: 'GET',
-  query: { subjectId },
-})
+const { data: groups, pending: groupsPending } = useApi(
+  { key: `groups-by-subject:${subjectId}` },
+  () => getGroupsBySubject({ query: { subjectId } }),
+)
 
 const { state, formRef, loading, onSubmit, onError } = useResourceForm<typeof CreatePermissionSchema>({
   initialState: () => ({
@@ -72,10 +69,7 @@ function removeScope(i: number) {
 }
 
 const handleCreate = onSubmit(
-  data => $backend('/api/teacher-subject-permissions', {
-    method: 'POST',
-    body: { ...data, subjectId } satisfies CreateTeacherSubjectPermissionRequest,
-  }),
+  data => create({ body: { ...data, subjectId } satisfies CreateTeacherSubjectPermissionRequest }),
   {
     onSuccess: () => navigateTo(`/dashboard/subjects/${subjectId}/settings/permissions`),
   },

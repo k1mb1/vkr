@@ -1,13 +1,21 @@
+import { resolve } from 'node:path'
 import { env } from 'node:process'
 
 export default defineNuxtConfig({
-  modules: ['@nuxt/eslint', '@nuxt/ui', 'nuxt-auth-utils', '@nuxtjs/i18n', 'nuxt-open-fetch', 'nuxt-security'],
+  modules: ['@nuxt/eslint', '@nuxt/ui', 'nuxt-auth-utils', '@nuxtjs/i18n', 'nuxt-security'],
 
   devtools: {
     enabled: true,
   },
 
   css: ['~/assets/css/main.css'],
+
+  // hey-api сгенерированный клиент (openapi-ts → .nuxt/client). Импортируется
+  // как '#hey-api' (SDK/типы) и '#hey-api/valibot.gen' (схемы для форм).
+  alias: {
+    '#hey-api': resolve('.nuxt/client'),
+    '#hey-api/*': `${resolve('.nuxt/client')}/*`,
+  },
 
   runtimeConfig: {
     proxyTimeoutMs: env.NUXT_PROXY_TIMEOUT_MS ? Number(env.NUXT_PROXY_TIMEOUT_MS) : 15000,
@@ -171,14 +179,5 @@ export default defineNuxtConfig({
       code: 'ru',
       name: 'Русский',
     }],
-  },
-
-  openFetch: {
-    clients: {
-      backend: {
-        schema: './openapi/api-docs.json',
-        baseURL: '/api/proxy',
-      },
-    },
   },
 })

@@ -1,14 +1,9 @@
-import type { components } from '#open-fetch-schemas/backend'
+import type { AssignmentResponse, GradeCellResponse, GradingTableLesson, GradingTableResponse, Scope } from '#hey-api'
 import type { SectionKey } from '~/composables/useTableSections'
 import { applyBonus, applyPenalty, computeBonusCount, computePenaltyCount } from '~/composables/usePenalty'
 import { groupBySection, scopeVisibleForSection } from '~/composables/useTableSections'
 import { round2 } from '~/utils/number'
 
-type GradingTableResponse = components['schemas']['GradingTableResponse']
-type GradingTableLesson = components['schemas']['GradingTableLesson']
-type AssignmentResponse = components['schemas']['AssignmentResponse']
-type GradeCellResponse = components['schemas']['GradeCellResponse']
-type Scope = components['schemas']['Scope']
 type LessonType = NonNullable<GradingTableLesson['type']>
 type LessonTypeFilter = 'ALL' | LessonType
 

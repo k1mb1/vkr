@@ -1,14 +1,12 @@
 <script setup lang="ts">
-import type { components } from '#open-fetch-schemas/backend'
+import type { PermissionScopeRequest, TeacherSubjectPermissionResponse, UpdateTeacherSubjectPermissionRequest } from '#hey-api'
 import type { SchemaFor } from '~/utils/validation'
 import * as v from 'valibot'
+import { getGroupsBySubject, update } from '#hey-api'
 import { string } from '~/utils/validation'
 
 definePageMeta({ middleware: 'subject-permission' })
 
-type TeacherSubjectPermissionResponse = components['schemas']['TeacherSubjectPermissionResponse']
-type UpdateTeacherSubjectPermissionRequest = components['schemas']['UpdateTeacherSubjectPermissionRequest']
-type PermissionScopeRequest = components['schemas']['PermissionScopeRequest']
 type LessonType = NonNullable<PermissionScopeRequest['allowedLessonType']>
 const EditPermissionSchema: SchemaFor<UpdateTeacherSubjectPermissionRequest> = v.object({
   allPermissions: v.boolean(),
@@ -25,12 +23,10 @@ const route = useRoute()
 const subjectId = String(route.params.uuid ?? '')
 const permissionId = String(route.params.id ?? '')
 
-const { $backend } = useNuxtApp()
-
-const { data: groups, pending: groupsPending } = useBackend('/api/groups/by-subject', {
-  method: 'GET',
-  query: { subjectId },
-})
+const { data: groups, pending: groupsPending } = useApi(
+  { key: `groups-by-subject:${subjectId}` },
+  () => getGroupsBySubject({ query: { subjectId } }),
+)
 
 const targetPermission = (history.state?.permission ?? null) as TeacherSubjectPermissionResponse | null
 const isReady = !!targetPermission
@@ -72,11 +68,7 @@ function removeScope(i: number) {
 }
 
 const handleUpdate = onSubmit(
-  data => $backend('/api/teacher-subject-permissions/{id}', {
-    method: 'PATCH',
-    path: { id: permissionId },
-    body: data,
-  }),
+  data => update({ path: { id: permissionId }, body: data }),
   {
     onSuccess: () => navigateTo(`/dashboard/subjects/${subjectId}/settings/permissions`),
   },

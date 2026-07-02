@@ -1,14 +1,12 @@
 <script setup lang="ts">
-import type { components } from '#open-fetch-schemas/backend'
+import type { GradingHighlightPolicyRequest, GradingHighlightPolicyResponse } from '#hey-api'
 import type { SchemaFor } from '~/utils/validation'
 import * as v from 'valibot'
+import { getGradingHighlightPolicy, updateGradingHighlightPolicy } from '#hey-api'
 import { GRADING_HIGHLIGHT_DEFAULTS } from '~/utils/highlight'
 import { hexColor } from '~/utils/validation'
 
 definePageMeta({ middleware: 'subject-permission' })
-
-type GradingHighlightPolicyRequest = components['schemas']['GradingHighlightPolicyRequest']
-type GradingHighlightPolicyResponse = components['schemas']['GradingHighlightPolicyResponse']
 
 type GradingHighlightPolicyForm = Required<GradingHighlightPolicyRequest>
 
@@ -30,12 +28,10 @@ const colorFields: { key: Exclude<keyof GradingHighlightPolicyForm, 'enabled'>, 
 const route = useRoute()
 const subjectId = String(route.params.uuid ?? '')
 
-const { $backend } = useNuxtApp()
-
-const { data, pending, error, refresh } = useBackend('/api/grading-highlight-policy/subjects/{subjectId}', {
-  method: 'GET',
-  path: { subjectId },
-})
+const { data, pending, error, refresh } = useApi(
+  { key: `grading-highlight-policy:${subjectId}` },
+  () => getGradingHighlightPolicy({ path: { subjectId } }),
+)
 
 const policy = computed<GradingHighlightPolicyResponse | null>(() => data.value ?? null)
 
@@ -44,19 +40,15 @@ const { state, formRef, loading, onSubmit, onError } = useResourceForm<typeof Gr
   successMessage: 'Политика сохранена',
 })
 
-watch(
-  policy,
-  (p) => {
-    if (!p)
-      return
-    state.enabled = p.enabled ?? false
-    state.assignmentColor = p.assignmentColor ?? GRADING_HIGHLIGHT_DEFAULTS.assignmentColor
-    state.fullColor = p.fullColor ?? GRADING_HIGHLIGHT_DEFAULTS.fullColor
-    state.partialLowColor = p.partialLowColor ?? GRADING_HIGHLIGHT_DEFAULTS.partialLowColor
-    state.partialHighColor = p.partialHighColor ?? GRADING_HIGHLIGHT_DEFAULTS.partialHighColor
-  },
-  { immediate: true },
-)
+watch(policy, (p) => {
+  if (!p)
+    return
+  state.enabled = p.enabled ?? false
+  state.assignmentColor = p.assignmentColor ?? GRADING_HIGHLIGHT_DEFAULTS.assignmentColor
+  state.fullColor = p.fullColor ?? GRADING_HIGHLIGHT_DEFAULTS.fullColor
+  state.partialLowColor = p.partialLowColor ?? GRADING_HIGHLIGHT_DEFAULTS.partialLowColor
+  state.partialHighColor = p.partialHighColor ?? GRADING_HIGHLIGHT_DEFAULTS.partialHighColor
+}, { immediate: true })
 
 const handleSave = onSubmit(
   (data) => {
@@ -69,16 +61,9 @@ const handleSave = onSubmit(
           partialHighColor: data.partialHighColor.toUpperCase(),
         }
       : { enabled: false }
-
-    return $backend('/api/grading-highlight-policy/subjects/{subjectId}', {
-      method: 'PUT',
-      path: { subjectId },
-      body,
-    })
+    return updateGradingHighlightPolicy({ path: { subjectId }, body })
   },
-  {
-    onSuccess: () => refresh(),
-  },
+  { onSuccess: () => refresh() },
 )
 </script>
 

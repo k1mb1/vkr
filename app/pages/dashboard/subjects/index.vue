@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { User } from '#auth-utils'
+import { getPage } from '#hey-api'
 import { usePagable } from '~/composables/usePagable'
 
 const { user } = useOidcAuth()
@@ -27,10 +28,12 @@ function clearSearch() {
   page.value = 1
 }
 
-const { data, pending, error, refresh } = useBackend('/api/subjects', {
-  method: 'GET',
-  query: request,
-})
+const { data, pending, error, refresh } = useApi(
+  { key: 'subjects-list', watch: [request] },
+  () => getPage({ query: request.value }),
+)
+
+useRefreshOnFocus(refresh)
 
 const { rows, totalElements } = toPageState(data)
 </script>
@@ -95,7 +98,7 @@ const { rows, totalElements } = toPageState(data)
     <UEmpty
       v-else-if="rows.length === 0"
       icon="i-lucide-book-open"
-      :title="debouncedSearch ? 'Предметы не найдены' : 'Предметы не найдены'"
+      :title="debouncedSearch ? 'Ничего не найдено' : 'Пока нет предметов'"
       :description="
         debouncedSearch
           ? 'Попробуйте изменить запрос поиска.'

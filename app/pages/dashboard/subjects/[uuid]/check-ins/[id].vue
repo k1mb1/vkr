@@ -1,22 +1,16 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { FetchError } from 'ofetch'
-import type { components } from '#open-fetch-schemas/backend'
+import type { CheckInPreviewResponse, CheckInSessionResponse, ConfirmCheckInRequest, Override, Row } from '#hey-api'
 import { useQRCode } from '@vueuse/integrations/useQRCode'
+import { cancel, confirm, get, preview as previewCheckIn } from '#hey-api'
 
-type CheckInSessionResponse = components['schemas']['CheckInSessionResponse']
 type CheckInState = NonNullable<CheckInSessionResponse['state']>
-type CheckInPreviewResponse = components['schemas']['CheckInPreviewResponse']
-type Row = components['schemas']['Row']
-type Override = components['schemas']['Override']
 type AttendanceStatus = NonNullable<Override['status']>
-type ConfirmCheckInRequest = components['schemas']['ConfirmCheckInRequest']
 
 const route = useRoute()
 const subjectId = computed(() => String(route.params.uuid ?? ''))
 const sessionId = computed(() => String(route.params.id ?? ''))
 
-const { $backend } = useNuxtApp()
 const { toastError } = useApiError()
 const toast = useToast()
 const { d } = useI18n()
@@ -26,10 +20,10 @@ const {
   pending: sessionPending,
   error: sessionError,
   refresh: refreshSession,
-} = useBackend('/api/check-in-sessions/{id}', {
-  method: 'GET',
-  path: computed(() => ({ id: sessionId.value })),
-})
+} = useApi(
+  { key: `check-in-session:${sessionId.value}`, watch: [sessionId] },
+  () => get({ path: { id: sessionId.value } }),
+)
 
 const state = computed<CheckInState | null>(() => session.value?.state ?? null)
 
@@ -185,10 +179,7 @@ const { loading: cancelling, submit: submitCancel } = useFormSubmit()
 
 async function handleCancel() {
   await submitCancel(
-    () => $backend('/api/check-in-sessions/{id}/cancel', {
-      method: 'POST',
-      path: { id: sessionId.value },
-    }),
+    () => cancel({ path: { id: sessionId.value } }),
     {
       successMessage: 'Сессия отменена',
       onSuccess: async () => {
@@ -221,36 +212,31 @@ async function loadPreview(opts: { silent?: boolean } = {}) {
     return
   previewPending.value = true
   previewError.value = null
-  try {
-    const data = await $backend('/api/check-in-sessions/{id}/preview', {
-      method: 'GET',
-      path: { id: sessionId.value },
-    })
-    preview.value = data
-    for (const row of data.rows ?? []) {
-      if (!row.studentId)
-        continue
-      const proposed = (row.proposedStatus ?? 'ABSENT') as AttendanceStatus
-      const existing = overrides[row.studentId]
-      if (!existing) {
-        overrides[row.studentId] = { status: proposed, comment: '' }
-      }
-      else if (!editedStudentIds.has(row.studentId)) {
-        // Пока преподаватель не менял статус вручную, следуем за предложенным —
-        // он уточняется по мере того, как студенты отмечаются.
-        existing.status = proposed
-      }
-    }
-  }
-  catch (e) {
-    const fe = e as FetchError
-    previewError.value = fe.message
+  const { data, error } = await $api(() => previewCheckIn({ path: { id: sessionId.value } }))
+  previewPending.value = false
+
+  if (error) {
+    previewError.value = error.message
     // При фоновом опросе (например, пока сессия ещё открыта) не спамим тостами.
     if (!opts.silent)
-      toastError(fe)
+      toastError(error)
+    return
   }
-  finally {
-    previewPending.value = false
+
+  preview.value = data
+  for (const row of data?.rows ?? []) {
+    if (!row.studentId)
+      continue
+    const proposed = (row.proposedStatus ?? 'ABSENT') as AttendanceStatus
+    const existing = overrides[row.studentId]
+    if (!existing) {
+      overrides[row.studentId] = { status: proposed, comment: '' }
+    }
+    else if (!editedStudentIds.has(row.studentId)) {
+      // Пока преподаватель не менял статус вручную, следуем за предложенным —
+      // он уточняется по мере того, как студенты отмечаются.
+      existing.status = proposed
+    }
   }
 }
 
@@ -340,11 +326,7 @@ async function handleConfirm() {
       const body: ConfirmCheckInRequest = {
         overrides: overridesList.length ? overridesList : undefined,
       }
-      return $backend('/api/check-in-sessions/{id}/confirm', {
-        method: 'POST',
-        path: { id: sessionId.value },
-        body,
-      })
+      return confirm({ path: { id: sessionId.value }, body })
     },
     {
       successMessage: 'Посещаемость подтверждена',

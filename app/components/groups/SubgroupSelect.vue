@@ -1,7 +1,5 @@
 <script setup lang="ts">
-import type { components } from '#open-fetch-schemas/backend'
-
-type GroupWithSubgroupsResponse = components['schemas']['GroupWithSubgroupsResponse']
+import type { GroupWithSubgroupsResponse } from '#hey-api'
 
 const props = defineProps<{
   modelValue?: { groupId?: string | null, subgroupId?: string | null }

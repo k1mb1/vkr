@@ -1,12 +1,9 @@
 <script setup lang="ts">
-import type { components } from '#open-fetch-schemas/backend'
+import type { LessonResponse, LessonScopeResponse, StartCheckInRequest } from '#hey-api'
 import type { SchemaFor } from '~/utils/validation'
 import * as v from 'valibot'
+import { getCheckInPolicy, getLessons, list, start } from '#hey-api'
 import { string } from '~/utils/validation'
-
-type StartCheckInRequest = components['schemas']['StartCheckInRequest']
-type LessonResponse = components['schemas']['LessonResponse']
-type LessonScopeResponse = components['schemas']['LessonScopeResponse']
 
 interface LessonScopeOption {
   value: string
@@ -37,15 +34,14 @@ const StartCheckInSchema: SchemaFor<StartCheckInForm> = v.object({
 const route = useRoute()
 const subjectId = String(route.params.uuid ?? '')
 
-const { $backend } = useNuxtApp()
 const { d } = useI18n()
 
 // Единая политика окон предмета. Если включена — окна берутся из неё,
 // а поля формы игнорируются бэкендом и не отправляются.
-const { data: policyData } = useBackend('/api/check-in-policy/subjects/{subjectId}', {
-  method: 'GET',
-  path: { subjectId },
-})
+const { data: policyData } = useApi(
+  { key: `check-in-policy:${subjectId}` },
+  () => getCheckInPolicy({ path: { subjectId } }),
+)
 
 const policyEnabled = computed(() => policyData.value?.enabled === true)
 const policyOnTimeMinutes = computed(() =>
@@ -57,18 +53,16 @@ const policyLateMinutes = computed(() =>
 
 const { permission, permissionId, hasAllPermissions, pending: permissionPending } = usePermissions()
 
-const { data: lessonsData, pending: lessonsPending, refresh } = useBackend('/api/lessons', {
-  method: 'GET',
-  query: computed(() => ({ permissionId: permissionId.value })),
-  immediate: false,
-})
+const { data: lessonsData, pending: lessonsPending, refresh } = useApi(
+  { key: `check-in-lessons:${subjectId}`, immediate: false },
+  () => getLessons({ query: { permissionId: permissionId.value } }),
+)
 
 // Существующие сессии — чтобы не предлагать уже отмеченные (или идущие) проведения.
-const { data: sessionsData, refresh: refreshSessions } = useBackend('/api/check-in-sessions', {
-  method: 'GET',
-  query: computed(() => ({ permissionId: permissionId.value })),
-  immediate: false,
-})
+const { data: sessionsData, refresh: refreshSessions } = useApi(
+  { key: `check-in-sessions:${subjectId}`, immediate: false },
+  () => list({ query: { permissionId: permissionId.value } }),
+)
 
 useRefreshOnPermission(permissionId, () => {
   refresh()
@@ -133,6 +127,22 @@ const { state, formRef, loading, onSubmit, onError } = useResourceForm<typeof St
   successMessage: 'Опрос запущен',
 })
 
+// Переход с карточки занятия (`?lessonId=`) — предвыбираем проведение, если
+// для этого занятия доступно ровно одно (при нескольких оставляем выбор за
+// преподавателем, чтобы не отметить не ту группу/дату).
+const preselectLessonId = computed(() => {
+  const q = route.query.lessonId
+  return typeof q === 'string' ? q : null
+})
+
+watch(scopeOptions, (opts) => {
+  if (state.lessonScopeId || !preselectLessonId.value)
+    return
+  const matching = opts.filter(o => o.lesson.id === preselectLessonId.value)
+  if (matching.length === 1)
+    state.lessonScopeId = matching[0]!.value
+}, { immediate: true })
+
 const selectedScopeOption = computed({
   get: () => scopeOptions.value.find(o => o.value === state.lessonScopeId),
   set: (val) => {
@@ -156,11 +166,11 @@ const handleStart = onSubmit(
             lateSeconds: data.lateMinutes * 60,
           }),
     }
-    return $backend('/api/check-in-sessions', { method: 'POST', body })
+    return start({ body })
   },
   {
     onSuccess: (result) => {
-      navigateTo(`/dashboard/subjects/${subjectId}/check-ins/${result.id}`)
+      navigateTo(`/dashboard/subjects/${subjectId}/check-ins/${result?.id}`)
     },
   },
 )

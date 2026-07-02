@@ -13,13 +13,15 @@ const open = ref(false)
 const sidebarCollapsed = ref(false)
 const slots = useSlots()
 
-const { links } = useDashboardNavigation(open)
+const { links, searchGroups } = useDashboardNavigation(open)
 </script>
 
 <template>
   <UDashboardGroup
     unit="rem"
   >
+    <UDashboardSearch :groups="searchGroups" placeholder="Поиск разделов и предметов..." />
+
     <UDashboardSidebar
       id="dashboard"
       v-model:open="open"
@@ -37,6 +39,8 @@ const { links } = useDashboardNavigation(open)
       </template>
 
       <template #default="{ collapsed }">
+        <UDashboardSearchButton :collapsed="collapsed" class="mb-2" />
+
         <template
           v-for="(group, i) in links"
           :key="i"
@@ -47,7 +51,7 @@ const { links } = useDashboardNavigation(open)
             orientation="vertical"
             tooltip
             popover
-            :class="{ 'mt-auto': i === links.length - 1 }"
+            :class="{ 'mt-auto': links.length > 1 && i === links.length - 1 }"
             :ui="{
               content: 'max-h-56 overflow-y-auto data-[state=open]:animate-[collapsible-down_200ms_ease-out] data-[state=closed]:animate-[collapsible-up_200ms_ease-out]',
             }"

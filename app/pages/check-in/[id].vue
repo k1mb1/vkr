@@ -1,13 +1,9 @@
 <script setup lang="ts">
-import type { FetchError } from 'ofetch'
-import type { components } from '#open-fetch-schemas/backend'
+import type { PublicCheckInRecordResponse, PublicCheckInSessionResponse, PublicStudentResponse } from '#hey-api'
 import { refDebounced, useLocalStorage } from '@vueuse/core'
+import { checkIn, get1, searchStudents, verifyCode as verifyCodeApi } from '#hey-api'
 
-type PublicCheckInSessionResponse = components['schemas']['PublicCheckInSessionResponse']
-type PublicStudentResponse = components['schemas']['PublicStudentResponse']
-type PublicCheckInRecordResponse = components['schemas']['PublicCheckInRecordResponse']
 type PublicState = NonNullable<PublicCheckInSessionResponse['state']>
-type ErrorDto = components['schemas']['ErrorDto']
 
 interface StoredResult {
   studentId: string
@@ -23,7 +19,6 @@ definePageMeta({
 const route = useRoute()
 const sessionId = computed(() => String(route.params.id ?? ''))
 
-const { $backend } = useNuxtApp()
 const toast = useToast()
 const { d } = useI18n()
 
@@ -32,11 +27,10 @@ const {
   pending,
   error,
   refresh,
-} = useBackend('/api/check-in-sessions/public/{id}', {
-  method: 'GET',
-  path: computed(() => ({ id: sessionId.value })),
-  headers: { 'x-proxy-auth-optional': 'true' },
-})
+} = useApi(
+  { key: `public-check-in:${sessionId.value}`, watch: [sessionId] },
+  () => get1({ path: { id: sessionId.value }, headers: { 'x-proxy-auth-optional': 'true' } }),
+)
 
 const state = computed<PublicState | null>(() => session.value?.state ?? null)
 
@@ -165,8 +159,8 @@ const confirmOpen = ref(false)
 const submitting = ref(false)
 
 function extractMessage(e: unknown, fallback: string): string {
-  const data = (e as FetchError)?.data as ErrorDto | undefined
-  return data?.message || fallback
+  const { message } = toApiError(e)
+  return message && message !== 'Неизвестная ошибка' ? message : fallback
 }
 
 async function verifyCode() {
@@ -180,22 +174,19 @@ async function verifyCode() {
   }
   verifying.value = true
   codeError.value = null
-  try {
-    await $backend('/api/check-in-sessions/public/{id}/verify-code', {
-      method: 'POST',
-      path: { id: sessionId.value },
-      body: { code: code.value },
-      headers: { 'x-proxy-auth-optional': 'true' },
-    })
-    codeVerified.value = true
-  }
-  catch (e) {
+  const { error } = await $api(() => verifyCodeApi({
+    path: { id: sessionId.value },
+    body: { code: code.value },
+    headers: { 'x-proxy-auth-optional': 'true' },
+  }))
+  verifying.value = false
+
+  if (error) {
     codeVerified.value = false
-    codeError.value = extractMessage(e, 'Неверный код')
+    codeError.value = extractMessage(error, 'Неверный код')
+    return
   }
-  finally {
-    verifying.value = false
-  }
+  codeVerified.value = true
 }
 
 function resetCode() {
@@ -212,26 +203,23 @@ async function runSearch() {
     return
   }
   searchPending.value = true
-  try {
-    // Код держим в памяти и шлём заново вместе с запросом.
-    const data = await $backend('/api/check-in-sessions/public/{id}/students', {
-      method: 'POST',
-      path: { id: sessionId.value },
-      body: { code: code.value, query: trimmedQuery.value },
-      headers: { 'x-proxy-auth-optional': 'true' },
-    })
-    results.value = data ?? []
-  }
-  catch (e) {
+  // Код держим в памяти и шлём заново вместе с запросом.
+  const { data, error } = await $api(() => searchStudents({
+    path: { id: sessionId.value },
+    body: { code: code.value, query: trimmedQuery.value },
+    headers: { 'x-proxy-auth-optional': 'true' },
+  }))
+  searchPending.value = false
+
+  if (error) {
     // Код мог стать неверным (например, сессия закрылась) — возвращаемся к шагу кода.
     results.value = []
     codeVerified.value = false
-    codeError.value = extractMessage(e, 'Не удалось выполнить поиск')
+    codeError.value = extractMessage(error, 'Не удалось выполнить поиск')
     toast.add({ title: codeError.value, color: 'error', icon: 'i-lucide-circle-alert' })
+    return
   }
-  finally {
-    searchPending.value = false
-  }
+  results.value = data ?? []
 }
 
 watch([trimmedQuery, canSearch], () => {
@@ -259,42 +247,39 @@ async function confirmCheckIn() {
     return
 
   submitting.value = true
-  try {
-    const result = await $backend('/api/check-in-sessions/public/{id}/check-in', {
-      method: 'POST',
-      path: { id: sessionId.value },
-      body: { studentId, code: code.value },
-      headers: { 'x-proxy-auth-optional': 'true' },
-    })
+  const { data: result, error } = await $api(() => checkIn({
+    path: { id: sessionId.value },
+    body: { studentId, code: code.value },
+    headers: { 'x-proxy-auth-optional': 'true' },
+  }))
+  submitting.value = false
 
-    storedResult.value = {
-      studentId,
-      username: student?.username ?? '',
-      status: (result.status ?? 'PRESENT') as StoredResult['status'],
-      checkedInAt: result.checkedInAt,
-    }
-
-    toast.add({
-      title: result.status === 'LATE' ? 'Отмечено: опоздание' : 'Отмечено: вовремя',
-      color: result.status === 'LATE' ? 'warning' : 'success',
-      icon: 'i-lucide-check',
-    })
-
-    confirmOpen.value = false
-    pendingStudent.value = null
-  }
-  catch (e) {
-    const message = extractMessage(e, 'Не удалось отметиться')
+  if (error) {
+    const message = extractMessage(error, 'Не удалось отметиться')
     // Код мог стать неверным — закрываем модалку и возвращаем к шагу кода.
     confirmOpen.value = false
     pendingStudent.value = null
     codeVerified.value = false
     codeError.value = message
     toast.add({ title: message, color: 'error', icon: 'i-lucide-circle-alert' })
+    return
   }
-  finally {
-    submitting.value = false
+
+  storedResult.value = {
+    studentId,
+    username: student?.username ?? '',
+    status: (result?.status ?? 'PRESENT') as StoredResult['status'],
+    checkedInAt: result?.checkedInAt,
   }
+
+  toast.add({
+    title: result?.status === 'LATE' ? 'Отмечено: опоздание' : 'Отмечено: вовремя',
+    color: result?.status === 'LATE' ? 'warning' : 'success',
+    icon: 'i-lucide-check',
+  })
+
+  confirmOpen.value = false
+  pendingStudent.value = null
 }
 
 const resultStatusLabel = computed(() => {

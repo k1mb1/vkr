@@ -1,71 +1,38 @@
 <script setup lang="ts">
-import type { components } from '#open-fetch-schemas/backend'
-import type { SchemaFor } from '~/utils/validation'
-import * as v from 'valibot'
+import type { AttendancePolicyResponse } from '#hey-api'
+import { getAttendancePolicy, updateAttendancePolicy } from '#hey-api'
+import { vAttendancePolicyRequest } from '#hey-api/valibot.gen'
 
 definePageMeta({ middleware: 'subject-permission' })
-
-type AttendancePolicyRequest = components['schemas']['AttendancePolicyRequest']
-type AttendancePolicyResponse = components['schemas']['AttendancePolicyResponse']
-
-type AttendancePolicyForm = AttendancePolicyRequest
-
-const AttendancePolicySchema: SchemaFor<AttendancePolicyForm> = v.object({
-  enabled: v.boolean(),
-  pointsPresent: v.number('Введите значение'),
-  pointsLate: v.number('Введите значение'),
-  pointsAbsent: v.number('Введите значение'),
-  pointsExcused: v.number('Введите значение'),
-})
 
 const route = useRoute()
 const subjectId = String(route.params.uuid ?? '')
 
-const { $backend } = useNuxtApp()
-
-const { data, pending, error, refresh } = useBackend('/api/attendance-policy/subjects/{subjectId}', {
-  method: 'GET',
-  path: { subjectId },
-})
+const { data, pending, error, refresh } = useApi(
+  { key: `attendance-policy:${subjectId}` },
+  () => getAttendancePolicy({ path: { subjectId } }),
+)
 
 const policy = computed<AttendancePolicyResponse | null>(() => data.value ?? null)
 
-const { state, formRef, loading, onSubmit, onError } = useResourceForm<typeof AttendancePolicySchema>({
-  initialState: () => ({
-    enabled: false,
-    pointsPresent: 1,
-    pointsLate: 0,
-    pointsAbsent: 0,
-    pointsExcused: 0,
-  }),
+const { state, formRef, loading, onSubmit, onError } = useResourceForm<typeof vAttendancePolicyRequest>({
+  initialState: () => ({ enabled: false, pointsPresent: 1, pointsLate: 0, pointsAbsent: 0, pointsExcused: 0 }),
   successMessage: 'Политика сохранена',
 })
 
-watch(
-  policy,
-  (p) => {
-    if (!p)
-      return
-    state.enabled = p.enabled ?? false
-    state.pointsPresent = p.pointsPresent ?? 1
-    state.pointsLate = p.pointsLate ?? 0
-    state.pointsAbsent = p.pointsAbsent ?? 0
-    state.pointsExcused = p.pointsExcused ?? 0
-  },
-  { immediate: true },
-)
+watch(policy, (p) => {
+  if (!p)
+    return
+  state.enabled = p.enabled ?? false
+  state.pointsPresent = p.pointsPresent ?? 1
+  state.pointsLate = p.pointsLate ?? 0
+  state.pointsAbsent = p.pointsAbsent ?? 0
+  state.pointsExcused = p.pointsExcused ?? 0
+}, { immediate: true })
 
 const handleSave = onSubmit(
-  (data) => {
-    return $backend('/api/attendance-policy/subjects/{subjectId}', {
-      method: 'PUT',
-      path: { subjectId },
-      body: data,
-    })
-  },
-  {
-    onSuccess: () => refresh(),
-  },
+  data => updateAttendancePolicy({ path: { subjectId }, body: data }),
+  { onSuccess: () => refresh() },
 )
 </script>
 
@@ -108,7 +75,7 @@ const handleSave = onSubmit(
     <template v-else-if="policy">
       <UForm
         ref="formRef"
-        :schema="AttendancePolicySchema"
+        :schema="vAttendancePolicyRequest"
         :state="state"
         class="flex flex-col gap-4"
         @submit="handleSave"

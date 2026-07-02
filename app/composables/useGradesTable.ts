@@ -1,6 +1,6 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { Cell } from '@tanstack/vue-table'
-import type { components } from '#open-fetch-schemas/backend'
+import type { AssignmentResponse, GradeCellResponse, GradingHighlightPolicyResponse, GradingTableLesson, GradingTableResponse, GradingTableStudent, UpsertGradeRequest } from '#hey-api'
 import type { SectionKey } from '~/composables/useTableSections'
 import { computed, h, ref } from 'vue'
 import { UButton, UIcon, UTooltip } from '#components'
@@ -10,14 +10,6 @@ import { groupBySection } from '~/composables/useTableSections'
 import { gradeCellKey, indexAssignmentsByLesson, indexGrades, sortGradingLessons } from '~/utils/grading'
 import { GRADING_HIGHLIGHT_DEFAULTS, highlightChipBg, softHighlightBg } from '~/utils/highlight'
 import { round2 } from '~/utils/number'
-
-type GradingTableResponse = components['schemas']['GradingTableResponse']
-type GradingTableStudent = components['schemas']['GradingTableStudent']
-type GradingTableLesson = components['schemas']['GradingTableLesson']
-type AssignmentResponse = components['schemas']['AssignmentResponse']
-type GradeCellResponse = components['schemas']['GradeCellResponse']
-type UpsertGradeRequest = components['schemas']['UpsertGradeRequest']
-type GradingHighlightPolicyResponse = components['schemas']['GradingHighlightPolicyResponse']
 
 export interface PendingGrade {
   score: number

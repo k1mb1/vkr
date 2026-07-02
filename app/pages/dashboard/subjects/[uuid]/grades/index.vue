@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import type { DropdownMenuItem } from '@nuxt/ui'
-import type { components } from '#open-fetch-schemas/backend'
+import type { GradingTableLesson, GradingTableResponse } from '#hey-api'
+import { getGradingTable } from '#hey-api'
 import { useGradesExport } from '~/composables/useGradesExport'
 import { groupBySection } from '~/composables/useTableSections'
 
-type GradingTableResponse = components['schemas']['GradingTableResponse']
-type GradingTableLesson = components['schemas']['GradingTableLesson']
 type LessonType = NonNullable<GradingTableLesson['type']>
 
 const route = useRoute()
@@ -14,14 +13,10 @@ const subjectId = computed(() => String(route.params.uuid ?? ''))
 const { permissionId, hasAllPermissions, scopes } = usePermissions()
 const { exportLoading, downloadExcel } = useGradesExport()
 
-const { data, pending, error, refresh } = useBackend('/api/grades', {
-  method: 'GET',
-  query: computed(() => ({
-    permissionId: permissionId.value,
-    subjectId: subjectId.value,
-  })),
-  immediate: false,
-})
+const { data, pending, error, refresh } = useApi(
+  { key: `grading-table:${subjectId.value}`, immediate: false },
+  () => getGradingTable({ query: { permissionId: permissionId.value } }),
+)
 
 useRefreshOnPermission(permissionId, refresh)
 
@@ -103,6 +98,10 @@ const {
 } = useGradeDrafts({ onSaved: () => refresh() })
 
 const { leaveModalOpen, confirmLeave, cancelLeave } = useUnsavedGuard(() => gradeDirty.value > 0, resetGrades)
+
+// Обновляем при возврате на вкладку, но не во время правки и не при
+// несохранённых оценках — чтобы не сбить контекст редактирования.
+useRefreshOnFocus(refresh, { enabled: () => !editMode.value && gradeDirty.value === 0 })
 </script>
 
 <template>
@@ -140,10 +139,8 @@ const { leaveModalOpen, confirmLeave, cancelLeave } = useUnsavedGuard(() => grad
     />
 
     <div v-else class="flex flex-col gap-4">
-      <UAlert
-        color="neutral"
-        variant="soft"
-        icon="i-lucide-info"
+      <AppHint
+        id="grades-index"
         title="Сводный журнал оценок"
         description="Баллы по всем занятиям и заданиям. Показаны с учётом штрафов и бонусов за сроки (исходный балл — в подсказке к ячейке). Обязательные задания помечены, цвета настраиваются в «Подсветке таблицы оценок». Включите «Редактирование», чтобы выставлять баллы по любым занятиям прямо здесь, не переключаясь между занятиями, — затем нажмите «Сохранить»."
       />

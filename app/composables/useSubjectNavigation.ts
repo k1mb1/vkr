@@ -1,4 +1,5 @@
 import type { NavigationMenuItem } from '@nuxt/ui'
+import { getPage } from '#hey-api'
 
 export function useSubjectNavigation() {
   const { user } = useOidcAuth()
@@ -11,10 +12,7 @@ export function useSubjectNavigation() {
     filter: computed(() => ({ teacherId: teacherId.value })),
   })
 
-  const { data } = useBackend('/api/subjects', {
-    method: 'GET',
-    query: request,
-  })
+  const { data } = useApi({ key: 'subject-nav', watch: [request] }, () => getPage({ query: request.value }))
 
   const { rows: subjects } = toPageState(data)
 

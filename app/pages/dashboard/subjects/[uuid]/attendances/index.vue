@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import type { DropdownMenuItem } from '@nuxt/ui'
-import type { components } from '#open-fetch-schemas/backend'
+import type { AttendanceTableLesson, AttendanceTableResponse } from '#hey-api'
+import { getAttendancePolicy, getAttendanceTable } from '#hey-api'
 import { useAttendanceExport } from '~/composables/useAttendanceExport'
 import { groupBySection } from '~/composables/useTableSections'
 
-type AttendanceTableResponse = components['schemas']['AttendanceTableResponse']
-type AttendanceTableLesson = components['schemas']['AttendanceTableLesson']
 type LessonType = NonNullable<AttendanceTableLesson['type']>
 
 const route = useRoute()
@@ -15,21 +14,17 @@ const { permissionId, hasAllPermissions, scopes } = usePermissions()
 const { exportLoading, downloadExcel } = useAttendanceExport()
 const { sortBy, sortItems } = useStudentSort()
 
-const { data, pending, error, refresh } = useBackend('/api/attendances', {
-  method: 'GET',
-  query: computed(() => ({
-    permissionId: permissionId.value,
-    subjectId: subjectId.value,
-  })),
-  immediate: false,
-})
+const { data, pending, error, refresh } = useApi(
+  { key: `attendance-table:${subjectId.value}`, immediate: false },
+  () => getAttendanceTable({ query: { permissionId: permissionId.value } }),
+)
 
 useRefreshOnPermission(permissionId, refresh)
 
-const { data: attendancePolicy } = useBackend('/api/attendance-policy/subjects/{subjectId}', {
-  method: 'GET',
-  path: computed(() => ({ subjectId: subjectId.value })),
-})
+const { data: attendancePolicy } = useApi(
+  { key: `attendance-policy:${subjectId.value}`, watch: [subjectId] },
+  () => getAttendancePolicy({ path: { subjectId: subjectId.value } }),
+)
 
 // ── Filters ──────────────────────────────────────────────
 
@@ -105,6 +100,10 @@ const {
 } = useAttendanceDrafts({ onSaved: () => refresh() })
 
 const { leaveModalOpen, confirmLeave, cancelLeave } = useUnsavedGuard(() => attendanceDirty.value > 0, resetAttendance)
+
+// Обновляем при возврате на вкладку, но не во время правки и не при
+// несохранённых отметках — чтобы не сбить контекст редактирования.
+useRefreshOnFocus(refresh, { enabled: () => !editMode.value && attendanceDirty.value === 0 })
 </script>
 
 <template>
@@ -142,10 +141,8 @@ const { leaveModalOpen, confirmLeave, cancelLeave } = useUnsavedGuard(() => atte
     />
 
     <div v-else class="flex flex-col gap-4">
-      <UAlert
-        color="neutral"
-        variant="soft"
-        icon="i-lucide-info"
+      <AppHint
+        id="attendances-index"
         title="Сводная посещаемость"
         description="Статусы по всем занятиям: присутствие, опоздание, отсутствие и уважительная причина. Заполняются автоматически после подтверждения отметки или вручную на странице занятия. Если включена «Политика учёта посещаемости», статусы дают баллы в оценках и итогах. Включите «Редактирование», чтобы проставлять статусы по любым занятиям прямо здесь, не переключаясь между занятиями, — затем нажмите «Сохранить»."
       />

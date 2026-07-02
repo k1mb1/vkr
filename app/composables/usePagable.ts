@@ -1,8 +1,6 @@
 import type { MaybeRefOrGetter } from 'vue'
-import type { components } from '#open-fetch-schemas/backend'
+import type { PageMetadata } from '#hey-api'
 import { computed, ref, toValue } from 'vue'
-
-type PageMetadata = components['schemas']['PageMetadata']
 
 interface PagedModel<T> {
   content?: T[]

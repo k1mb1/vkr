@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { BulkAddLessonScopesRequest } from '#hey-api'
+import { addScopes, getGroupsBySubject } from '#hey-api'
 import {
   buildLessonScopeRequests,
   initialLessonScopeFormState,
@@ -13,17 +15,16 @@ const route = useRoute()
 const subjectId = String(route.params.uuid ?? '')
 const lessonId = String(route.params.id ?? '')
 
-const { $backend } = useNuxtApp()
 const toast = useToast()
 
 const { state, formRef, loading, handleSubmit, onError } = useResourceForm<typeof LessonScopeFormSchema>({
   initialState: initialLessonScopeFormState,
 })
 
-const { data: groups, pending: groupsPending } = useBackend('/api/groups/by-subject', {
-  method: 'GET',
-  query: { subjectId },
-})
+const { data: groups, pending: groupsPending } = useApi(
+  { key: `groups-by-subject:${subjectId}` },
+  () => getGroupsBySubject({ query: { subjectId } }),
+)
 
 watch(groups, (val) => {
   if (val)
@@ -45,13 +46,10 @@ async function handleCreate() {
   const requests = buildLessonScopeRequests(state)
 
   await handleSubmit(
-    // backend's BulkAddLessonScopesRequest ref'd Item type requires `id`,
-    // but new scopes have none; backend accepts the array without ids.
-    () => $backend('/api/lessons/{lessonId}/scopes', {
-      method: 'POST',
-      path: { lessonId },
-      body: { items: requests } as any,
-    }),
+    // Схема ref'ает Item с обязательным `id` (общий тип для нескольких
+    // bulk-эндпоинтов), но у новых scope'ов id ещё нет — бэкенд принимает
+    // массив без id. Каст только тела: path/method остаются типизированными.
+    () => addScopes({ path: { lessonId }, body: { items: requests } as BulkAddLessonScopesRequest }),
     {
       successMessage: requests.length > 1
         ? `Добавлено проведений: ${requests.length}`

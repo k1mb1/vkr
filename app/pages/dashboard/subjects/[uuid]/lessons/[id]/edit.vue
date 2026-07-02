@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import type { components } from '#open-fetch-schemas/backend'
+import type { AttendanceAudienceScope, LessonResponse, UpdateLessonHeaderRequest, UpdateLessonRequest } from '#hey-api'
 import * as v from 'valibot'
+import { getGroupsBySubject, updateLesson } from '#hey-api'
 import {
   initialLessonScopeFormState,
   initLessonScopeGroups,
@@ -9,11 +10,8 @@ import {
 
 definePageMeta({ middleware: 'subject-permission' })
 
-type LessonResponse = components['schemas']['LessonResponse']
-type UpdateLessonRequest = components['schemas']['UpdateLessonRequest']
-type UpdateLessonHeaderRequest = components['schemas']['UpdateLessonHeaderRequest']
 type LessonType = NonNullable<UpdateLessonHeaderRequest['type']>
-type LessonScopeAudienceRequest = components['schemas']['AttendanceAudienceScope']
+type LessonScopeAudienceRequest = AttendanceAudienceScope
 
 interface ScopeReplaceItem {
   id: string
@@ -69,7 +67,6 @@ const typeOptions = [
 
 // ── Header form ───────────────────────────────────────────
 
-const { $backend } = useNuxtApp()
 const toast = useToast()
 
 const { state, formRef, loading, dirtyFields, validate, submit, onError } = useResourceForm<typeof UpdateLessonSchema>({
@@ -83,10 +80,10 @@ const { state, formRef, loading, dirtyFields, validate, submit, onError } = useR
 
 const scopeState = reactive(initialLessonScopeFormState())
 
-const { data: groups, pending: groupsPending } = useBackend('/api/groups/by-subject', {
-  method: 'GET',
-  query: { subjectId },
-})
+const { data: groups, pending: groupsPending } = useApi(
+  { key: `groups-by-subject:${subjectId}` },
+  () => getGroupsBySubject({ query: { subjectId } }),
+)
 
 watch(groups, (val) => {
   if (!val || !hasScopes)
@@ -202,11 +199,7 @@ async function handleUpdate() {
   }
 
   await submit(
-    () => $backend('/api/lessons/{id}', {
-      method: 'PUT',
-      path: { id: lessonId },
-      body,
-    }),
+    () => updateLesson({ path: { id: lessonId }, body }),
     {
       successMessage: 'Занятие обновлено',
       onSuccess: () => navigateTo(`/dashboard/subjects/${subjectId}/lessons`),

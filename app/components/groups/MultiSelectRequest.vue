@@ -1,14 +1,13 @@
 <script setup lang="ts">
-import type { components } from '#open-fetch-schemas/backend'
-
-type GroupResponse = components['schemas']['GroupResponse']
+import type { GroupResponse } from '#hey-api'
+import { getGroupPage } from '#hey-api'
 
 const modelValue = defineModel<string[]>({ default: () => [] })
 
-const { data, pending, error } = useBackend('/api/groups', {
-  method: 'GET',
-  query: { size: 1000 },
-})
+const { data, pending, error } = useApi(
+  { key: 'groups-multiselect' },
+  () => getGroupPage({ query: { size: 1000 } }),
+)
 
 const options = computed(() =>
   (data.value?.content ?? []).map((g: GroupResponse) => ({ value: g.id!, label: g.name ?? '—' })),

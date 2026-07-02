@@ -1,10 +1,9 @@
-import type { NavigationMenuItem } from '@nuxt/ui'
+import type { CommandPaletteGroup, CommandPaletteItem, NavigationMenuItem } from '@nuxt/ui'
 import type { Ref } from 'vue'
 import { computed } from 'vue'
 
 type DashboardPrimaryLink = NavigationMenuItem & {
   description: string
-  external?: boolean
 }
 
 const DASHBOARD_PRIMARY_LINKS = [
@@ -31,25 +30,14 @@ const DASHBOARD_PRIMARY_LINKS = [
     to: '/dashboard/groups',
     description: 'Управление группами и участниками.',
   },
-  {
-    key: 'feedback',
-    label: 'Feedback',
-    icon: 'i-lucide-message-circle',
-    to: 'https://k1mbb.t.me',
-    target: '_blank',
-    description: 'Связаться и оставить обратную связь.',
-    external: true,
-  },
 ] as const satisfies readonly DashboardPrimaryLink[]
 
 export function getDashboardPrimaryLinks(): DashboardPrimaryLink[] {
   return [...DASHBOARD_PRIMARY_LINKS]
 }
 
-const isExternal = (item: NavigationMenuItem) => item.target === '_blank'
-
 export function useDashboardNavigation(open: Ref<boolean>) {
-  const { children: subjectChildren } = useSubjectNavigation()
+  const { subjects, children: subjectChildren } = useSubjectNavigation()
 
   const closeSidebar = () => {
     open.value = false
@@ -63,17 +51,40 @@ export function useDashboardNavigation(open: Ref<boolean>) {
     }
   }
 
-  const links = computed<NavigationMenuItem[][]>(() => {
-    const primary = DASHBOARD_PRIMARY_LINKS
-      .filter(i => !isExternal(i))
-      .map(enhanceItem)
+  const links = computed<NavigationMenuItem[][]>(() => [
+    DASHBOARD_PRIMARY_LINKS.map(enhanceItem),
+  ])
 
-    const secondary = DASHBOARD_PRIMARY_LINKS
-      .filter(isExternal)
-      .map(enhanceItem)
+  // Группы для командной палитры (Ctrl/⌘+K): быстрый переход к разделам и к
+  // любому предмету без блуждания по сайдбару.
+  const searchGroups = computed<CommandPaletteGroup<CommandPaletteItem>[]>(() => {
+    const groups: CommandPaletteGroup<CommandPaletteItem>[] = [
+      {
+        id: 'sections',
+        label: 'Разделы',
+        items: DASHBOARD_PRIMARY_LINKS.map(i => ({
+          label: i.label,
+          icon: i.icon,
+          to: i.to,
+        })),
+      },
+    ]
 
-    return [primary, secondary.length ? [secondary] : []]
+    if (subjects.value.length) {
+      groups.push({
+        id: 'subjects',
+        label: 'Предметы',
+        items: subjects.value.map<CommandPaletteItem>(s => ({
+          label: s.name ?? 'Без названия',
+          icon: 'i-lucide-book-open',
+          to: `/dashboard/subjects/${s.id}`,
+          onSelect: closeSidebar,
+        })),
+      })
+    }
+
+    return groups
   })
 
-  return { links }
+  return { links, searchGroups }
 }

@@ -1,6 +1,6 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { ComputedRef, MaybeRefOrGetter, VNode } from 'vue'
-import type { components } from '#open-fetch-schemas/backend'
+import type { AttendanceTableResponse, GradingTableLesson, GradingTableResponse } from '#hey-api'
 import type { StudentSummaryRow, SummarySection, TypeBreakdown, TypeMaxes } from '~/composables/useFinalGradesExport'
 import { computed, h, ref, toValue, watch } from 'vue'
 import { UBadge, UIcon } from '#components'
@@ -9,10 +9,6 @@ import { applyBonus, applyPenalty, computeBonusCount, computePenaltyCount } from
 import { groupBySection } from '~/composables/useTableSections'
 import { indexAssignmentsByLesson, indexGrades, sortGradingLessons } from '~/utils/grading'
 import { round2 } from '~/utils/number'
-
-type GradingTableResponse = components['schemas']['GradingTableResponse']
-type AttendanceTableResponse = components['schemas']['AttendanceTableResponse']
-type GradingTableLesson = components['schemas']['GradingTableLesson']
 
 type TypeKey = 'lecture' | 'practice'
 

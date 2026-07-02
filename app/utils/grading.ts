@@ -1,8 +1,4 @@
-import type { components } from '#open-fetch-schemas/backend'
-
-type AssignmentResponse = components['schemas']['AssignmentResponse']
-type GradeCellResponse = components['schemas']['GradeCellResponse']
-type GradingTableLesson = components['schemas']['GradingTableLesson']
+import type { AssignmentResponse, GradeCellResponse, GradingTableLesson } from '#hey-api'
 
 /**
  * Общие хелперы для таблиц оценок и итогов: индексация заданий/оценок, ключи ячеек

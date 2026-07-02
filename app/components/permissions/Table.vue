@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import type { DropdownMenuItem, TableColumn } from '@nuxt/ui'
 import type { Cell } from '@tanstack/vue-table'
-import type { components } from '#open-fetch-schemas/backend'
-
-type TeacherSubjectPermissionResponse = components['schemas']['TeacherSubjectPermissionResponse']
+import type { TeacherSubjectPermissionResponse } from '#hey-api'
+import { delete_ } from '#hey-api'
 
 interface FlatRow {
   _permId: string
@@ -27,7 +26,6 @@ const emit = defineEmits<{
   deleted: []
 }>()
 
-const { $backend } = useNuxtApp()
 const { loading: deleting, submit } = useFormSubmit()
 
 const deleteModal = ref(false)
@@ -48,10 +46,7 @@ async function handleDelete() {
     return
 
   await submit(
-    () => $backend('/api/teacher-subject-permissions/{id}', {
-      method: 'DELETE',
-      path: { id: deleteTarget.value!._permId },
-    }),
+    () => delete_({ path: { id: deleteTarget.value!._permId } }),
     {
       successMessage: 'Назначение удалено',
       onSuccess: () => {

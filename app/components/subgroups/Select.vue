@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import type { components } from '#open-fetch-schemas/backend'
+import type { GroupResponse } from '#hey-api'
+import { getSubgroups } from '#hey-api'
 
-type GroupId = components['schemas']['GroupResponse']['id']
+type GroupId = GroupResponse['id']
 
 const props = defineProps<{
   groupId: GroupId
@@ -10,11 +11,10 @@ const props = defineProps<{
 
 const modelValue = defineModel<string | null | undefined>()
 
-const { data, pending, error, refresh } = useBackend('/api/subgroups', {
-  method: 'GET',
-  query: { groupId: computed(() => String(props.groupId ?? '')) },
-  immediate: false,
-})
+const { data, pending, error, refresh } = useApi(
+  { key: 'subgroups-select', immediate: false },
+  () => getSubgroups({ query: { groupId: String(props.groupId ?? '') } }),
+)
 
 watch(() => props.groupId, (id) => {
   if (id)

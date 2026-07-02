@@ -9,7 +9,11 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "lint": "eslint .",
-    "typecheck": "nuxt typecheck"
+    "typecheck": "nuxt typecheck",
+    "gen:api": "openapi-ts",
+    "predev": "openapi-ts",
+    "prebuild": "openapi-ts",
+    "pretypecheck": "openapi-ts"
   },
   "dependencies": {
     "@antfu/eslint-config": "^9.0.0",
@@ -30,11 +34,11 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@hey-api/openapi-ts": "^0.99.0",
     "@nuxt/eslint": "^1.15.2",
     "@types/node": "^25.6.0",
     "eslint": "^10.1.0",
     "eslint-plugin-format": "^2.0.1",
-    "nuxt-open-fetch": "^0.13.9",
     "typescript": "^6.0.2",
     "vue-tsc": "^3.2.6"
   }

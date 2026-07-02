@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import type { DropdownMenuItem, TableColumn } from '@nuxt/ui'
 import type { Cell } from '@tanstack/vue-table'
-import type { components } from '#open-fetch-schemas/backend'
-
-type LessonResponse = components['schemas']['LessonResponse']
+import type { LessonResponse } from '#hey-api'
+import { deleteAllOfLesson, deleteLesson, setActive } from '#hey-api'
 
 const props = defineProps<{
   data: LessonResponse[]
@@ -59,7 +58,6 @@ const columns = computed<TableColumn<LessonResponse>[]>(() => {
   return base
 })
 
-const { $backend } = useNuxtApp()
 const { loading: deletingLesson, submit: submitDeleteLesson } = useFormSubmit()
 
 const deleteLessonModal = ref(false)
@@ -79,10 +77,7 @@ async function handleDeleteLesson() {
   if (!deleteLessonTarget.value?.id)
     return
   await submitDeleteLesson(
-    () => $backend('/api/lessons/{id}', {
-      method: 'DELETE',
-      path: { id: deleteLessonTarget.value!.id! },
-    }),
+    () => deleteLesson({ path: { id: deleteLessonTarget.value!.id! } }),
     {
       successMessage: 'Занятие удалено',
       onSuccess: () => {
@@ -111,10 +106,7 @@ async function handleDeleteAssignments() {
   if (!deleteAssignmentsTarget.value?.id)
     return
   await submitDeleteAssignments(
-    () => $backend('/api/assignments/lessons/{lessonId}', {
-      method: 'DELETE',
-      path: { lessonId: deleteAssignmentsTarget.value!.id! },
-    }),
+    () => deleteAllOfLesson({ path: { lessonId: deleteAssignmentsTarget.value!.id! } }),
     {
       successMessage: 'Задания удалены',
       onSuccess: () => {
@@ -144,11 +136,7 @@ async function handleSetActive() {
     return
   const isActive = setActiveTarget.value.active
   await submitSetActive(
-    () => $backend('/api/lessons/{id}/active', {
-      method: 'PATCH',
-      path: { id: setActiveTarget.value!.id! },
-      body: { active: !isActive },
-    }),
+    () => setActive({ path: { id: setActiveTarget.value!.id! }, body: { active: !isActive } }),
     {
       successMessage: isActive ? 'Активное занятие снято' : 'Занятие отмечено как активное',
       onSuccess: () => {

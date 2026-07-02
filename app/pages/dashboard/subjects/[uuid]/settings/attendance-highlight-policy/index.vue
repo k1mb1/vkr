@@ -1,14 +1,12 @@
 <script setup lang="ts">
-import type { components } from '#open-fetch-schemas/backend'
+import type { AttendanceHighlightPolicyRequest, AttendanceHighlightPolicyResponse } from '#hey-api'
 import type { SchemaFor } from '~/utils/validation'
 import * as v from 'valibot'
+import { getAttendanceHighlightPolicy, updateAttendanceHighlightPolicy } from '#hey-api'
 import { ATTENDANCE_HIGHLIGHT_DEFAULTS } from '~/utils/highlight'
 import { hexColor } from '~/utils/validation'
 
 definePageMeta({ middleware: 'subject-permission' })
-
-type AttendanceHighlightPolicyRequest = components['schemas']['AttendanceHighlightPolicyRequest']
-type AttendanceHighlightPolicyResponse = components['schemas']['AttendanceHighlightPolicyResponse']
 
 type AttendanceHighlightPolicyForm = Required<AttendanceHighlightPolicyRequest>
 
@@ -30,12 +28,10 @@ const colorFields: { key: Exclude<keyof AttendanceHighlightPolicyForm, 'enabled'
 const route = useRoute()
 const subjectId = String(route.params.uuid ?? '')
 
-const { $backend } = useNuxtApp()
-
-const { data, pending, error, refresh } = useBackend('/api/attendance-highlight-policy/subjects/{subjectId}', {
-  method: 'GET',
-  path: { subjectId },
-})
+const { data, pending, error, refresh } = useApi(
+  { key: `attendance-highlight-policy:${subjectId}` },
+  () => getAttendanceHighlightPolicy({ path: { subjectId } }),
+)
 
 const policy = computed<AttendanceHighlightPolicyResponse | null>(() => data.value ?? null)
 
@@ -44,19 +40,15 @@ const { state, formRef, loading, onSubmit, onError } = useResourceForm<typeof At
   successMessage: 'Политика сохранена',
 })
 
-watch(
-  policy,
-  (p) => {
-    if (!p)
-      return
-    state.enabled = p.enabled ?? false
-    state.presentColor = p.presentColor ?? ATTENDANCE_HIGHLIGHT_DEFAULTS.presentColor
-    state.lateColor = p.lateColor ?? ATTENDANCE_HIGHLIGHT_DEFAULTS.lateColor
-    state.absentColor = p.absentColor ?? ATTENDANCE_HIGHLIGHT_DEFAULTS.absentColor
-    state.excusedColor = p.excusedColor ?? ATTENDANCE_HIGHLIGHT_DEFAULTS.excusedColor
-  },
-  { immediate: true },
-)
+watch(policy, (p) => {
+  if (!p)
+    return
+  state.enabled = p.enabled ?? false
+  state.presentColor = p.presentColor ?? ATTENDANCE_HIGHLIGHT_DEFAULTS.presentColor
+  state.lateColor = p.lateColor ?? ATTENDANCE_HIGHLIGHT_DEFAULTS.lateColor
+  state.absentColor = p.absentColor ?? ATTENDANCE_HIGHLIGHT_DEFAULTS.absentColor
+  state.excusedColor = p.excusedColor ?? ATTENDANCE_HIGHLIGHT_DEFAULTS.excusedColor
+}, { immediate: true })
 
 const handleSave = onSubmit(
   (data) => {
@@ -69,16 +61,9 @@ const handleSave = onSubmit(
           excusedColor: data.excusedColor.toUpperCase(),
         }
       : { enabled: false }
-
-    return $backend('/api/attendance-highlight-policy/subjects/{subjectId}', {
-      method: 'PUT',
-      path: { subjectId },
-      body,
-    })
+    return updateAttendanceHighlightPolicy({ path: { subjectId }, body })
   },
-  {
-    onSuccess: () => refresh(),
-  },
+  { onSuccess: () => refresh() },
 )
 </script>
 

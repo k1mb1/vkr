@@ -1,13 +1,12 @@
 <script setup lang="ts">
-import type { components } from '#open-fetch-schemas/backend'
+import type { CheckInPolicyRequest, CheckInPolicyResponse } from '#hey-api'
 import type { SchemaFor } from '~/utils/validation'
 import * as v from 'valibot'
+import { getCheckInPolicy, updateCheckInPolicy } from '#hey-api'
 
 definePageMeta({ middleware: 'subject-permission' })
 
-type CheckInPolicyRequest = components['schemas']['CheckInPolicyRequest']
-type CheckInPolicyResponse = components['schemas']['CheckInPolicyResponse']
-
+// UI в минутах, API в секундах — конвертируем на submit.
 type CheckInPolicyForm = Omit<CheckInPolicyRequest, 'onTimeSeconds' | 'lateSeconds'> & {
   onTimeMinutes: number
   lateMinutes: number
@@ -30,57 +29,36 @@ const CheckInPolicySchema: SchemaFor<CheckInPolicyForm> = v.object({
 const route = useRoute()
 const subjectId = String(route.params.uuid ?? '')
 
-const { $backend } = useNuxtApp()
-
-const { data, pending, error, refresh } = useBackend('/api/check-in-policy/subjects/{subjectId}', {
-  method: 'GET',
-  path: { subjectId },
-})
+const { data, pending, error, refresh } = useApi(
+  { key: `check-in-policy:${subjectId}` },
+  () => getCheckInPolicy({ path: { subjectId } }),
+)
 
 const policy = computed<CheckInPolicyResponse | null>(() => data.value ?? null)
 
 const { state, formRef, loading, onSubmit, onError } = useResourceForm<typeof CheckInPolicySchema>({
-  initialState: () => ({
-    enabled: false,
-    onTimeMinutes: 5,
-    lateMinutes: 5,
-  }),
+  initialState: () => ({ enabled: false, onTimeMinutes: 5, lateMinutes: 5 }),
   successMessage: 'Политика сохранена',
 })
 
-watch(
-  policy,
-  (p) => {
-    if (!p)
-      return
-    state.enabled = p.enabled ?? false
-    if (p.onTimeSeconds != null)
-      state.onTimeMinutes = Math.max(1, Math.round(p.onTimeSeconds / 60))
-    if (p.lateSeconds != null)
-      state.lateMinutes = Math.max(0, Math.round(p.lateSeconds / 60))
-  },
-  { immediate: true },
-)
+watch(policy, (p) => {
+  if (!p)
+    return
+  state.enabled = p.enabled ?? false
+  if (p.onTimeSeconds != null)
+    state.onTimeMinutes = Math.max(1, Math.round(p.onTimeSeconds / 60))
+  if (p.lateSeconds != null)
+    state.lateMinutes = Math.max(0, Math.round(p.lateSeconds / 60))
+}, { immediate: true })
 
 const handleSave = onSubmit(
   (data) => {
     const body: CheckInPolicyRequest = data.enabled
-      ? {
-          enabled: true,
-          onTimeSeconds: data.onTimeMinutes * 60,
-          lateSeconds: data.lateMinutes * 60,
-        }
+      ? { enabled: true, onTimeSeconds: data.onTimeMinutes * 60, lateSeconds: data.lateMinutes * 60 }
       : { enabled: false }
-
-    return $backend('/api/check-in-policy/subjects/{subjectId}', {
-      method: 'PUT',
-      path: { subjectId },
-      body,
-    })
+    return updateCheckInPolicy({ path: { subjectId }, body })
   },
-  {
-    onSuccess: () => refresh(),
-  },
+  { onSuccess: () => refresh() },
 )
 </script>
 

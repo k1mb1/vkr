@@ -9,42 +9,26 @@ defineProps<{
 const { user, logout } = useOidcAuth()
 const colorMode = useColorMode()
 
-const displayName = computed(() => user.value?.name || user.value?.email || 'User')
-const displayEmail = computed(() => user.value?.email || 'No email')
+const displayName = computed(() => user.value?.name || user.value?.email || 'Пользователь')
+const displayEmail = computed(() => user.value?.email || '')
 
 const avatar = computed(() => ({
   src: `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(displayName.value)}`,
   alt: displayName.value,
 }))
 
-function mockSelect(label: string) {
-  return (e: Event) => {
-    e.preventDefault()
-    console.warn(`[mock] ${label}`)
-  }
-}
-
 const items = computed<DropdownMenuItem[][]>(() => ([
   [{
     type: 'label',
     label: displayName.value,
     avatar: avatar.value,
-    description: displayEmail.value,
+    description: displayEmail.value || undefined,
   }],
   [{
-    label: 'Profile',
-    icon: 'i-lucide-user',
-    onSelect: mockSelect('Profile'),
-  }, {
-    label: 'Settings',
-    icon: 'i-lucide-settings',
-    onSelect: mockSelect('Settings'),
-  }],
-  [{
-    label: 'Appearance',
+    label: 'Тема',
     icon: 'i-lucide-sun-moon',
     children: [{
-      label: 'Light',
+      label: 'Светлая',
       icon: 'i-lucide-sun',
       type: 'checkbox',
       checked: colorMode.preference === 'light',
@@ -53,7 +37,7 @@ const items = computed<DropdownMenuItem[][]>(() => ([
         colorMode.preference = 'light'
       },
     }, {
-      label: 'Dark',
+      label: 'Тёмная',
       icon: 'i-lucide-moon',
       type: 'checkbox',
       checked: colorMode.preference === 'dark',
@@ -62,7 +46,7 @@ const items = computed<DropdownMenuItem[][]>(() => ([
         colorMode.preference = 'dark'
       },
     }, {
-      label: 'System',
+      label: 'Системная',
       icon: 'i-lucide-monitor',
       type: 'checkbox',
       checked: colorMode.preference === 'system',
@@ -72,30 +56,13 @@ const items = computed<DropdownMenuItem[][]>(() => ([
       },
     }],
   }, {
-    label: 'Language (mock)',
-    icon: 'i-lucide-languages',
-    onSelect: mockSelect('Language'),
-  }, {
-    label: 'Notifications (mock)',
-    icon: 'i-lucide-bell',
-    onSelect: mockSelect('Notifications'),
-  }],
-  [{
-    label: 'Documentation',
-    icon: 'i-lucide-book-open',
-    to: 'https://ui.nuxt.com/docs/getting-started/installation/nuxt',
+    label: 'Обратная связь',
+    icon: 'i-lucide-message-circle',
+    to: 'https://k1mbb.t.me',
     target: '_blank',
-  }, {
-    label: 'Help center (mock)',
-    icon: 'i-lucide-life-buoy',
-    onSelect: mockSelect('Help center'),
-  }, {
-    label: 'Send feedback (mock)',
-    icon: 'i-lucide-message-square',
-    onSelect: mockSelect('Send feedback'),
   }],
   [{
-    label: 'Log out',
+    label: 'Выйти',
     icon: 'i-lucide-log-out',
     color: 'error',
     async onSelect(e: Event) {

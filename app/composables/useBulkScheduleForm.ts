@@ -1,8 +1,8 @@
-import type { components } from '#open-fetch-schemas/backend'
+import type { BulkScheduleLessonsRequest, GroupWithSubgroupsResponse, LessonResponse, LessonScopeAudienceRequest } from '#hey-api'
 
-export type BulkScheduleAudience = components['schemas']['LessonScopeAudienceRequest']
+export type BulkScheduleAudience = LessonScopeAudienceRequest
 
-export type GroupWithSubgroups = components['schemas']['GroupWithSubgroupsResponse']
+export type GroupWithSubgroups = GroupWithSubgroupsResponse
 
 /**
  * День недели. В api-docs перечисление дней больше не публикуется отдельной схемой
@@ -27,9 +27,9 @@ export interface BulkScheduleItem {
  * (id/audience/startedAt), а реальный контракт элемента — это {@link BulkScheduleItem}.
  */
 export type BulkScheduleRequest
-  = Omit<components['schemas']['BulkScheduleLessonsRequest'], 'items'> & { items: BulkScheduleItem[] }
+  = Omit<BulkScheduleLessonsRequest, 'items'> & { items: BulkScheduleItem[] }
 
-export type BulkScheduleResponse = components['schemas']['LessonResponse']
+export type BulkScheduleResponse = LessonResponse
 
 /**
  * Каст тела запроса к сгенерированному типу. Нужен потому, что схема `Item` в
@@ -37,7 +37,7 @@ export type BulkScheduleResponse = components['schemas']['LessonResponse']
  * {@link BulkScheduleItem}.
  */
 export function bulkScheduleBody(req: BulkScheduleRequest) {
-  return req as unknown as components['schemas']['BulkScheduleLessonsRequest']
+  return req as unknown as BulkScheduleLessonsRequest
 }
 
 export const WEEKDAYS: { value: DayOfWeek, short: string, label: string }[] = [

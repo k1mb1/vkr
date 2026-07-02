@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import type { components } from '#open-fetch-schemas/backend'
+import type { UpsertAttendanceRequest } from '#hey-api'
 import type { AttendanceTableProps } from '~/composables/useAttendanceTable'
 import { useAttendanceTable } from '~/composables/useAttendanceTable'
 import { sectionedTableUi } from '~/utils/tableUi'
-
-type UpsertAttendanceRequest = components['schemas']['UpsertAttendanceRequest']
 
 const props = withDefaults(defineProps<AttendanceTableProps>(), {
   pending: false,

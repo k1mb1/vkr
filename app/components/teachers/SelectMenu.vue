@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import type { components } from '#open-fetch-schemas/backend'
+import type { TeacherResponse } from '#hey-api'
 import { refDebounced } from '@vueuse/core'
-
-type TeacherResponse = components['schemas']['TeacherResponse']
+import { getPageTeachers } from '#hey-api'
 
 const props = defineProps<{
   excludeId?: NonNullable<TeacherResponse['id']>[]
@@ -18,7 +17,7 @@ const { page, request, toPageState } = usePagable({
   filter: () => ({ username: debouncedSearch.value || undefined }),
 })
 
-const { data, pending, error } = useBackend('/api/teachers', { method: 'GET', query: request })
+const { data, pending, error } = useApi({ key: 'teachers-select', watch: [request] }, () => getPageTeachers({ query: request.value }))
 const { totalPages } = toPageState(data)
 
 const { selectedOption, hasMore, selectOptions, menuRef } = useInfiniteSelectMenu<TeacherResponse>({

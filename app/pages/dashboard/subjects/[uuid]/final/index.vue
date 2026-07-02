@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { getResults } from '#hey-api'
 import { useFinalGradesExport } from '~/composables/useFinalGradesExport'
 import { useFinalTable } from '~/composables/useFinalTable'
 import { sectionedTableUi } from '~/utils/tableUi'
@@ -10,11 +11,10 @@ const subjectId = computed(() => String(route.params.uuid ?? ''))
 
 const { exportLoading: finalExportLoading, downloadExcel: downloadFinalExcel } = useFinalGradesExport()
 
-const { data: results, pending, error, refresh } = useBackend('/api/results', {
-  method: 'GET',
-  query: computed(() => ({ permissionId: permissionId.value })),
-  immediate: false,
-})
+const { data: results, pending, error, refresh } = useApi(
+  { key: `final-results:${subjectId.value}`, immediate: false },
+  () => getResults({ query: { permissionId: permissionId.value } }),
+)
 
 const data = computed(() => results.value?.grading ?? null)
 const attData = computed(() => results.value?.attendance ?? null)
@@ -24,6 +24,7 @@ function refreshAll() {
 }
 
 useRefreshOnPermission(permissionId, refreshAll)
+useRefreshOnFocus(refreshAll)
 
 const { sortBy, sortItems } = useStudentSort()
 
@@ -76,10 +77,8 @@ const tableUi = sectionedTableUi()
     />
 
     <template v-else>
-      <UAlert
-        color="neutral"
-        variant="soft"
-        icon="i-lucide-info"
+      <AppHint
+        id="final-index"
         title="Сводные итоги по студентам"
         description="Суммы баллов по лекциям и практикам с учётом штрафов, бонусов и посещаемости. Если включена промежуточная аттестация, в колонке «Вердикт» студенту присваивается самый высокий уровень, условия которого он выполнил; при невыполнении порога посещаемости — «Не аттестован»."
       />
@@ -125,7 +124,7 @@ const tableUi = sectionedTableUi()
 
       <!-- Bands legend -->
       <div v-if="finalEnabled && finalPolicy?.bands?.length" class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
-        <span class="font-medium text-default">Банды:</span>
+        <span class="font-medium text-default">Уровни:</span>
         <span v-for="(band, i) in finalPolicy.bands" :key="i" class="flex items-center gap-1">
           <UBadge
             :label="band.label"

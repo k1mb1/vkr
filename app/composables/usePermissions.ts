@@ -1,10 +1,6 @@
 import type { User } from '#auth-utils'
-import type { components } from '#open-fetch-schemas/backend'
-
-type TeacherSubjectPermissionResponse
-  = components['schemas']['TeacherSubjectPermissionResponse']
-type PermissionScopeResponse
-  = components['schemas']['PermissionScopeResponse']
+import type { PermissionScopeResponse, TeacherSubjectPermissionResponse } from '#hey-api'
+import { getPermission } from '#hey-api'
 
 export function usePermissions(subjectIdOverride?: MaybeRefOrGetter<string>) {
   const { user } = useOidcAuth()
@@ -19,16 +15,12 @@ export function usePermissions(subjectIdOverride?: MaybeRefOrGetter<string>) {
 
   const teacherId = computed(() => (user.value as User | null)?.sub ?? '')
 
-  const { data, status, error, pending, refresh, execute, clear } = useBackend(
-    '/api/teacher-subject-permissions/single',
+  const { data, status, error, pending, refresh, execute, clear } = useApi(
     {
-      method: 'GET',
-      key: computed(() => `permission:${subjectId.value}:${teacherId.value}`),
-      query: computed(() => ({
-        subjectId: subjectId.value,
-        teacherId: teacherId.value,
-      })),
+      key: `permission:${toValue(subjectId)}`,
+      watch: [subjectId, teacherId],
     },
+    () => getPermission({ query: { subjectId: subjectId.value, teacherId: teacherId.value } }),
   )
 
   const hasAllPermissions = computed<boolean>(
@@ -40,7 +32,7 @@ export function usePermissions(subjectIdOverride?: MaybeRefOrGetter<string>) {
   )
 
   const permission = computed<TeacherSubjectPermissionResponse | undefined>(
-    () => data.value,
+    () => data.value ?? undefined,
   )
 
   const permissionId = computed<string>(() => permission.value?.id ?? '')

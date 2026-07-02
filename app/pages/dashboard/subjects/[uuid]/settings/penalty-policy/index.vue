@@ -1,12 +1,10 @@
 <script setup lang="ts">
-import type { components } from '#open-fetch-schemas/backend'
+import type { PenaltyPolicyRequest, PenaltyPolicyResponse } from '#hey-api'
 import type { SchemaFor } from '~/utils/validation'
 import * as v from 'valibot'
+import { getPenaltyPolicy, updatePenaltyPolicy } from '#hey-api'
 
 definePageMeta({ middleware: 'subject-permission' })
-
-type PenaltyPolicyRequest = components['schemas']['PenaltyPolicyRequest']
-type PenaltyPolicyResponse = components['schemas']['PenaltyPolicyResponse']
 
 type PenaltyPolicyForm = PenaltyPolicyRequest
 
@@ -48,12 +46,10 @@ const PenaltyPolicySchema: SchemaFor<PenaltyPolicyForm> = v.pipe(
 const route = useRoute()
 const subjectId = String(route.params.uuid ?? '')
 
-const { $backend } = useNuxtApp()
-
-const { data, pending, error, refresh } = useBackend('/api/penalty-policy/subjects/{subjectId}', {
-  method: 'GET',
-  path: { subjectId },
-})
+const { data, pending, error, refresh } = useApi(
+  { key: `penalty-policy:${subjectId}` },
+  () => getPenaltyPolicy({ path: { subjectId } }),
+)
 
 const policy = computed<PenaltyPolicyResponse | null>(() => data.value ?? null)
 
@@ -131,11 +127,7 @@ const handleSave = onSubmit(
         : {}),
     }
 
-    return $backend('/api/penalty-policy/subjects/{subjectId}', {
-      method: 'PUT',
-      path: { subjectId },
-      body,
-    })
+    return updatePenaltyPolicy({ path: { subjectId }, body })
   },
   {
     onSuccess: () => refresh(),

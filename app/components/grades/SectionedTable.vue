@@ -1,12 +1,10 @@
 <script setup lang="ts">
-import type { components } from '#open-fetch-schemas/backend'
+import type { UpsertGradeRequest } from '#hey-api'
 import type { GradesTableProps } from '~/composables/useGradesTable'
 import { computed } from 'vue'
 import { useGradesTable } from '~/composables/useGradesTable'
 import { highlightChipBg } from '~/utils/highlight'
 import { sectionedTableUi } from '~/utils/tableUi'
-
-type UpsertGradeRequest = components['schemas']['UpsertGradeRequest']
 
 const props = withDefaults(defineProps<GradesTableProps>(), {
   pending: false,

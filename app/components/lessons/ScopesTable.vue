@@ -1,9 +1,7 @@
 <script setup lang="ts">
 import type { DropdownMenuItem, TableColumn } from '@nuxt/ui'
-import type { components } from '#open-fetch-schemas/backend'
-
-type LessonResponse = components['schemas']['LessonResponse']
-type LessonScopeResponse = components['schemas']['LessonScopeResponse']
+import type { LessonResponse, LessonScopeResponse } from '#hey-api'
+import { deleteLessonScope } from '#hey-api'
 
 const props = defineProps<{
   lesson: LessonResponse
@@ -15,7 +13,6 @@ const emit = defineEmits<{
   deleted: []
 }>()
 
-const { $backend } = useNuxtApp()
 const { loading: deleting, submit } = useFormSubmit()
 const { d } = useI18n()
 
@@ -40,12 +37,7 @@ async function handleDelete() {
   if (!deleteTarget.value?.id)
     return
   await submit(
-    // Backend's OpenAPI no longer lists DELETE /api/lesson-scopes/{scopeId};
-    // the runtime endpoint still exists, so we bypass the typed client.
-    () => $backend('/api/lesson-scopes/{scopeId}' as any, {
-      method: 'DELETE',
-      path: { scopeId: deleteTarget.value!.id! },
-    }),
+    () => deleteLessonScope({ path: { scopeId: deleteTarget.value!.id! } }),
     {
       successMessage: 'Проведение удалено',
       onSuccess: () => {

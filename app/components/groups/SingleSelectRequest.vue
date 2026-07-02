@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { components } from '#open-fetch-schemas/backend'
+import type { GroupResponse } from '#hey-api'
 import { refDebounced } from '@vueuse/core'
+import { getGroupPage } from '#hey-api'
 
-type GroupResponse = components['schemas']['GroupResponse']
 const props = defineProps<{
   initialLabel?: string
 }>()
@@ -12,7 +12,7 @@ const debouncedSearch = refDebounced(search, 300)
 const { page, request, toPageState } = usePagable({
   filter: () => ({ name: debouncedSearch.value || undefined }),
 })
-const { data, pending, error } = useBackend('/api/groups', { method: 'GET', query: request })
+const { data, pending, error } = useApi({ key: 'groups-single-select', watch: [request] }, () => getGroupPage({ query: request.value }))
 const { totalPages } = toPageState(data)
 const { selectedOption, hasMore, selectOptions, menuRef } = useInfiniteSelectMenu<GroupResponse>({
   modelValue: modelValue as Ref<string | undefined>,

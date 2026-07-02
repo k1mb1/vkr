@@ -1,6 +1,6 @@
-import type { components } from '#open-fetch-schemas/backend'
+import type { BulkUpsertGradesRequest } from '#hey-api'
+import { upsertGrades } from '#hey-api'
 
-type BulkUpsertGradesRequest = components['schemas']['BulkUpsertGradesRequest']
 type UpsertGradeRequest = BulkUpsertGradesRequest['items'][number]
 
 interface PendingGrade {
@@ -20,7 +20,6 @@ interface GradeDraft extends PendingGrade {
  * занятия, и в сводном журнале оценок.
  */
 export function useGradeDrafts(options: { onSaved?: () => Promise<void> | void } = {}) {
-  const { $backend } = useNuxtApp()
   const { toastError, toast } = useApiError()
 
   const changes = reactive<Record<string, GradeDraft>>({})
@@ -67,24 +66,22 @@ export function useGradeDrafts(options: { onSaved?: () => Promise<void> | void }
       ...(v.comment ? { comment: v.comment } : {}),
     }))
     saving.value = true
-    try {
-      const body: BulkUpsertGradesRequest = { items }
-      await $backend('/api/grades', { method: 'PUT', body })
-      reset()
-      await options.onSaved?.()
-      toast.add({
-        title: 'Оценки сохранены',
-        description: `Обновлено ячеек: ${items.length}`,
-        color: 'success',
-        icon: 'i-lucide-circle-check',
-      })
+    const { error } = await $api(() => upsertGrades({ body: { items } }))
+    saving.value = false
+
+    if (error) {
+      toastError(error, 'Не удалось сохранить')
+      return
     }
-    catch (e) {
-      toastError(e as Parameters<typeof toastError>[0], 'Не удалось сохранить')
-    }
-    finally {
-      saving.value = false
-    }
+
+    reset()
+    await options.onSaved?.()
+    toast.add({
+      title: 'Оценки сохранены',
+      description: `Обновлено ячеек: ${items.length}`,
+      color: 'success',
+      icon: 'i-lucide-circle-check',
+    })
   }
 
   return { changes, saving, dirty, pendingView, onChange, reset, save }

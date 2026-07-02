@@ -1,13 +1,10 @@
 <script setup lang="ts">
-import type { components } from '#open-fetch-schemas/backend'
+import type { AssignmentResponse, Band, BulkUpdateAssignmentsRequest, LessonResponse } from '#hey-api'
 import type { SchemaFor } from '~/utils/validation'
 import * as v from 'valibot'
+import { getFinalAssessmentPolicy, getLessonById, updateByLesson } from '#hey-api'
 
 definePageMeta({ middleware: 'subject-permission' })
-
-type LessonResponse = components['schemas']['LessonResponse']
-type AssignmentResponse = components['schemas']['AssignmentResponse']
-type Band = components['schemas']['Band']
 
 type AdmissionMode = NonNullable<AssignmentResponse['admissionMode']>
 
@@ -61,23 +58,20 @@ const lessonId = String(route.params.id ?? '')
 
 const targetLesson = (history.state?.lesson ?? null) as LessonResponse | null
 
-const { $backend } = useNuxtApp()
-
 // ── Load lesson if not seeded ───────────────────────────────────────────────
-const { data: fetchedLesson, pending: lessonPending } = useBackend('/api/lessons/{id}', {
-  method: 'GET',
-  path: { id: lessonId },
-  immediate: !targetLesson,
-})
+const { data: fetchedLesson, pending: lessonPending } = useApi(
+  { key: `lesson:${lessonId}`, immediate: !targetLesson },
+  () => getLessonById({ path: { id: lessonId } }),
+)
 
 const lesson = computed<LessonResponse | null>(() => targetLesson ?? fetchedLesson.value ?? null)
 const assignments = computed<AssignmentResponse[]>(() => lesson.value?.assignments ?? [])
 
 // ── Load policy for bands ───────────────────────────────────────────────────
-const { data: policyData, pending: policyPending } = useBackend('/api/final-assessment-policy/subjects/{subjectId}', {
-  method: 'GET',
-  path: { subjectId },
-})
+const { data: policyData, pending: policyPending } = useApi(
+  { key: `final-assessment-policy:${subjectId}` },
+  () => getFinalAssessmentPolicy({ path: { subjectId } }),
+)
 
 const bands = computed<Band[]>(() => policyData.value?.bands ?? [])
 const policyEnabled = computed(() => policyData.value?.enabled ?? false)
@@ -198,11 +192,7 @@ const handleSave = onSubmit(
       })),
     }
 
-    return $backend('/api/assignments/lessons/{lessonId}', {
-      method: 'PUT',
-      path: { lessonId },
-      body: body as unknown as components['schemas']['BulkUpdateAssignmentsRequest'],
-    })
+    return updateByLesson({ path: { lessonId }, body: body as unknown as BulkUpdateAssignmentsRequest })
   },
   {
     onSuccess: () => navigateTo(`/dashboard/subjects/${subjectId}/lessons/${lessonId}`),

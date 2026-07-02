@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { components } from '#open-fetch-schemas/backend'
+import type { CheckInSessionResponse } from '#hey-api'
+import { list } from '#hey-api'
 
-type CheckInSessionResponse = components['schemas']['CheckInSessionResponse']
 type CheckInState = NonNullable<CheckInSessionResponse['state']>
 
 interface ScopeState {
@@ -39,13 +39,13 @@ const scopeState = reactive<ScopeState>({
   allowedSubgroupId: null,
 })
 
-const { data, pending: sessionsPending, error, refresh } = useBackend('/api/check-in-sessions', {
-  method: 'GET',
-  query: computed(() => ({ permissionId: permissionId.value })),
-  immediate: false,
-})
+const { data, pending: sessionsPending, error, refresh } = useApi(
+  { key: `check-in-sessions:${subjectId.value}`, immediate: false },
+  () => list({ query: { permissionId: permissionId.value } }),
+)
 
 useRefreshOnPermission(permissionId, refresh)
+useRefreshOnFocus(refresh)
 
 const pending = computed(() => permissionPending.value || sessionsPending.value)
 
@@ -199,10 +199,8 @@ const columns = computed<TableColumn<FlatRow>[]>(() => [
       v-else
       class="flex flex-col gap-4"
     >
-      <UAlert
-        color="neutral"
-        variant="soft"
-        icon="i-lucide-info"
+      <AppHint
+        id="check-ins-index"
         title="Зачем это нужно"
         description="Здесь запускаются и хранятся сессии отметки присутствия. Запустите опрос — студенты отметятся по QR-коду, а после закрытия вы подтвердите результаты, и они перенесутся в посещаемость. В списке видно состояние каждой сессии."
       />

@@ -1,6 +1,4 @@
-import type { components } from '#open-fetch-schemas/backend'
-
-type FinalAssessmentPolicyResponse = components['schemas']['FinalAssessmentPolicyResponse']
+import type { FinalAssessmentPolicyResponse } from '#hey-api'
 
 export interface VerdictInput {
   /** Итоговый балл студента. */

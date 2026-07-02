@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import type { components } from '#open-fetch-schemas/backend'
+import type { BulkCreateLessonsRequest } from '#hey-api'
 import * as v from 'valibot'
+import { bulkCreate } from '#hey-api'
 import { nonNegativeInteger, uuidV4 } from '~/utils/validation'
 
 definePageMeta({ middleware: 'subject-permission' })
-
-type BulkCreateLessonsRequest = components['schemas']['BulkCreateLessonsRequest']
 
 const CreateLessonsSchema: SchemaFor<BulkCreateLessonsRequest> = v.pipe(
   v.object({
@@ -32,8 +31,6 @@ const CreateLessonsSchema: SchemaFor<BulkCreateLessonsRequest> = v.pipe(
 const route = useRoute()
 const subjectId = String(route.params.uuid ?? '')
 
-const { $backend } = useNuxtApp()
-
 const { permission } = usePermissions()
 
 const { state, formRef, loading, onSubmit, onError } = useResourceForm<typeof CreateLessonsSchema>({
@@ -45,7 +42,7 @@ const { state, formRef, loading, onSubmit, onError } = useResourceForm<typeof Cr
 })
 
 const handleCreate = onSubmit(
-  data => $backend('/api/lessons/bulk', { method: 'POST', body: data }),
+  data => bulkCreate({ body: data }),
   {
     onSuccess: () => navigateTo(`/dashboard/subjects/${subjectId}/lessons`),
   },

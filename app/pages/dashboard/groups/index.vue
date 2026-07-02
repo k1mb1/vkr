@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { getGroupPage } from '#hey-api'
 import { usePagable } from '~/composables/usePagable'
 
 const search = ref('')
@@ -21,10 +22,12 @@ function clearSearch() {
   page.value = 1
 }
 
-const { data, pending, error, refresh } = useBackend('/api/groups', {
-  method: 'GET',
-  query: request,
-})
+const { data, pending, error, refresh } = useApi(
+  { key: 'groups-list', watch: [request] },
+  () => getGroupPage({ query: request.value }),
+)
+
+useRefreshOnFocus(refresh)
 
 const { rows, totalElements } = toPageState(data)
 </script>
