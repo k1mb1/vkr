@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { PublicCheckInRecordResponse, PublicCheckInSessionResponse, PublicStudentResponse } from '#hey-api'
 import { refDebounced, useLocalStorage } from '@vueuse/core'
-import { checkIn, get1, searchStudents, verifyCode as verifyCodeApi } from '#hey-api'
+import { getPublicCheckInSession, searchPublicCheckInStudents, submitCheckIn, verifyCheckInCode as verifyCodeApi } from '#hey-api'
 
 type PublicState = NonNullable<PublicCheckInSessionResponse['state']>
 
@@ -29,7 +29,7 @@ const {
   refresh,
 } = useApi(
   { key: `public-check-in:${sessionId.value}`, watch: [sessionId] },
-  () => get1({ path: { id: sessionId.value }, headers: { 'x-proxy-auth-optional': 'true' } }),
+  () => getPublicCheckInSession({ path: { id: sessionId.value }, headers: { 'x-proxy-auth-optional': 'true' } }),
 )
 
 const state = computed<PublicState | null>(() => session.value?.state ?? null)
@@ -204,7 +204,7 @@ async function runSearch() {
   }
   searchPending.value = true
   // Код держим в памяти и шлём заново вместе с запросом.
-  const { data, error } = await $api(() => searchStudents({
+  const { data, error } = await $api(() => searchPublicCheckInStudents({
     path: { id: sessionId.value },
     body: { code: code.value, query: trimmedQuery.value },
     headers: { 'x-proxy-auth-optional': 'true' },
@@ -247,7 +247,7 @@ async function confirmCheckIn() {
     return
 
   submitting.value = true
-  const { data: result, error } = await $api(() => checkIn({
+  const { data: result, error } = await $api(() => submitCheckIn({
     path: { id: sessionId.value },
     body: { studentId, code: code.value },
     headers: { 'x-proxy-auth-optional': 'true' },

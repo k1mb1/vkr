@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { BulkCreateLessonsRequest } from '#hey-api'
 import * as v from 'valibot'
-import { bulkCreate } from '#hey-api'
+import { bulkCreateLessons } from '#hey-api'
 import { nonNegativeInteger, uuidV4 } from '~/utils/validation'
 
 definePageMeta({ middleware: 'subject-permission' })
@@ -42,7 +42,7 @@ const { state, formRef, loading, onSubmit, onError } = useResourceForm<typeof Cr
 })
 
 const handleCreate = onSubmit(
-  data => bulkCreate({ body: data }),
+  data => bulkCreateLessons({ body: data }),
   {
     onSuccess: () => navigateTo(`/dashboard/subjects/${subjectId}/lessons`),
   },

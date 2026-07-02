@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { CheckInSessionResponse } from '#hey-api'
-import { list } from '#hey-api'
+import { getCheckInSessions } from '#hey-api'
 
 type CheckInState = NonNullable<CheckInSessionResponse['state']>
 
@@ -41,7 +41,7 @@ const scopeState = reactive<ScopeState>({
 
 const { data, pending: sessionsPending, error, refresh } = useApi(
   { key: `check-in-sessions:${subjectId.value}`, immediate: false },
-  () => list({ query: { permissionId: permissionId.value } }),
+  () => getCheckInSessions({ query: { permissionId: permissionId.value } }),
 )
 
 useRefreshOnPermission(permissionId, refresh)

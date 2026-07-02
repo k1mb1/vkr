@@ -2,7 +2,7 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { CheckInPreviewResponse, CheckInSessionResponse, ConfirmCheckInRequest, Override, Row } from '#hey-api'
 import { useQRCode } from '@vueuse/integrations/useQRCode'
-import { cancel, confirm, get, preview as previewCheckIn } from '#hey-api'
+import { cancelCheckInSession, confirmCheckInSession, getCheckInSession, previewCheckInSession as previewCheckIn } from '#hey-api'
 
 type CheckInState = NonNullable<CheckInSessionResponse['state']>
 type AttendanceStatus = NonNullable<Override['status']>
@@ -22,7 +22,7 @@ const {
   refresh: refreshSession,
 } = useApi(
   { key: `check-in-session:${sessionId.value}`, watch: [sessionId] },
-  () => get({ path: { id: sessionId.value } }),
+  () => getCheckInSession({ path: { id: sessionId.value } }),
 )
 
 const state = computed<CheckInState | null>(() => session.value?.state ?? null)
@@ -179,7 +179,7 @@ const { loading: cancelling, submit: submitCancel } = useFormSubmit()
 
 async function handleCancel() {
   await submitCancel(
-    () => cancel({ path: { id: sessionId.value } }),
+    () => cancelCheckInSession({ path: { id: sessionId.value } }),
     {
       successMessage: 'Сессия отменена',
       onSuccess: async () => {
@@ -368,7 +368,7 @@ async function handleConfirm() {
       const body: ConfirmCheckInRequest = {
         overrides: overridesList.length ? overridesList : undefined,
       }
-      return confirm({ path: { id: sessionId.value }, body })
+      return confirmCheckInSession({ path: { id: sessionId.value }, body })
     },
     {
       successMessage: 'Посещаемость подтверждена',

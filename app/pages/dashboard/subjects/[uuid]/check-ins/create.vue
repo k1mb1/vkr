@@ -2,7 +2,7 @@
 import type { LessonResponse, LessonScopeResponse, StartCheckInRequest } from '#hey-api'
 import type { SchemaFor } from '~/utils/validation'
 import * as v from 'valibot'
-import { getCheckInPolicy, getLessons, list, start } from '#hey-api'
+import { getCheckInPolicy, getCheckInSessions, getLessons, startCheckInSession } from '#hey-api'
 import { string } from '~/utils/validation'
 
 interface LessonScopeOption {
@@ -61,7 +61,7 @@ const { data: lessonsData, pending: lessonsPending, refresh } = useApi(
 // Существующие сессии — чтобы не предлагать уже отмеченные (или идущие) проведения.
 const { data: sessionsData, refresh: refreshSessions } = useApi(
   { key: `check-in-sessions:${subjectId}`, immediate: false },
-  () => list({ query: { permissionId: permissionId.value } }),
+  () => getCheckInSessions({ query: { permissionId: permissionId.value } }),
 )
 
 useRefreshOnPermission(permissionId, () => {
@@ -178,7 +178,7 @@ const handleStart = onSubmit(
             lateSeconds: data.lateMinutes * 60,
           }),
     }
-    return start({ body })
+    return startCheckInSession({ body })
   },
   {
     onSuccess: (result) => {

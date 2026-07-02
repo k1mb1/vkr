@@ -1,5 +1,5 @@
 import type { BulkUpsertAttendanceRequest } from '#hey-api'
-import { upsertAll } from '#hey-api'
+import { bulkUpsertAttendance } from '#hey-api'
 
 type UpsertAttendanceRequest = BulkUpsertAttendanceRequest['items'][number]
 type AttendanceStatus = UpsertAttendanceRequest['status']
@@ -40,7 +40,7 @@ export function useAttendanceDrafts(options: { onSaved?: () => Promise<void> | v
       return { studentId: studentId!, lessonScopeId: lessonScopeId!, status }
     })
     saving.value = true
-    const { error } = await $api(() => upsertAll({ body: { items } }))
+    const { error } = await $api(() => bulkUpsertAttendance({ body: { items } }))
     saving.value = false
 
     if (error) {

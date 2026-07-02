@@ -1,5 +1,5 @@
 import type { PermissionScopeResponse, TeacherSubjectPermissionResponse } from '#hey-api'
-import { getPermission } from '#hey-api'
+import { getTeacherSubjectPermission } from '#hey-api'
 
 export function usePermissions(subjectIdOverride?: MaybeRefOrGetter<string>) {
   const route = subjectIdOverride ? null : useRoute()
@@ -18,7 +18,7 @@ export function usePermissions(subjectIdOverride?: MaybeRefOrGetter<string>) {
       watch: [subjectId, teacherId],
     },
     () => teacherId.value && subjectId.value
-      ? getPermission({ query: { subjectId: subjectId.value, teacherId: teacherId.value } })
+      ? getTeacherSubjectPermission({ query: { subjectId: subjectId.value, teacherId: teacherId.value } })
       : Promise.resolve({ data: null }),
   )
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { getPage } from '#hey-api'
+import { getSubjectsPage } from '#hey-api'
 import { usePagable } from '~/composables/usePagable'
 
 const teacherId = useTeacherId()
@@ -27,7 +27,7 @@ function clearSearch() {
 
 const { data, pending, error, refresh } = useApi(
   { key: 'subjects-list', watch: [request] },
-  () => teacherId.value ? getPage({ query: request.value }) : Promise.resolve({ data: null }),
+  () => teacherId.value ? getSubjectsPage({ query: request.value }) : Promise.resolve({ data: null }),
 )
 
 useRefreshOnFocus(refresh)

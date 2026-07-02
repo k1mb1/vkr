@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { LessonResponse } from '#hey-api'
-import { getLessonById, getResults, list } from '#hey-api'
+import { getCheckInSessions, getLessonById, getResults } from '#hey-api'
 
 const route = useRoute()
 const subjectId = computed(() => String(route.params.uuid ?? ''))
@@ -23,7 +23,7 @@ const { data: results, pending: resultsPending, refresh: resultsRefresh } = useA
 // Сессии отметки — для чеклиста готовности (статус: не начата / идёт / проведена).
 const { data: sessionsData, refresh: sessionsRefresh } = useApi(
   { key: `lesson-sessions:${lessonId.value}`, immediate: false },
-  () => list({ query: { permissionId: permissionId.value } }),
+  () => getCheckInSessions({ query: { permissionId: permissionId.value } }),
 )
 
 const attData = computed(() => results.value?.attendance ?? null)

@@ -2,7 +2,7 @@
 import type { DropdownMenuItem, TableColumn } from '@nuxt/ui'
 import type { Cell } from '@tanstack/vue-table'
 import type { TeacherSubjectPermissionResponse } from '#hey-api'
-import { delete_ } from '#hey-api'
+import { deleteTeacherSubjectPermission } from '#hey-api'
 
 interface FlatRow {
   _permId: string
@@ -46,7 +46,7 @@ async function handleDelete() {
     return
 
   await submit(
-    () => delete_({ path: { id: deleteTarget.value!._permId } }),
+    () => deleteTeacherSubjectPermission({ path: { id: deleteTarget.value!._permId } }),
     {
       successMessage: 'Назначение удалено',
       onSuccess: () => {

@@ -2,7 +2,7 @@
 import type { DropdownMenuItem, TableColumn } from '@nuxt/ui'
 import type { Cell } from '@tanstack/vue-table'
 import type { LessonResponse } from '#hey-api'
-import { deleteAllOfLesson, deleteLesson, setActive } from '#hey-api'
+import { deleteLesson, deleteLessonAssignments, setLessonActive } from '#hey-api'
 
 const props = defineProps<{
   data: LessonResponse[]
@@ -106,7 +106,7 @@ async function handleDeleteAssignments() {
   if (!deleteAssignmentsTarget.value?.id)
     return
   await submitDeleteAssignments(
-    () => deleteAllOfLesson({ path: { lessonId: deleteAssignmentsTarget.value!.id! } }),
+    () => deleteLessonAssignments({ path: { lessonId: deleteAssignmentsTarget.value!.id! } }),
     {
       successMessage: 'Задания удалены',
       onSuccess: () => {
@@ -136,7 +136,7 @@ async function handleSetActive() {
     return
   const isActive = setActiveTarget.value.active
   await submitSetActive(
-    () => setActive({ path: { id: setActiveTarget.value!.id! }, body: { active: !isActive } }),
+    () => setLessonActive({ path: { id: setActiveTarget.value!.id! }, body: { active: !isActive } }),
     {
       successMessage: isActive ? 'Активное занятие снято' : 'Занятие отмечено как активное',
       onSuccess: () => {

@@ -2,7 +2,7 @@
 import type { PermissionScopeRequest, TeacherSubjectPermissionResponse, UpdateTeacherSubjectPermissionRequest } from '#hey-api'
 import type { SchemaFor } from '~/utils/validation'
 import * as v from 'valibot'
-import { getGroupsBySubject, update } from '#hey-api'
+import { getGroupsBySubject, updateTeacherSubjectPermission } from '#hey-api'
 import { string } from '~/utils/validation'
 
 definePageMeta({ middleware: 'subject-permission' })
@@ -68,7 +68,7 @@ function removeScope(i: number) {
 }
 
 const handleUpdate = onSubmit(
-  data => update({ path: { id: permissionId }, body: data }),
+  data => updateTeacherSubjectPermission({ path: { id: permissionId }, body: data }),
   {
     onSuccess: () => navigateTo(`/dashboard/subjects/${subjectId}/settings/permissions`),
   },

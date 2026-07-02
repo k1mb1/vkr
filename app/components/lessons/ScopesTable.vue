@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { DropdownMenuItem, TableColumn } from '@nuxt/ui'
 import type { LessonResponse, LessonScopeResponse } from '#hey-api'
-import { deleteLessonScope } from '#hey-api'
 
 const props = defineProps<{
   lesson: LessonResponse
@@ -9,43 +8,10 @@ const props = defineProps<{
   canManage?: boolean
 }>()
 
-const emit = defineEmits<{
-  deleted: []
-}>()
-
-const { loading: deleting, submit } = useFormSubmit()
 const { d } = useI18n()
 
 function formatDate(value: string | undefined): string {
   return value ? d(new Date(value), 'numeric') : '—'
-}
-
-const deleteModal = ref(false)
-const deleteTarget = ref<LessonScopeResponse | null>(null)
-
-function openDeleteModal(scope: LessonScopeResponse) {
-  deleteTarget.value = scope
-  deleteModal.value = true
-}
-
-function closeDeleteModal() {
-  deleteModal.value = false
-  deleteTarget.value = null
-}
-
-async function handleDelete() {
-  if (!deleteTarget.value?.id)
-    return
-  await submit(
-    () => deleteLessonScope({ path: { scopeId: deleteTarget.value!.id! } }),
-    {
-      successMessage: 'Проведение удалено',
-      onSuccess: () => {
-        closeDeleteModal()
-        emit('deleted')
-      },
-    },
-  )
 }
 
 const columns = computed<TableColumn<LessonScopeResponse>[]>(() => {
@@ -60,7 +26,7 @@ const columns = computed<TableColumn<LessonScopeResponse>[]>(() => {
   return base
 })
 
-function scopeActions(scope: LessonScopeResponse): DropdownMenuItem[][] {
+function scopeActions(): DropdownMenuItem[][] {
   return [
     [
       {
@@ -72,22 +38,14 @@ function scopeActions(scope: LessonScopeResponse): DropdownMenuItem[][] {
         }),
       },
     ],
-    [
-      {
-        label: 'Удалить',
-        icon: 'i-lucide-trash-2',
-        color: 'error' as const,
-        onSelect: () => openDeleteModal(scope),
-      },
-    ],
   ]
 }
 </script>
 
 <template>
   <UTable :data="lesson.scopes ?? []" :columns="columns">
-    <template #actions-cell="{ row }">
-      <UDropdownMenu :items="scopeActions(row.original)" :ui="{ content: 'w-36' }">
+    <template #actions-cell>
+      <UDropdownMenu :items="scopeActions()" :ui="{ content: 'w-36' }">
         <UButton icon="i-lucide-ellipsis-vertical" color="neutral" variant="ghost" />
       </UDropdownMenu>
     </template>
@@ -141,16 +99,4 @@ function scopeActions(scope: LessonScopeResponse): DropdownMenuItem[][] {
       />
     </template>
   </UTable>
-
-  <ConfirmModal
-    :open="deleteModal"
-    title="Удалить проведение"
-    :description="`Проведение от ${formatDate(deleteTarget?.startedAt)} будет удалено безвозвратно.`"
-    confirm-label="Удалить"
-    confirm-color="error"
-    confirm-icon="i-lucide-trash-2"
-    :pending="deleting"
-    @close="closeDeleteModal"
-    @confirm="handleDelete"
-  />
 </template>

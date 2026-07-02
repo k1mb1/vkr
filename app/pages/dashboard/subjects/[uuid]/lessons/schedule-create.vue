@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { BulkScheduleRequest } from '~/composables/useBulkScheduleForm'
-import { bulkSchedule, getGroupsBySubject } from '#hey-api'
+import { bulkScheduleLessons, getGroupsBySubject } from '#hey-api'
 import {
   buildBulkScheduleItems,
   bulkScheduleBody,
@@ -61,7 +61,7 @@ async function handleCreate() {
   }
 
   await submit(
-    () => bulkSchedule({ body: bulkScheduleBody(body) }),
+    () => bulkScheduleLessons({ body: bulkScheduleBody(body) }),
     {
       successMessage: (result) => {
         const lessons = result.length

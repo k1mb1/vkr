@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { getPermissionsBySubject } from '#hey-api'
+import { getTeacherSubjectPermissions } from '#hey-api'
 
 definePageMeta({ middleware: 'subject-permission' })
 
@@ -8,7 +8,7 @@ const subjectId = computed(() => String(route.params.uuid ?? ''))
 
 const { data, pending, error, refresh } = useApi(
   { key: `permissions-by-subject:${subjectId.value}`, watch: [subjectId] },
-  () => getPermissionsBySubject({ query: { subjectId: subjectId.value } }),
+  () => getTeacherSubjectPermissions({ query: { subjectId: subjectId.value } }),
 )
 
 const { hasAllPermissions, permissionId } = usePermissions()

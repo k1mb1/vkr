@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import type { GroupResponse } from '#hey-api'
-import { getGroupPage } from '#hey-api'
+import { getGroupsPage } from '#hey-api'
 
 const modelValue = defineModel<string[]>({ default: () => [] })
 
 const { data, pending, error } = useApi(
   { key: 'groups-multiselect' },
-  () => getGroupPage({ query: { size: 1000 } }),
+  () => getGroupsPage({ query: { size: 1000 } }),
 )
 
 const options = computed(() =>

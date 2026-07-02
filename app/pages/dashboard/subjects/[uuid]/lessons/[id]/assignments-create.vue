@@ -2,7 +2,7 @@
 import type { AssignmentResponse, Band, CreateAssignmentsRequest, LessonResponse } from '#hey-api'
 import type { SchemaFor } from '~/utils/validation'
 import * as v from 'valibot'
-import { create1, getFinalAssessmentPolicy } from '#hey-api'
+import { createAssignments, getFinalAssessmentPolicy } from '#hey-api'
 import { arrayMinLength } from '~/utils/validation'
 
 definePageMeta({ middleware: 'subject-permission' })
@@ -160,7 +160,7 @@ const handleCreate = onSubmit(
       })),
     }
 
-    return create1({ body: body as unknown as CreateAssignmentsRequest })
+    return createAssignments({ body: body as unknown as CreateAssignmentsRequest })
   },
   {
     successMessage: result => (result?.length ?? 0) > 1

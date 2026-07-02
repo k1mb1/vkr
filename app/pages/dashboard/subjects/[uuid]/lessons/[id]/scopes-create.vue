@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { BulkAddLessonScopesRequest } from '#hey-api'
-import { addScopes, getGroupsBySubject } from '#hey-api'
+import { addLessonScopes, getGroupsBySubject } from '#hey-api'
 import {
   buildLessonScopeRequests,
   initialLessonScopeFormState,
@@ -49,7 +49,7 @@ async function handleCreate() {
     // Схема ref'ает Item с обязательным `id` (общий тип для нескольких
     // bulk-эндпоинтов), но у новых scope'ов id ещё нет — бэкенд принимает
     // массив без id. Каст только тела: path/method остаются типизированными.
-    () => addScopes({ path: { lessonId }, body: { items: requests } as BulkAddLessonScopesRequest }),
+    () => addLessonScopes({ path: { lessonId }, body: { items: requests } as BulkAddLessonScopesRequest }),
     {
       successMessage: requests.length > 1
         ? `Добавлено проведений: ${requests.length}`

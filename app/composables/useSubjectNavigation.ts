@@ -1,5 +1,5 @@
 import type { NavigationMenuItem } from '@nuxt/ui'
-import { getPage } from '#hey-api'
+import { getSubjectsPage } from '#hey-api'
 
 export function useSubjectNavigation() {
   const teacherId = useTeacherId()
@@ -12,7 +12,7 @@ export function useSubjectNavigation() {
 
   const { data } = useApi(
     { key: 'subject-nav', watch: [request] },
-    () => teacherId.value ? getPage({ query: request.value }) : Promise.resolve({ data: null }),
+    () => teacherId.value ? getSubjectsPage({ query: request.value }) : Promise.resolve({ data: null }),
   )
 
   const { rows: subjects } = toPageState(data)

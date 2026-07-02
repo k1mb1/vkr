@@ -2,7 +2,7 @@
 import type { AssignmentResponse, Band, BulkUpdateAssignmentsRequest, LessonResponse } from '#hey-api'
 import type { SchemaFor } from '~/utils/validation'
 import * as v from 'valibot'
-import { getFinalAssessmentPolicy, getLessonById, updateByLesson } from '#hey-api'
+import { getFinalAssessmentPolicy, getLessonById, updateLessonAssignments } from '#hey-api'
 
 definePageMeta({ middleware: 'subject-permission' })
 
@@ -192,7 +192,7 @@ const handleSave = onSubmit(
       })),
     }
 
-    return updateByLesson({ path: { lessonId }, body: body as unknown as BulkUpdateAssignmentsRequest })
+    return updateLessonAssignments({ path: { lessonId }, body: body as unknown as BulkUpdateAssignmentsRequest })
   },
   {
     onSuccess: () => navigateTo(`/dashboard/subjects/${subjectId}/lessons/${lessonId}`),

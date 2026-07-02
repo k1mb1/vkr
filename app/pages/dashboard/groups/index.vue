@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { getGroupPage } from '#hey-api'
+import { getGroupsPage } from '#hey-api'
 import { usePagable } from '~/composables/usePagable'
 
 const search = ref('')
@@ -24,7 +24,7 @@ function clearSearch() {
 
 const { data, pending, error, refresh } = useApi(
   { key: 'groups-list', watch: [request] },
-  () => getGroupPage({ query: request.value }),
+  () => getGroupsPage({ query: request.value }),
 )
 
 useRefreshOnFocus(refresh)

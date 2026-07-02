@@ -2,7 +2,7 @@
 import type { CreateTeacherSubjectPermissionRequest } from '#hey-api'
 import type { SchemaFor } from '~/utils/validation'
 import * as v from 'valibot'
-import { create, getGroupsBySubject, getPermissionsBySubject } from '#hey-api'
+import { createTeacherSubjectPermission, getGroupsBySubject, getTeacherSubjectPermissions } from '#hey-api'
 import { string } from '~/utils/validation'
 
 definePageMeta({ middleware: 'subject-permission' })
@@ -28,7 +28,7 @@ const { permission, pending: loadingScope } = usePermissions()
 
 const { data: subjectPermissions } = useApi(
   { key: `subject-permissions:${subjectId}` },
-  () => getPermissionsBySubject({ query: { subjectId } }),
+  () => getTeacherSubjectPermissions({ query: { subjectId } }),
 )
 
 const excludedTeacherIds = computed<string[]>(() =>
@@ -69,7 +69,7 @@ function removeScope(i: number) {
 }
 
 const handleCreate = onSubmit(
-  data => create({ body: { ...data, subjectId } satisfies CreateTeacherSubjectPermissionRequest }),
+  data => createTeacherSubjectPermission({ body: { ...data, subjectId } satisfies CreateTeacherSubjectPermissionRequest }),
   {
     onSuccess: () => navigateTo(`/dashboard/subjects/${subjectId}/settings/permissions`),
   },
