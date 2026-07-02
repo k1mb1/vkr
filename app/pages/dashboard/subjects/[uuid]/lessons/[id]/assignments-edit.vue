@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AssignmentResponse, Band, BulkUpdateAssignmentsRequest, LessonResponse } from '#hey-api'
+import type { AssignmentResponse, BulkUpdateAssignmentsRequest, FinalAssessmentBandResponse, LessonResponse } from '#hey-api'
 import type { SchemaFor } from '~/utils/validation'
 import * as v from 'valibot'
 import { getFinalAssessmentPolicy, getLessonById, updateLessonAssignments } from '#hey-api'
@@ -73,7 +73,7 @@ const { data: policyData, pending: policyPending } = useApi(
   () => getFinalAssessmentPolicy({ path: { subjectId } }),
 )
 
-const bands = computed<Band[]>(() => policyData.value?.bands ?? [])
+const bands = computed<FinalAssessmentBandResponse[]>(() => policyData.value?.bands ?? [])
 const policyEnabled = computed(() => policyData.value?.enabled ?? false)
 
 // ── Helpers ─────────────────────────────────────────────────────────────────

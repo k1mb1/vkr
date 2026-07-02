@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { CheckInPreviewResponse, CheckInSessionResponse, ConfirmCheckInRequest, Override, Row } from '#hey-api'
+import type { CheckInPreviewResponse, CheckInPreviewRow, CheckInSessionResponse, ConfirmCheckInOverride, ConfirmCheckInRequest } from '#hey-api'
 import { useQRCode } from '@vueuse/integrations/useQRCode'
 import { cancelCheckInSession, confirmCheckInSession, getCheckInSession, previewCheckInSession as previewCheckIn } from '#hey-api'
 
 type CheckInState = NonNullable<CheckInSessionResponse['state']>
-type AttendanceStatus = NonNullable<Override['status']>
+type AttendanceStatus = NonNullable<ConfirmCheckInOverride['status']>
 
 const route = useRoute()
 const subjectId = computed(() => String(route.params.uuid ?? ''))
@@ -267,13 +267,13 @@ const statusItems = computed(() =>
 
 // «Спорная» строка — студент не отметился сам (нет checkInStatus), поэтому
 // предложенный статус требует ручного решения преподавателя.
-function isDisputed(row: Row): boolean {
+function isDisputed(row: CheckInPreviewRow): boolean {
   return !row.checkInStatus
 }
 
 const disputedFirst = ref(true)
 
-const previewRows = computed<Row[]>(() => {
+const previewRows = computed<CheckInPreviewRow[]>(() => {
   const arr = [...(preview.value?.rows ?? [])]
   arr.sort((a, b) => {
     if (disputedFirst.value) {
@@ -329,13 +329,13 @@ const liveStats = computed(() => {
   return { total, present, late, missing: total - present - late }
 })
 
-const liveColumns: TableColumn<Row>[] = [
+const liveColumns: TableColumn<CheckInPreviewRow>[] = [
   { accessorKey: 'username', header: 'Студент' },
   { accessorKey: 'checkInStatus', header: 'Статус' },
   { accessorKey: 'checkedInAt', header: 'Время отметки' },
 ]
 
-const previewColumns: TableColumn<Row>[] = [
+const previewColumns: TableColumn<CheckInPreviewRow>[] = [
   { accessorKey: 'username', header: 'Студент' },
   { accessorKey: 'checkInStatus', header: 'Отметка' },
   { accessorKey: 'proposedStatus', header: 'Статус', meta: { class: { td: 'min-w-[180px]' } } },
@@ -347,7 +347,7 @@ const { loading: confirming, submit: submitConfirm } = useFormSubmit()
 async function handleConfirm() {
   await submitConfirm(
     () => {
-      const overridesList: Override[] = []
+      const overridesList: ConfirmCheckInOverride[] = []
       for (const row of preview.value?.rows ?? []) {
         if (!row.studentId)
           continue

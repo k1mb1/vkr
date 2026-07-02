@@ -1,4 +1,4 @@
-import type { AssignmentResponse, GradeCellResponse, GradingTableLesson, GradingTableResponse, Scope } from '#hey-api'
+import type { AssignmentResponse, GradeCellResponse, GradingTableLesson, GradingTableResponse, GradingTableScope } from '#hey-api'
 import type { SectionKey } from '~/composables/useTableSections'
 import { applyBonus, applyPenalty, computeBonusCount, computePenaltyCount } from '~/composables/usePenalty'
 import { groupBySection, scopeVisibleForSection } from '~/composables/useTableSections'
@@ -14,7 +14,7 @@ const lessonTypeLabel: Record<LessonType, string> = {
 
 function lessonDate(l: GradingTableLesson): string | undefined {
   const dates = (l.scopes ?? [])
-    .map(s => (s as Scope).startedAt)
+    .map(s => (s as GradingTableScope).startedAt)
     .filter((d): d is string => !!d)
   if (!dates.length)
     return undefined
@@ -30,7 +30,7 @@ function lessonVisibleForSection(lesson: GradingTableLesson, section: SectionKey
   if (!lesson.scopes || lesson.scopes.length === 0)
     return true
   for (const scope of lesson.scopes) {
-    const s = scope as Scope
+    const s = scope as GradingTableScope
     if (s.allGroups)
       return true
     if (!section.groupId || !s.groupId)
@@ -117,7 +117,7 @@ export function useGradesExport() {
         }
       }
 
-      function scopeIsVisible(scope: Scope): boolean {
+      function scopeIsVisible(scope: GradingTableScope): boolean {
         if (scope.allGroups)
           return true
         for (const { meta } of visibleSections) {
@@ -132,7 +132,7 @@ export function useGradesExport() {
       let currentRow = 3
 
       for (const lesson of lessons) {
-        const hasAllGroups = lesson.scopes?.some(s => (s as Scope).allGroups) ?? false
+        const hasAllGroups = lesson.scopes?.some(s => (s as GradingTableScope).allGroups) ?? false
 
         if (hasAllGroups) {
           summaryRows.push([
@@ -146,7 +146,7 @@ export function useGradesExport() {
           continue
         }
 
-        const visibleScopes = (lesson.scopes as Scope[] ?? []).filter(scopeIsVisible)
+        const visibleScopes = (lesson.scopes as GradingTableScope[] ?? []).filter(scopeIsVisible)
         if (!visibleScopes.length && !lesson.scopes?.length) {
           summaryRows.push([
             formatLessonType(lesson),

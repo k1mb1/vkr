@@ -1949,6 +1949,24 @@
         }
       }
     },
+    "/api/lesson-scopes/{scopeId}": {
+      "delete": {
+        "tags": ["Lesson scopes"],
+        "summary": "Удалить один scope занятия",
+        "description": "Помечает scope как архивный (soft-delete). Идентифицируется по глобальному ID scope'а.",
+        "operationId": "deleteLessonScope",
+        "parameters": [
+          {
+            "name": "scopeId",
+            "in": "path",
+            "description": "ID scope'а занятия",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
     "/api/assignments/{id}": {
       "delete": {
         "tags": ["Assignments"],
@@ -2213,13 +2231,30 @@
           "items": {
             "type": "array",
             "description": "Список целевых состояний",
-            "items": { "$ref": "#/components/schemas/Item" },
+            "items": { "$ref": "#/components/schemas/ReplaceLessonScopeItem" },
             "minItems": 1
           }
         },
         "required": ["items"]
       },
-      "Item": {
+      "LessonScopeAudienceRequest": {
+        "type": "object",
+        "description": "Аудитория scope занятия: группа + опциональная подгруппа",
+        "properties": {
+          "groupId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID группы"
+          },
+          "allowedSubgroupId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID разрешённой подгруппы (null = вся группа)"
+          }
+        },
+        "required": ["groupId"]
+      },
+      "ReplaceLessonScopeItem": {
         "type": "object",
         "description": "Целевое состояние одного scope",
         "properties": {
@@ -2239,23 +2274,6 @@
           }
         },
         "required": ["id", "startedAt"]
-      },
-      "LessonScopeAudienceRequest": {
-        "type": "object",
-        "description": "Аудитория scope занятия: группа + опциональная подгруппа",
-        "properties": {
-          "groupId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID группы"
-          },
-          "allowedSubgroupId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID разрешённой подгруппы (null = вся группа)"
-          }
-        },
-        "required": ["groupId"]
       },
       "UpdateLessonHeaderRequest": {
         "type": "object",
@@ -2296,7 +2314,7 @@
           }
         }
       },
-      "AdmissionTier": {
+      "AssignmentAdmissionTier": {
         "type": "object",
         "description": "Уровень допуска задания: ссылка на банду и минимальный балл",
         "properties": {
@@ -2353,7 +2371,7 @@
           "admissionTiers": {
             "type": "array",
             "description": "TIERED: уровни допуска по убыванию старшинства (ссылки на банды)",
-            "items": { "$ref": "#/components/schemas/AdmissionTier" }
+            "items": { "$ref": "#/components/schemas/AssignmentAdmissionTier" }
           }
         }
       },
@@ -2595,7 +2613,7 @@
           "comment": { "type": "string", "description": "Комментарий" }
         }
       },
-      "Band": {
+      "FinalAssessmentBandRequest": {
         "type": "object",
         "description": "Банда: ярлык и условия его получения (minPoints, minPercent и/или requiredTasks, AND)",
         "properties": {
@@ -2642,7 +2660,9 @@
           "bands": {
             "type": "array",
             "description": "Банды по убыванию старшинства (первая — самая старшая)",
-            "items": { "$ref": "#/components/schemas/Band" }
+            "items": {
+              "$ref": "#/components/schemas/FinalAssessmentBandRequest"
+            }
           },
           "attendanceMode": {
             "type": "string",
@@ -2686,6 +2706,36 @@
         },
         "required": ["enabled"]
       },
+      "FinalAssessmentBandResponse": {
+        "type": "object",
+        "description": "Банда: ярлык и условия его получения (minPoints, minPercent и/или requiredTasks, AND)",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID банды"
+          },
+          "label": {
+            "type": "string",
+            "description": "Ярлык, напр. «5», «зачтено»"
+          },
+          "minPoints": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Минимальный итоговый балл (включительно), null — без ограничения"
+          },
+          "minPercent": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Минимальный процент (0..100) от максимально возможных баллов (включительно), null — без ограничения"
+          },
+          "requiredTasks": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Минимум закрытых обязательных задач, null — без ограничения"
+          }
+        }
+      },
       "FinalAssessmentPolicyResponse": {
         "type": "object",
         "description": "Параметры промежуточной аттестации (итоги считает фронт)",
@@ -2697,7 +2747,9 @@
           "bands": {
             "type": "array",
             "description": "Банды по убыванию старшинства (первая — самая старшая)",
-            "items": { "$ref": "#/components/schemas/Band" }
+            "items": {
+              "$ref": "#/components/schemas/FinalAssessmentBandResponse"
+            }
           },
           "attendanceMode": {
             "type": "string",
@@ -2965,11 +3017,70 @@
           "items": {
             "type": "array",
             "description": "Список целевых состояний",
-            "items": { "$ref": "#/components/schemas/Item" },
+            "items": { "$ref": "#/components/schemas/UpdateAssignmentItem" },
             "minItems": 1
           }
         },
         "required": ["items"]
+      },
+      "UpdateAssignmentAdmissionTier": {
+        "type": "object",
+        "description": "Уровень допуска задания: ссылка на банду и минимальный балл",
+        "properties": {
+          "bandId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID банды итоговой аттестации"
+          },
+          "minScore": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Минимальный балл за задание для этой банды (включительно)"
+          }
+        }
+      },
+      "UpdateAssignmentItem": {
+        "type": "object",
+        "description": "Целевое состояние задания",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID задания"
+          },
+          "order": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Порядковый номер в рамках занятия (1..N)"
+          },
+          "maxPoints": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Максимальное количество баллов (>0)"
+          },
+          "required": {
+            "type": "boolean",
+            "description": "Обязательное ли задание"
+          },
+          "admissionMode": {
+            "type": "string",
+            "description": "Режим допуска: используется ли задание как условие для итоговой оценки",
+            "enum": ["NONE", "PASS_FAIL", "MIN_SCORE", "TIERED"]
+          },
+          "admissionMinScore": {
+            "type": "integer",
+            "format": "int32",
+            "description": "MIN_SCORE: минимальный балл для прохождения допуска"
+          },
+          "admissionTiers": {
+            "type": "array",
+            "description": "TIERED: уровни допуска по убыванию старшинства (ссылки на банды)",
+            "items": {
+              "$ref": "#/components/schemas/UpdateAssignmentAdmissionTier"
+            }
+          }
+        },
+        "required": ["id", "maxPoints", "order", "required"]
       },
       "CreateTeacherSubjectPermissionRequest": {
         "type": "object",
@@ -3185,6 +3296,22 @@
           }
         }
       },
+      "AddLessonScopeItem": {
+        "type": "object",
+        "description": "Новый scope",
+        "properties": {
+          "audience": {
+            "$ref": "#/components/schemas/LessonScopeAudienceRequest",
+            "description": "Аудитория. null = allGroups=true; иначе — конкретная группа"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date",
+            "description": "Дата проведения"
+          }
+        },
+        "required": ["startedAt"]
+      },
       "BulkAddLessonScopesRequest": {
         "type": "object",
         "description": "Массовое добавление scope'ов к занятию.\nКаждый элемент — новый scope; audience=null означает allGroups=true, иначе — конкретная группа.\nВсе элементы и существующие scope'ы урока проверяются на пересечение в одном проходе.\n",
@@ -3192,7 +3319,7 @@
           "items": {
             "type": "array",
             "description": "Список новых scope'ов",
-            "items": { "$ref": "#/components/schemas/Item" },
+            "items": { "$ref": "#/components/schemas/AddLessonScopeItem" },
             "minItems": 1
           }
         },
@@ -3242,11 +3369,47 @@
           "items": {
             "type": "array",
             "description": "Элементы расписания: каждая аудитория со своим собственным стартом и недельным шаблоном.",
-            "items": { "$ref": "#/components/schemas/Item" },
+            "items": { "$ref": "#/components/schemas/ScheduleLessonItem" },
             "minItems": 1
           }
         },
         "required": ["count", "items", "lessonType", "subjectId"]
+      },
+      "ScheduleLessonItem": {
+        "type": "object",
+        "description": "Один элемент расписания: аудитория + её собственный старт и недельный шаблон.",
+        "properties": {
+          "audience": {
+            "$ref": "#/components/schemas/LessonScopeAudienceRequest",
+            "description": "Аудитория для созданных пар (группа + опциональная подгруппа). null = все группы."
+          },
+          "firstLessonDate": {
+            "type": "string",
+            "format": "date",
+            "description": "Дата первой пары (первого проведения)"
+          },
+          "days": {
+            "type": "array",
+            "description": "Недельный шаблон. Внешний список — недели, внутренний — дни недели этой недели.",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "MONDAY",
+                  "TUESDAY",
+                  "WEDNESDAY",
+                  "THURSDAY",
+                  "FRIDAY",
+                  "SATURDAY",
+                  "SUNDAY"
+                ]
+              }
+            },
+            "minItems": 1
+          }
+        },
+        "required": ["days", "firstLessonDate"]
       },
       "CreateGroupRequest": {
         "type": "object",
@@ -3506,18 +3669,7 @@
           }
         }
       },
-      "ConfirmCheckInRequest": {
-        "type": "object",
-        "description": "Подтверждение результатов check-in. Записи без отметки трактуются как ABSENT. В overrides можно изменить статус или добавить комментарий перед переносом в основную посещаемость.",
-        "properties": {
-          "overrides": {
-            "type": "array",
-            "description": "Ручные изменения статуса / комментариев для отдельных студентов",
-            "items": { "$ref": "#/components/schemas/Override" }
-          }
-        }
-      },
-      "Override": {
+      "ConfirmCheckInOverride": {
         "type": "object",
         "description": "Ручное переопределение статуса студента",
         "properties": {
@@ -3534,6 +3686,17 @@
           "comment": { "type": "string", "description": "Комментарий" }
         },
         "required": ["status", "studentId"]
+      },
+      "ConfirmCheckInRequest": {
+        "type": "object",
+        "description": "Подтверждение результатов check-in. Записи без отметки трактуются как ABSENT. В overrides можно изменить статус или добавить комментарий перед переносом в основную посещаемость.",
+        "properties": {
+          "overrides": {
+            "type": "array",
+            "description": "Ручные изменения статуса / комментариев для отдельных студентов",
+            "items": { "$ref": "#/components/schemas/ConfirmCheckInOverride" }
+          }
+        }
       },
       "VerifyCheckInCodeRequest": {
         "type": "object",
@@ -3611,6 +3774,55 @@
           }
         }
       },
+      "CreateAssignmentAdmissionTier": {
+        "type": "object",
+        "description": "Уровень допуска задания: ссылка на банду и минимальный балл",
+        "properties": {
+          "bandId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID банды итоговой аттестации"
+          },
+          "minScore": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Минимальный балл за задание для этой банды (включительно)"
+          }
+        }
+      },
+      "CreateAssignmentItem": {
+        "type": "object",
+        "description": "Описание одного задания в bulk-запросе",
+        "properties": {
+          "maxPoints": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Максимальное количество баллов (>0)"
+          },
+          "required": {
+            "type": "boolean",
+            "description": "Обязательное ли задание"
+          },
+          "admissionMode": {
+            "type": "string",
+            "description": "Режим допуска: используется ли задание как условие для итоговой оценки",
+            "enum": ["NONE", "PASS_FAIL", "MIN_SCORE", "TIERED"]
+          },
+          "admissionMinScore": {
+            "type": "integer",
+            "format": "int32",
+            "description": "MIN_SCORE: минимальный балл для прохождения допуска"
+          },
+          "admissionTiers": {
+            "type": "array",
+            "description": "TIERED: уровни допуска по убыванию старшинства (ссылки на банды)",
+            "items": {
+              "$ref": "#/components/schemas/CreateAssignmentAdmissionTier"
+            }
+          }
+        },
+        "required": ["maxPoints", "required"]
+      },
       "CreateAssignmentsRequest": {
         "type": "object",
         "description": "Массовое создание заданий для урока. Допустимо только если у урока ещё нет заданий; иначе используйте PUT /api/assignments/{id} для обновления конкретного задания.",
@@ -3623,7 +3835,7 @@
           "items": {
             "type": "array",
             "description": "Список заданий. Порядковый номер (order) присваивается автоматически 1..N в соответствии с позицией в массиве.",
-            "items": { "$ref": "#/components/schemas/Item" },
+            "items": { "$ref": "#/components/schemas/CreateAssignmentItem" },
             "minItems": 1
           }
         },
@@ -3680,7 +3892,22 @@
         },
         "required": ["active"]
       },
-      "StudentPatchRequest": {
+      "UpdateGroupRequest": {
+        "type": "object",
+        "description": "Запрос на частичное обновление группы (PATCH).\nСемантика: поле = null или отсутствует — значение не изменяется.\nОсобый случай: students = [] трактуется как \"архивировать всех существующих\".\n",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Новое название группы (null — не менять)"
+          },
+          "students": {
+            "type": "array",
+            "description": "Полный новый состав студентов. null — не трогать состав, []  — архивировать всех существующих",
+            "items": { "$ref": "#/components/schemas/UpdateGroupStudentItem" }
+          }
+        }
+      },
+      "UpdateGroupStudentItem": {
         "type": "object",
         "description": "Данные студента для обновления состава группы",
         "properties": {
@@ -3701,21 +3928,6 @@
           }
         },
         "required": ["username"]
-      },
-      "UpdateGroupRequest": {
-        "type": "object",
-        "description": "Запрос на частичное обновление группы (PATCH).\nСемантика: поле = null или отсутствует — значение не изменяется.\nОсобый случай: students = [] трактуется как \"архивировать всех существующих\".\n",
-        "properties": {
-          "name": {
-            "type": "string",
-            "description": "Новое название группы (null — не менять)"
-          },
-          "students": {
-            "type": "array",
-            "description": "Полный новый состав студентов. null — не трогать состав, []  — архивировать всех существующих",
-            "items": { "$ref": "#/components/schemas/StudentPatchRequest" }
-          }
-        }
       },
       "PageMetadata": {
         "type": "object",
@@ -3963,7 +4175,7 @@
           "scopes": {
             "type": "array",
             "description": "Проведения этого занятия для соответствующих групп",
-            "items": { "$ref": "#/components/schemas/Scope" }
+            "items": { "$ref": "#/components/schemas/GradingTableScope" }
           }
         }
       },
@@ -4021,6 +4233,36 @@
           }
         }
       },
+      "GradingTableScope": {
+        "type": "object",
+        "description": "Проведение занятия для группы (для отображения даты в шапке колонки)",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID проведения"
+          },
+          "groupId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID группы (null = все группы)"
+          },
+          "allowedSubgroupId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID разрешённой подгруппы (null = вся группа)"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date",
+            "description": "Дата проведения"
+          },
+          "allGroups": {
+            "type": "boolean",
+            "description": "true = проведение для всех групп"
+          }
+        }
+      },
       "GradingTableStudent": {
         "type": "object",
         "description": "Студент в таблице оценок",
@@ -4063,36 +4305,6 @@
           "attendance": {
             "$ref": "#/components/schemas/AttendanceTableResponse",
             "description": "Таблица посещаемости (поячеечная, с политикой подсветки)"
-          }
-        }
-      },
-      "Scope": {
-        "type": "object",
-        "description": "Проведение занятия для группы (для отображения даты в шапке колонки)",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID проведения"
-          },
-          "groupId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID группы (null = все группы)"
-          },
-          "allowedSubgroupId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID разрешённой подгруппы (null = вся группа)"
-          },
-          "startedAt": {
-            "type": "string",
-            "format": "date",
-            "description": "Дата проведения"
-          },
-          "allGroups": {
-            "type": "boolean",
-            "description": "true = проведение для всех групп"
           }
         }
       },
@@ -4187,11 +4399,11 @@
           "rows": {
             "type": "array",
             "description": "Строки сверки: одна на каждого студента",
-            "items": { "$ref": "#/components/schemas/Row" }
+            "items": { "$ref": "#/components/schemas/CheckInPreviewRow" }
           }
         }
       },
-      "Row": {
+      "CheckInPreviewRow": {
         "type": "object",
         "description": "Строка сверки",
         "properties": {
