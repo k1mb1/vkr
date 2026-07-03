@@ -1,15 +1,12 @@
 <script setup lang="ts">
 import type { CreateTeacherSubjectPermissionRequest } from '#hey-api'
-import type { SchemaFor } from '~/utils/validation'
 import * as v from 'valibot'
 import { createTeacherSubjectPermission, getGroupsBySubject, getTeacherSubjectPermissions } from '#hey-api'
 import { string } from '~/utils/validation'
 
 definePageMeta({ middleware: 'subject-permission' })
 
-type CreatePermissionForm = Omit<CreateTeacherSubjectPermissionRequest, 'subjectId'>
-
-const CreatePermissionSchema: SchemaFor<CreatePermissionForm> = v.object({
+const CreatePermissionSchema = v.object({
   teacherId: string('Выберите преподавателя'),
   allPermissions: v.boolean(),
   scopes: v.optional(v.array(v.object({

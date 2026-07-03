@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { AttendancePolicyResponse, FinalAssessmentBandRequest, FinalAssessmentBandResponse, FinalAssessmentPolicyRequest, FinalAssessmentPolicyResponse } from '#hey-api'
-import type { SchemaFor } from '~/utils/validation'
+import type { InferOutput } from 'valibot'
+import type { AttendancePolicyResponse, FinalAssessmentBandResponse, FinalAssessmentPolicyRequest, FinalAssessmentPolicyResponse } from '#hey-api'
 import * as v from 'valibot'
 import { getAttendancePolicy, getFinalAssessmentPolicy, updateFinalAssessmentPolicy } from '#hey-api'
 
@@ -9,12 +9,10 @@ definePageMeta({ middleware: 'subject-permission' })
 type AttendanceMode = NonNullable<FinalAssessmentPolicyRequest['attendanceMode']>
 type AttendanceRequirementMode = NonNullable<FinalAssessmentPolicyRequest['attendanceRequirementMode']>
 
-type FinalAssessmentPolicyForm = Omit<FinalAssessmentPolicyRequest, 'bands'> & { bands: FinalAssessmentBandRequest[] }
-
 // Пороги уровня для оценки достижимости.
 // Баллы и процент: пусто = 0 (без ограничения). Задачи: пусто = «все обязательные» —
 // строжайшее требование, поэтому считаем его как +∞.
-function bandThreshold(b: FinalAssessmentBandRequest): { points: number, percent: number, tasks: number } {
+function bandThreshold(b: BandForm): { points: number, percent: number, tasks: number } {
   return {
     points: b.minPoints ?? 0,
     percent: b.minPercent ?? 0,
@@ -28,7 +26,7 @@ function bandThreshold(b: FinalAssessmentBandRequest): { points: number, percent
  * студент, прошедший j, уже прошёл i, а i выбирается раньше — и j никогда не сработает.
  * Возвращает индексы { lower, upper } либо null, если порядок корректный.
  */
-function firstUnreachableBand(bands: FinalAssessmentBandRequest[]): { lower: number, upper: number } | null {
+function firstUnreachableBand(bands: BandForm[]): { lower: number, upper: number } | null {
   for (let j = 1; j < bands.length; j++) {
     const bj = bandThreshold(bands[j]!)
     for (let i = 0; i < j; i++) {
@@ -40,7 +38,7 @@ function firstUnreachableBand(bands: FinalAssessmentBandRequest[]): { lower: num
   return null
 }
 
-const BandSchema: SchemaFor<FinalAssessmentBandRequest> = v.object({
+const BandSchema = v.object({
   id: v.optional(v.string()),
   label: v.pipe(v.string('Введите ярлык'), v.minLength(1, 'Ярлык обязателен')),
   minPoints: v.optional(v.pipe(v.number(), v.minValue(0))),
@@ -48,7 +46,9 @@ const BandSchema: SchemaFor<FinalAssessmentBandRequest> = v.object({
   requiredTasks: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))),
 })
 
-const FinalAssessmentPolicySchema: SchemaFor<FinalAssessmentPolicyForm> = v.pipe(
+type BandForm = InferOutput<typeof BandSchema>
+
+const FinalAssessmentPolicySchema = v.pipe(
   v.object({
     enabled: v.boolean(),
     bands: v.array(BandSchema),
@@ -77,7 +77,7 @@ const FinalAssessmentPolicySchema: SchemaFor<FinalAssessmentPolicyForm> = v.pipe
         return firstUnreachableBand(input.bands) == null
       },
       (issue) => {
-        const bands = (issue.input as FinalAssessmentPolicyForm).bands
+        const bands = (issue.input as { bands: BandForm[] }).bands
         const bad = firstUnreachableBand(bands)
         if (!bad)
           return 'Неверный порядок уровней'
@@ -134,7 +134,7 @@ const attendancePolicyEnabled = computed(() => attendancePolicy.value?.enabled =
 const { state, formRef, loading, onSubmit, onError } = useResourceForm<typeof FinalAssessmentPolicySchema>({
   initialState: () => ({
     enabled: false,
-    bands: [] as FinalAssessmentBandRequest[],
+    bands: [] as BandForm[],
     attendanceMode: 'COMBINED' as AttendanceMode,
     attendanceRequirementMode: undefined as AttendanceRequirementMode | undefined,
     attendanceMinPercent: undefined as number | undefined,
@@ -147,7 +147,7 @@ const { state, formRef, loading, onSubmit, onError } = useResourceForm<typeof Fi
   successMessage: 'Политика сохранена',
 })
 
-function bandFromResponse(b: FinalAssessmentBandResponse | undefined): FinalAssessmentBandRequest {
+function bandFromResponse(b: FinalAssessmentBandResponse | undefined): BandForm {
   return {
     id: b?.id,
     label: b?.label ?? '',

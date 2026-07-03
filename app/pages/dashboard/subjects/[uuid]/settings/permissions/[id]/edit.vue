@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import type { PermissionScopeRequest, TeacherSubjectPermissionResponse, UpdateTeacherSubjectPermissionRequest } from '#hey-api'
-import type { SchemaFor } from '~/utils/validation'
+import type { PermissionScopeRequest, TeacherSubjectPermissionResponse } from '#hey-api'
 import * as v from 'valibot'
 import { getGroupsBySubject, updateTeacherSubjectPermission } from '#hey-api'
 import { string } from '~/utils/validation'
@@ -8,7 +7,7 @@ import { string } from '~/utils/validation'
 definePageMeta({ middleware: 'subject-permission' })
 
 type LessonType = NonNullable<PermissionScopeRequest['allowedLessonType']>
-const EditPermissionSchema: SchemaFor<UpdateTeacherSubjectPermissionRequest> = v.object({
+const EditPermissionSchema = v.object({
   allPermissions: v.boolean(),
   scopes: v.optional(v.array(v.object({
     group: v.object({
@@ -33,7 +32,7 @@ const isReady = !!targetPermission
 
 const { state, formRef, loading, onSubmit, onError } = useResourceForm<typeof EditPermissionSchema>({
   initialState: () => {
-    const seeded = (targetPermission?.scopes ?? []).map<PermissionScopeRequest>(s => ({
+    const seeded = (targetPermission?.scopes ?? []).map(s => ({
       group: {
         groupId: s.group?.id ?? '',
         allowedSubgroupId: s.allowedSubgroup?.id,

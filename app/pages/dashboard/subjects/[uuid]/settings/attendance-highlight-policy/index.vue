@@ -1,6 +1,6 @@
 <script setup lang="ts">
+import type { InferOutput } from 'valibot'
 import type { AttendanceHighlightPolicyRequest, AttendanceHighlightPolicyResponse } from '#hey-api'
-import type { SchemaFor } from '~/utils/validation'
 import * as v from 'valibot'
 import { getAttendanceHighlightPolicy, updateAttendanceHighlightPolicy } from '#hey-api'
 import { ATTENDANCE_HIGHLIGHT_DEFAULTS } from '~/utils/highlight'
@@ -8,15 +8,15 @@ import { hexColor } from '~/utils/validation'
 
 definePageMeta({ middleware: 'subject-permission' })
 
-type AttendanceHighlightPolicyForm = Required<AttendanceHighlightPolicyRequest>
-
-const AttendanceHighlightPolicySchema: SchemaFor<AttendanceHighlightPolicyForm> = v.object({
+const AttendanceHighlightPolicySchema = v.object({
   enabled: v.boolean(),
   presentColor: hexColor(),
   lateColor: hexColor(),
   absentColor: hexColor(),
   excusedColor: hexColor(),
 })
+
+type AttendanceHighlightPolicyForm = InferOutput<typeof AttendanceHighlightPolicySchema>
 
 const colorFields: { key: Exclude<keyof AttendanceHighlightPolicyForm, 'enabled'>, label: string }[] = [
   { key: 'presentColor', label: 'Присутствие' },

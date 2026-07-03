@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import type { BulkCreateLessonsRequest } from '#hey-api'
 import * as v from 'valibot'
 import { bulkCreateLessons } from '#hey-api'
 import { nonNegativeInteger, uuidV4 } from '~/utils/validation'
 
 definePageMeta({ middleware: 'subject-permission' })
 
-const CreateLessonsSchema: SchemaFor<BulkCreateLessonsRequest> = v.pipe(
+const CreateLessonsSchema = v.pipe(
   v.object({
     subjectId: uuidV4(),
     lectureCount: nonNegativeInteger(),

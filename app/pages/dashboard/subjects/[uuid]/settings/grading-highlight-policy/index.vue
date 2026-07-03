@@ -1,6 +1,6 @@
 <script setup lang="ts">
+import type { InferOutput } from 'valibot'
 import type { GradingHighlightPolicyRequest, GradingHighlightPolicyResponse } from '#hey-api'
-import type { SchemaFor } from '~/utils/validation'
 import * as v from 'valibot'
 import { getGradingHighlightPolicy, updateGradingHighlightPolicy } from '#hey-api'
 import { GRADING_HIGHLIGHT_DEFAULTS } from '~/utils/highlight'
@@ -8,15 +8,15 @@ import { hexColor } from '~/utils/validation'
 
 definePageMeta({ middleware: 'subject-permission' })
 
-type GradingHighlightPolicyForm = Required<GradingHighlightPolicyRequest>
-
-const GradingHighlightPolicySchema: SchemaFor<GradingHighlightPolicyForm> = v.object({
+const GradingHighlightPolicySchema = v.object({
   enabled: v.boolean(),
   assignmentColor: hexColor(),
   fullColor: hexColor(),
   partialLowColor: hexColor(),
   partialHighColor: hexColor(),
 })
+
+type GradingHighlightPolicyForm = InferOutput<typeof GradingHighlightPolicySchema>
 
 const colorFields: { key: Exclude<keyof GradingHighlightPolicyForm, 'enabled'>, label: string, help?: string }[] = [
   { key: 'assignmentColor', label: 'Колонка задания', help: 'Фон шапки колонок с заданиями' },

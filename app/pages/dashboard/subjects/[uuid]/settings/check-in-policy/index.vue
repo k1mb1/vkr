@@ -1,18 +1,12 @@
 <script setup lang="ts">
 import type { CheckInPolicyRequest, CheckInPolicyResponse } from '#hey-api'
-import type { SchemaFor } from '~/utils/validation'
 import * as v from 'valibot'
 import { getCheckInPolicy, updateCheckInPolicy } from '#hey-api'
 
 definePageMeta({ middleware: 'subject-permission' })
 
 // UI в минутах, API в секундах — конвертируем на submit.
-type CheckInPolicyForm = Omit<CheckInPolicyRequest, 'onTimeSeconds' | 'lateSeconds'> & {
-  onTimeMinutes: number
-  lateMinutes: number
-}
-
-const CheckInPolicySchema: SchemaFor<CheckInPolicyForm> = v.object({
+const CheckInPolicySchema = v.object({
   enabled: v.boolean(),
   onTimeMinutes: v.pipe(
     v.number('Длительность основного окна — минимум 1 минута'),

@@ -2,7 +2,6 @@ import type { BaseIssue, BaseSchema } from 'valibot'
 import { CalendarDate, CalendarDateTime, getLocalTimeZone, ZonedDateTime } from '@internationalized/date'
 import * as v from 'valibot'
 
-type SchemaFor<T> = BaseSchema<unknown, T, BaseIssue<unknown>>
 type CalendarValue = CalendarDate | CalendarDateTime | ZonedDateTime
 
 function calendarValue(message: string) {
@@ -49,10 +48,6 @@ function calendarDateTimeToIso(message = 'Must be a valid calendar datetime') {
     calendarValue(message),
     v.transform((value: CalendarValue): string => value.toDate(getLocalTimeZone()).toISOString()),
   )
-}
-
-export type {
-  SchemaFor,
 }
 
 function arrayMinLength<T extends BaseSchema<unknown, unknown, BaseIssue<unknown>>>(

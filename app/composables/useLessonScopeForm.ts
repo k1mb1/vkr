@@ -1,5 +1,4 @@
 import type { AttendanceAudienceScope, GroupWithSubgroupsResponse } from '#hey-api'
-import type { SchemaFor } from '~/utils/validation'
 import * as v from 'valibot'
 
 /** Один новый scope для POST `/api/lessons/{lessonId}/scopes` */
@@ -33,7 +32,7 @@ export interface LessonScopeFormState {
   groupEntries: GroupScopeEntry[]
 }
 
-export const LessonScopeFormSchema: SchemaFor<LessonScopeFormState> = v.object({
+export const LessonScopeFormSchema = v.object({
   mode: v.picklist(['all', 'groups'] as const),
   allGroupsDate: v.string(),
   groupEntries: v.array(v.object({

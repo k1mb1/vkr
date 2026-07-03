@@ -1,13 +1,12 @@
 <script setup lang="ts">
+import type { InferOutput } from 'valibot'
 import type { GroupResponse, UpdateGroupRequest } from '#hey-api'
 import * as v from 'valibot'
 import { getGroupById, updateGroup } from '#hey-api'
 
 import { arrayMinLength, string, uuidV4 } from '~/utils/validation'
 
-type FormSchema = Required<Pick<UpdateGroupRequest, 'name' | 'students'>>
-
-const UpdateGroupRequestSchema: SchemaFor<FormSchema> = v.object({
+const UpdateGroupRequestSchema = v.object({
   name: string('Введите название группы'),
 
   students: arrayMinLength(
@@ -20,6 +19,8 @@ const UpdateGroupRequestSchema: SchemaFor<FormSchema> = v.object({
     'Добавьте хотя бы одного студента',
   ),
 })
+
+type FormState = InferOutput<typeof UpdateGroupRequestSchema>
 
 const route = useRoute()
 const groupId = computed(() => String(route.params.uuid ?? ''))
@@ -87,7 +88,7 @@ function removeStudent(draftIndex: number) {
 // new students
 const newStudentsInput = ref('')
 
-const { addStudents: addStudentsRaw, handlePaste: handlePasteRaw } = useStudentInput<FormSchema['students'][number]>({ separator: /\n+/ })
+const { addStudents: addStudentsRaw, handlePaste: handlePasteRaw } = useStudentInput<FormState['students'][number]>({ separator: /\n+/ })
 
 function addStudents(raw: string, subgroupId: string | undefined) {
   addStudentsRaw(raw, subgroupId, state.students, (username, sid) => ({
@@ -130,7 +131,7 @@ const {
   tabsData,
   groupTabs,
   availableTabValues,
-} = useGroupTabs<FormSchema['students'][number]>({
+} = useGroupTabs<FormState['students'][number]>({
   students: toRef(() => state.students),
   subgroups: computed(() => (group.value?.subgroups ?? []).map(sg => ({ id: sg.id!, index: sg.index }))),
   getId: s => s.id ?? null,

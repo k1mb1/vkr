@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import type { PenaltyPolicyRequest, PenaltyPolicyResponse } from '#hey-api'
-import type { SchemaFor } from '~/utils/validation'
 import * as v from 'valibot'
 import { getPenaltyPolicy, updatePenaltyPolicy } from '#hey-api'
 
 definePageMeta({ middleware: 'subject-permission' })
 
-const PenaltyPolicySchema: SchemaFor<PenaltyPolicyRequest> = v.pipe(
+const PenaltyPolicySchema = v.pipe(
   v.object({
     enabled: v.boolean(),
     operation: v.picklist(['SUBTRACT', 'MULTIPLY'] as const, 'Выберите операцию'),

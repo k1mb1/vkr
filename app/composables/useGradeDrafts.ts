@@ -44,9 +44,9 @@ export function useGradeDrafts(options: { onSaved?: () => Promise<void> | void }
     changes[cellKey(payload)] = {
       studentId: payload.studentId,
       lessonId: payload.lessonId,
-      assignmentId: payload.assignmentId,
+      assignmentId: payload.assignmentId ?? undefined,
       score: payload.score,
-      comment: payload.comment,
+      comment: payload.comment ?? undefined,
     }
   }
 

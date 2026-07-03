@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { LessonResponse, LessonScopeResponse, StartCheckInRequest } from '#hey-api'
-import type { SchemaFor } from '~/utils/validation'
 import * as v from 'valibot'
 import { getCheckInPolicy, getCheckInSessions, getLessons, startCheckInSession } from '#hey-api'
 import { string } from '~/utils/validation'
@@ -12,12 +11,7 @@ interface LessonScopeOption {
   scope: LessonScopeResponse
 }
 
-type StartCheckInForm = Omit<StartCheckInRequest, 'onTimeSeconds' | 'lateSeconds'> & {
-  onTimeMinutes: number
-  lateMinutes: number
-}
-
-const StartCheckInSchema: SchemaFor<StartCheckInForm> = v.object({
+const StartCheckInSchema = v.object({
   lessonScopeId: string('Выберите проведение занятия'),
   onTimeMinutes: v.pipe(
     v.number('Длительность основного окна — минимум 1 минута'),

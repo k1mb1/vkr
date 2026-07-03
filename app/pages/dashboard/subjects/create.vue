@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import type { SchemaFor } from '~/utils/validation'
 import * as v from 'valibot'
 import { createSubject } from '#hey-api'
 import { arrayMinLength, string } from '~/utils/validation'
@@ -12,7 +11,7 @@ const CreateSubjectRequestSchema = v.object({
     arrayMinLength(v.string(), 1, 'Выберите хотя бы одну группу'),
     v.check(ids => new Set(ids).size === ids.length, 'Группы не должны повторяться'),
   ),
-}) satisfies SchemaFor<unknown>
+})
 
 const teacherId = useTeacherId()
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
+import type { InferOutput } from 'valibot'
 import type { AssignmentResponse, BulkUpdateAssignmentsRequest, FinalAssessmentBandResponse, LessonResponse } from '#hey-api'
-import type { SchemaFor } from '~/utils/validation'
 import * as v from 'valibot'
 import { getFinalAssessmentPolicy, getLessonById, updateLessonAssignments } from '#hey-api'
 
@@ -8,11 +8,7 @@ definePageMeta({ middleware: 'subject-permission' })
 
 type AdmissionMode = NonNullable<AssignmentResponse['admissionMode']>
 
-type AssignmentForm = Required<AssignmentResponse> & {
-  admissionTiers: { bandId: string, minScore: number }[]
-}
-
-const AssignmentSchema: SchemaFor<AssignmentForm> = v.pipe(
+const AssignmentSchema = v.pipe(
   v.object({
     id: v.string(),
     lessonId: v.string(),
@@ -48,7 +44,9 @@ const AssignmentSchema: SchemaFor<AssignmentForm> = v.pipe(
   ),
 )
 
-const FormSchema: SchemaFor<{ items: AssignmentForm[] }> = v.object({
+type AssignmentForm = InferOutput<typeof AssignmentSchema>
+
+const FormSchema = v.object({
   items: v.array(AssignmentSchema),
 })
 

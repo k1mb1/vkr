@@ -1,6 +1,6 @@
 <script setup lang="ts">
+import type { InferOutput } from 'valibot'
 import type { AssignmentResponse, CreateAssignmentsRequest, FinalAssessmentBandResponse, LessonResponse } from '#hey-api'
-import type { SchemaFor } from '~/utils/validation'
 import * as v from 'valibot'
 import { createAssignments, getFinalAssessmentPolicy } from '#hey-api'
 import { arrayMinLength } from '~/utils/validation'
@@ -9,15 +9,7 @@ definePageMeta({ middleware: 'subject-permission' })
 
 type AdmissionMode = NonNullable<AssignmentResponse['admissionMode']>
 
-type AssignmentItemForm = Required<AssignmentResponse> & {
-  admissionTiers: { bandId: string, minScore: number }[]
-}
-
-type CreateAssignmentsForm = Omit<CreateAssignmentsRequest, 'items'> & {
-  items: AssignmentItemForm[]
-}
-
-const ItemSchema: SchemaFor<AssignmentItemForm> = v.pipe(
+const ItemSchema = v.pipe(
   v.object({
     id: v.string(),
     lessonId: v.string(),
@@ -61,7 +53,9 @@ const ItemSchema: SchemaFor<AssignmentItemForm> = v.pipe(
   ),
 )
 
-const CreateAssignmentsSchema: SchemaFor<CreateAssignmentsForm> = v.object({
+type AssignmentItemForm = InferOutput<typeof ItemSchema>
+
+const CreateAssignmentsSchema = v.object({
   lessonId: v.string(),
   items: arrayMinLength(ItemSchema, 1, 'Добавьте хотя бы одно задание'),
 })
