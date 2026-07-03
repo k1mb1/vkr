@@ -2,11 +2,9 @@ import type { AttendanceAudienceScope, GroupWithSubgroupsResponse } from '#hey-a
 import type { SchemaFor } from '~/utils/validation'
 import * as v from 'valibot'
 
-type LessonScopeAudienceRequest = AttendanceAudienceScope
-
 /** Один новый scope для POST `/api/lessons/{lessonId}/scopes` */
 export interface NewLessonScope {
-  audience?: LessonScopeAudienceRequest
+  audience?: AttendanceAudienceScope
   startedAt: string
 }
 

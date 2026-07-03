@@ -11,12 +11,11 @@ import {
 definePageMeta({ middleware: 'subject-permission' })
 
 type LessonType = NonNullable<UpdateLessonHeaderRequest['type']>
-type LessonScopeAudienceRequest = AttendanceAudienceScope
 
 interface ScopeReplaceItem {
   id: string
   startedAt?: string
-  audience?: LessonScopeAudienceRequest
+  audience?: AttendanceAudienceScope
 }
 
 const UpdateLessonSchema = v.object({

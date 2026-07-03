@@ -6,9 +6,7 @@ import { getPenaltyPolicy, updatePenaltyPolicy } from '#hey-api'
 
 definePageMeta({ middleware: 'subject-permission' })
 
-type PenaltyPolicyForm = PenaltyPolicyRequest
-
-const PenaltyPolicySchema: SchemaFor<PenaltyPolicyForm> = v.pipe(
+const PenaltyPolicySchema: SchemaFor<PenaltyPolicyRequest> = v.pipe(
   v.object({
     enabled: v.boolean(),
     operation: v.picklist(['SUBTRACT', 'MULTIPLY'] as const, 'Выберите операцию'),

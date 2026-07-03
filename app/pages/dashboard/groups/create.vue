@@ -3,8 +3,7 @@ import type { CreateGroupRequest, StudentGroupMemberRequest } from '#hey-api'
 import { createGroup } from '#hey-api'
 import { vCreateGroupRequest } from '#hey-api/valibot.gen'
 
-type Student = StudentGroupMemberRequest
-type SubgroupId = Student['subgroupIndex']
+type SubgroupId = StudentGroupMemberRequest['subgroupIndex']
 
 const { state, formRef, loading, onSubmit, onError } = useResourceForm<typeof vCreateGroupRequest>({
   initialState: () => ({ name: '', students: [] }) as CreateGroupRequest,
@@ -12,7 +11,7 @@ const { state, formRef, loading, onSubmit, onError } = useResourceForm<typeof vC
 })
 
 const { subgroups, cards, cardLabel, addCard, removeCard, resetCards } = useSubgroupCards()
-const { addStudents, handlePaste: handleStudentPaste } = useStudentInput<Student>({ separator: /\n+/ })
+const { addStudents, handlePaste: handleStudentPaste } = useStudentInput<StudentGroupMemberRequest>({ separator: /\n+/ })
 
 function getStudents(index: SubgroupId) {
   return state.students.filter(s => s.subgroupIndex === index)
@@ -20,7 +19,7 @@ function getStudents(index: SubgroupId) {
 
 function doAddStudents(subgroupId: SubgroupId, raw: string) {
   addStudents(raw, subgroupId, state.students, (username, sid) =>
-    ({ username, subgroupIndex: sid as SubgroupId }) as Student)
+    ({ username, subgroupIndex: sid as SubgroupId }) as StudentGroupMemberRequest)
 }
 
 function removeStudent(username: string, subgroupId: SubgroupId) {
@@ -41,7 +40,7 @@ function handleEnter(card: { subgroupIndex: SubgroupId, input: string }) {
 
 function handlePaste(card: { subgroupIndex: SubgroupId, input: string }, e: ClipboardEvent) {
   const handled = handleStudentPaste(e, card.subgroupIndex, state.students, (username, sid) =>
-    ({ username, subgroupIndex: sid as SubgroupId }) as Student)
+    ({ username, subgroupIndex: sid as SubgroupId }) as StudentGroupMemberRequest)
   if (handled)
     card.input = ''
 }

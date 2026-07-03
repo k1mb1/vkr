@@ -1,8 +1,4 @@
-import type { BulkScheduleLessonsRequest, GroupWithSubgroupsResponse, LessonResponse, LessonScopeAudienceRequest } from '#hey-api'
-
-export type BulkScheduleAudience = LessonScopeAudienceRequest
-
-export type GroupWithSubgroups = GroupWithSubgroupsResponse
+import type { BulkScheduleLessonsRequest, GroupWithSubgroupsResponse, LessonScopeAudienceRequest } from '#hey-api'
 
 /**
  * День недели. В api-docs перечисление дней больше не публикуется отдельной схемой
@@ -16,7 +12,7 @@ export type DayOfWeek
  * `audience === null` — занятие для всех групп предмета.
  */
 export interface BulkScheduleItem {
-  audience?: BulkScheduleAudience | null
+  audience?: LessonScopeAudienceRequest | null
   firstLessonDate: string
   days: DayOfWeek[][]
 }
@@ -28,8 +24,6 @@ export interface BulkScheduleItem {
  */
 export type BulkScheduleRequest
   = Omit<BulkScheduleLessonsRequest, 'items'> & { items: BulkScheduleItem[] }
-
-export type BulkScheduleResponse = LessonResponse
 
 /**
  * Каст тела запроса к сгенерированному типу. Нужен потому, что схема `Item` в
@@ -98,7 +92,7 @@ export function initialBulkScheduleState(): BulkScheduleFormState {
   return { mode: 'all', allGroupsSchedule: emptySchedule(), groupEntries: [] }
 }
 
-export function initBulkScheduleGroups(state: BulkScheduleFormState, groups: GroupWithSubgroups[]) {
+export function initBulkScheduleGroups(state: BulkScheduleFormState, groups: GroupWithSubgroupsResponse[]) {
   state.groupEntries = groups.map(g => ({
     groupId: g.id!,
     groupName: g.name ?? g.id ?? '',
@@ -156,7 +150,7 @@ export function validateBulkSchedule(state: BulkScheduleFormState, count: number
 
 /** Сбор `items[]` запроса из состояния формы (структура — как buildLessonScopeRequests). */
 export function buildBulkScheduleItems(state: BulkScheduleFormState): BulkScheduleItem[] {
-  const item = (audience: BulkScheduleAudience | null, s: ScheduleEntry): BulkScheduleItem => ({
+  const item = (audience: LessonScopeAudienceRequest | null, s: ScheduleEntry): BulkScheduleItem => ({
     audience,
     firstLessonDate: s.firstLessonDate,
     days: scheduleToDays(s),
