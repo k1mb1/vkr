@@ -2247,7 +2247,7 @@
             "description": "ID группы"
           },
           "allowedSubgroupId": {
-            "type": "string",
+            "type": ["string", "null"],
             "format": "uuid",
             "description": "ID разрешённой подгруппы (null = вся группа)"
           }
@@ -2264,7 +2264,7 @@
             "description": "ID scope"
           },
           "audience": {
-            "type": "null",
+            "type": ["object", "null"],
             "$ref": "#/components/schemas/LessonScopeAudienceRequest",
             "description": "Аудитория. null = allGroups=true; иначе — конкретная группа"
           },
@@ -2306,10 +2306,12 @@
         "description": "Полное обновление занятия одним запросом.\nЛюбая секция null или отсутствует — соответствующая часть не трогается.\nТранзакция атомарная: при ошибке в любой из секций откатываются все.\n",
         "properties": {
           "header": {
+            "type": ["object", "null"],
             "$ref": "#/components/schemas/UpdateLessonHeaderRequest",
             "description": "Шапка занятия (subject, type, topic, orderIndex). null — не трогать."
           },
           "scopes": {
+            "type": ["object", "null"],
             "$ref": "#/components/schemas/BulkReplaceLessonScopesRequest",
             "description": "Замена scope'ов по id. Все scope'ы должны принадлежать этому уроку. null — не трогать."
           }
@@ -2559,7 +2561,7 @@
             "description": "ID занятия"
           },
           "assignmentId": {
-            "type": "string",
+            "type": ["string", "null"],
             "format": "uuid",
             "description": "ID задания. null = оценка вне задания (одна на пару студент+занятие)"
           },
@@ -2629,20 +2631,20 @@
             "minLength": 1
           },
           "minPoints": {
-            "type": "integer",
+            "type": ["integer", "null"],
             "format": "int32",
             "description": "Минимальный итоговый балл (включительно). null — без ограничения по баллам",
             "minimum": 0
           },
           "minPercent": {
-            "type": "integer",
+            "type": ["integer", "null"],
             "format": "int32",
             "description": "Минимальный процент (0..100) от максимально возможных баллов (включительно). Отдельное условие рядом с minPoints. null — без ограничения по проценту",
             "maximum": 100,
             "minimum": 0
           },
           "requiredTasks": {
-            "type": "integer",
+            "type": ["integer", "null"],
             "format": "int32",
             "description": "Минимум закрытых обязательных задач. null — без ограничения по задачам",
             "minimum": 0
@@ -3119,7 +3121,7 @@
             "description": "ID группы"
           },
           "allowedSubgroupId": {
-            "type": "string",
+            "type": ["string", "null"],
             "format": "uuid",
             "description": "ID разрешённой подгруппы (null = вся группа)"
           }
@@ -3131,11 +3133,12 @@
         "description": "Один scope права: группа (или все группы) + опциональный тип занятия. Подгруппа допустима только внутри конкретной группы.",
         "properties": {
           "group": {
+            "type": ["object", "null"],
             "$ref": "#/components/schemas/PermissionScopeGroupRef",
             "description": "Группа scope'а; null = все группы предмета (тогда подгруппу указать нельзя)"
           },
           "allowedLessonType": {
-            "type": "string",
+            "type": ["string", "null"],
             "description": "Разрешённый тип занятия (null = все типы)",
             "enum": ["LECTURE", "PRACTICE"]
           }
@@ -3302,7 +3305,7 @@
         "description": "Новый scope",
         "properties": {
           "audience": {
-            "type": "null",
+            "type": ["object", "null"],
             "$ref": "#/components/schemas/LessonScopeAudienceRequest",
             "description": "Аудитория. null = allGroups=true; иначе — конкретная группа"
           },
@@ -3382,7 +3385,7 @@
         "description": "Один элемент расписания: аудитория + её собственный старт и недельный шаблон.",
         "properties": {
           "audience": {
-            "type": "null",
+            "type": ["object", "null"],
             "$ref": "#/components/schemas/LessonScopeAudienceRequest",
             "description": "Аудитория для созданных пар (группа + опциональная подгруппа). null = все группы."
           },
@@ -3444,7 +3447,7 @@
             "minLength": 1
           },
           "subgroupIndex": {
-            "type": ["integer", "null"],
+            "type": "integer",
             "format": "int32",
             "description": "Индекс подгруппы (1, 2, ...)",
             "minimum": 1
@@ -3858,7 +3861,7 @@
             "description": "true/false — изменить флаг allPermissions (null — не менять)"
           },
           "scopes": {
-            "type": "array",
+            "type": ["array", "null"],
             "description": "Новый список scopes (null — не менять). Если задан — должен быть непустым.",
             "items": { "$ref": "#/components/schemas/PermissionScopeRequest" }
           }
@@ -3904,7 +3907,7 @@
             "description": "Новое название группы (null — не менять)"
           },
           "students": {
-            "type": "array",
+            "type": ["array", "null"],
             "description": "Полный новый состав студентов. null — не трогать состав, []  — архивировать всех существующих",
             "items": { "$ref": "#/components/schemas/UpdateGroupStudentItem" }
           }
