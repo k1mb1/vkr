@@ -2264,6 +2264,7 @@
             "description": "ID scope"
           },
           "audience": {
+            "type": "null",
             "$ref": "#/components/schemas/LessonScopeAudienceRequest",
             "description": "Аудитория. null = allGroups=true; иначе — конкретная группа"
           },
@@ -3301,6 +3302,7 @@
         "description": "Новый scope",
         "properties": {
           "audience": {
+            "type": "null",
             "$ref": "#/components/schemas/LessonScopeAudienceRequest",
             "description": "Аудитория. null = allGroups=true; иначе — конкретная группа"
           },
@@ -3380,6 +3382,7 @@
         "description": "Один элемент расписания: аудитория + её собственный старт и недельный шаблон.",
         "properties": {
           "audience": {
+            "type": "null",
             "$ref": "#/components/schemas/LessonScopeAudienceRequest",
             "description": "Аудитория для созданных пар (группа + опциональная подгруппа). null = все группы."
           },
@@ -3441,7 +3444,7 @@
             "minLength": 1
           },
           "subgroupIndex": {
-            "type": "integer",
+            "type": ["integer", "null"],
             "format": "int32",
             "description": "Индекс подгруппы (1, 2, ...)",
             "minimum": 1
