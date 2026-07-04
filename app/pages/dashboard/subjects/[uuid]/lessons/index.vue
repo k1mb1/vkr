@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import type { DropdownMenuItem } from '@nuxt/ui'
 import type { LessonResponse } from '#hey-api'
 import { getLessons } from '#hey-api'
+import { toolbarButton } from '~/utils/toolbarButtons'
 
 const route = useRoute()
 const subjectId = computed(() => String(route.params.uuid ?? ''))
@@ -51,13 +53,23 @@ const tabs = computed(() => [
 
 const { exportLoading, downloadExcel } = useLessonsTopicsExport()
 
-const lessonTypeFilter = computed<LessonTypeFilter>(() => {
-  if (activeTab.value === 'lectures')
-    return 'LECTURE'
-  if (activeTab.value === 'practices')
-    return 'PRACTICE'
-  return 'ALL'
-})
+const exportItems = computed<DropdownMenuItem[]>(() => [
+  {
+    label: 'Все занятия',
+    icon: 'i-lucide-layers',
+    onSelect: () => downloadExcel(sortedData.value, 'ALL'),
+  },
+  {
+    label: 'Только лекции',
+    icon: 'i-lucide-book-open',
+    onSelect: () => downloadExcel(sortedData.value, 'LECTURE'),
+  },
+  {
+    label: 'Только практики',
+    icon: 'i-lucide-pen-line',
+    onSelect: () => downloadExcel(sortedData.value, 'PRACTICE'),
+  },
+])
 </script>
 
 <template>
@@ -71,14 +83,15 @@ const lessonTypeFilter = computed<LessonTypeFilter>(() => {
           :loading="pending"
           @click="refresh()"
         />
-        <UButton
-          icon="i-lucide-file-spreadsheet"
-          label="Excel"
-          color="neutral"
-          variant="outline"
-          :loading="exportLoading"
-          @click="downloadExcel(sortedData, lessonTypeFilter)"
-        />
+        <UDropdownMenu :items="exportItems" :ui="{ content: 'w-48' }">
+          <UButton
+            v-bind="toolbarButton.export"
+            :loading="exportLoading"
+            :disabled="!sortedData.length"
+          >
+            Экспорт Excel
+          </UButton>
+        </UDropdownMenu>
         <SubjectPermissionGate>
           <UButton
             icon="i-lucide-calendar-plus"
