@@ -1,7 +1,7 @@
 import { env } from 'node:process'
 
-const REQUIRED_ENV = [
-  'NUXT_SESSION_PASSWORD',
+const SESSION_ENV = ['NUXT_SESSION_PASSWORD'] as const
+const OIDC_ENV = [
   'NUXT_OAUTH_OIDC_CLIENT_ID',
   'NUXT_OAUTH_OIDC_CLIENT_SECRET',
   'NUXT_OAUTH_OIDC_OPENID_CONFIG',
@@ -9,8 +9,13 @@ const REQUIRED_ENV = [
 ] as const
 
 export default defineNitroPlugin(() => {
+  // В демо-режиме OIDC не нужен — демка работает на сидовых данных без бэкенда
+  // и без провайдера входа. Секрет сессии всё равно обязателен.
+  const demoMode = env.NUXT_PUBLIC_DEMO_MODE === 'true'
+  const required = demoMode ? SESSION_ENV : [...SESSION_ENV, ...OIDC_ENV]
+
   const missing: string[] = []
-  for (const key of REQUIRED_ENV) {
+  for (const key of required) {
     if (!env[key])
       missing.push(key)
   }

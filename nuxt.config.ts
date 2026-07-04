@@ -30,6 +30,9 @@ export default defineNuxtConfig({
     public: {
       backendBaseUrl: env.NUXT_PUBLIC_BACKEND_BASE_URL || '',
       oidcPostLogoutUrl: env.NUXT_OIDC_POST_LOGOUT_REDIRECT_URL || '',
+      // Демо-режим для комиссии: гостевой вход через /demo на сидовых данных,
+      // бэкенд не требуется. Включается флагом деплоя.
+      demoMode: env.NUXT_PUBLIC_DEMO_MODE === 'true',
     },
     session: {
       password: env.NUXT_SESSION_PASSWORD ?? '',
@@ -137,6 +140,7 @@ export default defineNuxtConfig({
         'valibot',
         '@internationalized/date',
         '@vueuse/integrations/useQRCode',
+        'qrcode',
         '@vueuse/core',
         'xlsx',
       ],

@@ -1,4 +1,4 @@
-const PUBLIC_PATHS = ['/', '/auth/login', '/auth/callback', '/logout']
+const PUBLIC_PATHS = ['/', '/auth/login', '/auth/callback', '/logout', '/demo']
 
 export default defineNuxtRouteMiddleware((to) => {
   const isPublicAuthArea = to.path.startsWith('/auth/')

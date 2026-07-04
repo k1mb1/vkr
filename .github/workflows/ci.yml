@@ -1,11 +1,24 @@
 name: ci
 
-on: push
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# GITHUB_TOKEN по умолчанию слишком широкий — CI нужен только доступ на чтение.
+permissions:
+  contents: read
+
+# Один активный прогон на ветку/PR: новый пуш отменяет предыдущий незавершённый.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   ci:
     name: Lint & Typecheck
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
 
     strategy:
       matrix:
@@ -56,6 +69,7 @@ jobs:
   docker:
     name: Docker build
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout

@@ -93,6 +93,7 @@ const { links, searchGroups } = useDashboardNavigation(open)
         <slot name="toolbar" />
       </template>
       <template #body>
+        <AppDemoBanner />
         <slot />
       </template>
     </BaseDashboardPanel>

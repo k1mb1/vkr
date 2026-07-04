@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useQRCode } from '@vueuse/integrations/useQRCode'
+
 const { t } = useI18n({
   messages: {
     en: {
@@ -8,6 +10,19 @@ const { t } = useI18n({
         description: 'Students check themselves in by scanning a QR code — you just review and confirm. Subjects, lessons, attendance and grades, in one teacher dashboard.',
         signin: 'Sign in',
         how: 'How it works',
+      },
+      trust: {
+        noApp: 'No student apps',
+        oidc: 'OIDC sign-in',
+        realtime: 'Real-time check-in',
+        excel: 'Excel export',
+      },
+      demoCta: {
+        badge: 'Live demo',
+        title: 'Try the app — no login',
+        text: 'Scan the code or tap the button to explore a read-only demo with sample data.',
+        action: 'Open the demo',
+        scan: 'Scan to open the demo',
       },
       demo: {
         subject: 'Programming · Lecture 3',
@@ -22,6 +37,7 @@ const { t } = useI18n({
         period: 'Oct — Dec',
         present: 'Present',
         absent: 'Absent',
+        checkedIn: '18 / 24 checked in',
       },
       features: {
         headline: 'Features',
@@ -130,6 +146,19 @@ const { t } = useI18n({
         signin: 'Войти',
         how: 'Как это работает',
       },
+      trust: {
+        noApp: 'Без приложений',
+        oidc: 'Вход по OIDC',
+        realtime: 'Отметка в реальном времени',
+        excel: 'Экспорт в Excel',
+      },
+      demoCta: {
+        badge: 'Живое демо',
+        title: 'Попробуйте приложение — без входа',
+        text: 'Отсканируйте код или нажмите кнопку, чтобы открыть демо с примерными данными (только просмотр).',
+        action: 'Открыть демо',
+        scan: 'Отсканируйте, чтобы открыть демо',
+      },
       demo: {
         subject: 'Программирование · Лекция 3',
         scanHint: 'Отсканируйте для отметки',
@@ -143,6 +172,7 @@ const { t } = useI18n({
         period: 'Окт — Дек',
         present: 'Присутствовал',
         absent: 'Отсутствовал',
+        checkedIn: 'Отметились 18 / 24',
       },
       features: {
         headline: 'Возможности',
@@ -246,6 +276,19 @@ const { t } = useI18n({
   },
 })
 
+const trustItems = computed(() => [
+  { icon: 'i-lucide-smartphone', label: t('trust.noApp') },
+  { icon: 'i-lucide-lock', label: t('trust.oidc') },
+  { icon: 'i-lucide-radio', label: t('trust.realtime') },
+  { icon: 'i-lucide-file-spreadsheet', label: t('trust.excel') },
+])
+
+// Демо-режим для комиссии: показываем QR/кнопку входа на витрину.
+const { public: { demoMode } } = useRuntimeConfig()
+const requestUrl = useRequestURL()
+const demoUrl = computed(() => `${requestUrl.origin}/demo`)
+const demoQr = useQRCode(demoUrl, { errorCorrectionLevel: 'M', margin: 1, width: 256 })
+
 const features = computed(() => [
   {
     icon: 'i-lucide-book-open',
@@ -314,42 +357,87 @@ const faqItems = computed(() => [
   { label: t('faq.items.grades.label'), content: t('faq.items.grades.content') },
   { label: t('faq.items.access.label'), content: t('faq.items.access.content') },
 ])
+
+// Deterministic attendance grid used in the detail mockup
+const attendanceCells = [
+  'ok',
+  'ok',
+  'late',
+  'ok',
+  'no',
+  'ok',
+  'no',
+  'ok',
+  'ok',
+  'ok',
+  'late',
+  'ok',
+  'ok',
+  'no',
+  'ok',
+] as const
 </script>
 
 <template>
   <NuxtLayout name="landing">
     <!-- Hero -->
     <UPageHero
+      orientation="horizontal"
       :title="t('hero.title')"
       :description="t('hero.description')"
-      orientation="horizontal"
-      :links="[{
-        label: t('hero.signin'),
-        to: '/auth/login',
-        icon: 'i-lucide-log-in',
-        size: 'xl',
-      }, {
-        label: t('hero.how'),
-        to: '#how',
-        icon: 'i-lucide-circle-help',
-        size: 'xl',
-        color: 'neutral',
-        variant: 'subtle',
-      }]"
     >
       <template #headline>
-        <UBadge color="primary" variant="subtle" size="md" class="mb-4">
+        <UBadge color="primary" variant="subtle" size="md" class="rounded-full">
           <UIcon name="i-lucide-server" class="size-3.5" />
           {{ t('hero.badge') }}
         </UBadge>
       </template>
 
-      <UPageCard class="w-full" variant="soft" spotlight :ui="{ body: 'p-0' }">
+      <template #footer>
+        <div class="flex flex-col items-start gap-8">
+          <div class="flex flex-col gap-3 sm:flex-row">
+            <UButton
+              to="/auth/login"
+              icon="i-lucide-log-in"
+              size="xl"
+              trailing-icon="i-lucide-arrow-right"
+            >
+              {{ t('hero.signin') }}
+            </UButton>
+            <UButton
+              to="#how"
+              icon="i-lucide-circle-help"
+              size="xl"
+              color="neutral"
+              variant="subtle"
+            >
+              {{ t('hero.how') }}
+            </UButton>
+          </div>
+
+          <ul class="flex flex-wrap gap-x-6 gap-y-3">
+            <li
+              v-for="item in trustItems"
+              :key="item.label"
+              class="flex items-center gap-2 text-sm text-muted"
+            >
+              <UIcon :name="item.icon" class="size-4 text-primary" />
+              {{ item.label }}
+            </li>
+          </ul>
+        </div>
+      </template>
+
+      <!-- right visual: live check-in mockup -->
+      <UPageCard variant="soft" spotlight class="landing-float w-full" :ui="{ body: 'p-0' }">
         <div class="p-5">
-          <div class="flex items-center justify-between mb-4">
+          <div class="mb-4 flex items-center justify-between">
             <div class="flex items-center gap-2">
-              <UIcon name="i-lucide-radio" class="size-5 text-error animate-pulse" />
-              <span class="font-semibold text-sm">{{ t('demo.subject') }}</span>
+              <span class="relative flex size-2.5">
+                <span class="absolute inline-flex size-full animate-ping rounded-full bg-error opacity-75" />
+                <span class="relative inline-flex size-2.5 rounded-full bg-error" />
+              </span>
+              <span class="text-sm font-semibold text-highlighted">{{ t('demo.subject') }}</span>
             </div>
             <UBadge color="success" variant="soft" size="sm">
               {{ t('demo.live') }}
@@ -357,10 +445,10 @@ const faqItems = computed(() => [
           </div>
 
           <div class="flex flex-col items-center gap-3">
-            <div class="bg-white dark:bg-white rounded-xl p-5 shadow-sm">
-              <UIcon name="i-lucide-qr-code" class="size-28 text-primary" />
+            <div class="rounded-xl bg-white p-5 shadow-sm">
+              <UIcon name="i-lucide-qr-code" class="size-28 text-gray-900" />
             </div>
-            <p class="text-xs text-muted uppercase tracking-wide">
+            <p class="text-xs uppercase tracking-wide text-muted">
               {{ t('demo.scanHint') }}
             </p>
           </div>
@@ -368,7 +456,7 @@ const faqItems = computed(() => [
 
         <USeparator />
 
-        <div class="p-5 space-y-2.5">
+        <div class="space-y-2.5 p-5">
           <div class="flex items-center justify-between text-sm">
             <div class="flex items-center gap-2">
               <UAvatar text="АК" size="2xs" class="bg-primary text-inverted" />
@@ -396,9 +484,48 @@ const faqItems = computed(() => [
               {{ t('demo.onTime') }}
             </UBadge>
           </div>
+
+          <div class="flex items-center gap-2 pt-1 text-xs text-muted">
+            <UIcon name="i-lucide-users" class="size-3.5" />
+            {{ t('demo.checkedIn') }}
+          </div>
         </div>
       </UPageCard>
     </UPageHero>
+
+    <!-- Full-width demo card (only in demo mode) -->
+    <UPageSection v-if="demoMode" :ui="{ container: '!pt-0' }">
+      <UPageCard variant="soft" spotlight class="w-full">
+        <div class="flex flex-col items-center gap-6 text-center md:flex-row md:gap-10 md:text-left">
+          <div class="flex size-40 shrink-0 items-center justify-center rounded-2xl bg-white p-3 shadow-lg shadow-primary/10">
+            <img v-if="demoQr" :src="demoQr" :alt="t('demoCta.scan')" class="size-full">
+            <UIcon v-else name="i-lucide-qr-code" class="size-24 text-gray-300" />
+          </div>
+
+          <div class="flex flex-1 flex-col items-center md:items-start">
+            <UBadge color="primary" variant="soft" size="md" class="rounded-full">
+              <UIcon name="i-lucide-flask-conical" class="size-3.5" />
+              {{ t('demoCta.badge') }}
+            </UBadge>
+            <h2 class="mt-3 text-2xl font-bold tracking-tight text-highlighted sm:text-3xl">
+              {{ t('demoCta.title') }}
+            </h2>
+            <p class="mt-2 max-w-2xl text-muted">
+              {{ t('demoCta.text') }}
+            </p>
+            <div class="mt-5 flex flex-col items-center gap-3 sm:flex-row">
+              <UButton to="/demo" icon="i-lucide-arrow-right" size="lg" trailing-icon="i-lucide-arrow-right">
+                {{ t('demoCta.action') }}
+              </UButton>
+              <span class="hidden items-center gap-1.5 text-sm text-muted sm:inline-flex">
+                <UIcon name="i-lucide-scan-line" class="size-4 text-primary" />
+                {{ t('demoCta.scan') }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </UPageCard>
+    </UPageSection>
 
     <!-- Features -->
     <UPageSection
@@ -407,7 +534,7 @@ const faqItems = computed(() => [
       :title="t('features.title')"
       :description="t('features.description')"
     >
-      <UPageGrid class="mt-8">
+      <UPageGrid>
         <UPageCard
           v-for="(feature, i) in features"
           :key="i"
@@ -428,7 +555,7 @@ const faqItems = computed(() => [
       :title="t('how.title')"
       :description="t('how.description')"
     >
-      <UPageGrid class="mt-8">
+      <UPageGrid>
         <UPageCard
           v-for="(step, i) in steps"
           :key="i"
@@ -442,121 +569,89 @@ const faqItems = computed(() => [
       </UPageGrid>
     </UPageSection>
 
-    <!-- Detail: Check-in -->
+    <!-- Detail: check-in -->
     <UPageSection
+      orientation="horizontal"
       :title="t('detail_checkin.title')"
       :description="t('detail_checkin.description')"
-      orientation="horizontal"
     >
-      <UPageCard class="w-full" variant="outline" spotlight>
+      <UPageCard variant="outline" spotlight class="w-full">
         <div class="flex flex-col gap-4">
           <div class="flex items-center justify-between">
-            <span class="font-semibold text-sm">{{ t('demo.subject') }}</span>
+            <span class="text-sm font-semibold text-highlighted">{{ t('demo.subject') }}</span>
             <UBadge color="success" variant="soft" size="sm">
               {{ t('demo.live') }}
             </UBadge>
           </div>
 
           <div class="flex items-center justify-center">
-            <div class="bg-white dark:bg-white rounded-xl p-6 shadow-sm">
-              <UIcon name="i-lucide-qr-code" class="size-24 text-primary" />
+            <div class="rounded-xl bg-white p-6 shadow-sm">
+              <UIcon name="i-lucide-qr-code" class="size-24 text-gray-900" />
             </div>
           </div>
 
           <div class="grid grid-cols-2 gap-2 text-center text-xs">
-            <div class="bg-success/10 text-success rounded-lg p-2 flex items-center justify-center gap-1">
+            <div class="flex items-center justify-center gap-1 rounded-lg bg-success/10 p-2 text-success">
               <UIcon name="i-lucide-check" class="size-3.5" />
               <span>{{ t('demo.onTime') }}</span>
             </div>
-            <div class="bg-warning/10 text-warning rounded-lg p-2 flex items-center justify-center gap-1">
+            <div class="flex items-center justify-center gap-1 rounded-lg bg-warning/10 p-2 text-warning">
               <UIcon name="i-lucide-clock" class="size-3.5" />
               <span>{{ t('demo.late') }}</span>
             </div>
           </div>
 
           <div class="space-y-2">
-            <div class="flex items-center justify-between text-sm px-1">
-              <span>{{ t('demo.student1') }}</span>
-              <span class="text-success text-xs">12:03</span>
+            <div class="flex items-center justify-between px-1 text-sm">
+              <span class="text-default">{{ t('demo.student1') }}</span>
+              <span class="text-xs text-success">12:03</span>
             </div>
-            <div class="flex items-center justify-between text-sm px-1">
-              <span>{{ t('demo.student2') }}</span>
-              <span class="text-warning text-xs">12:18</span>
+            <div class="flex items-center justify-between px-1 text-sm">
+              <span class="text-default">{{ t('demo.student2') }}</span>
+              <span class="text-xs text-warning">12:18</span>
             </div>
-            <div class="flex items-center justify-between text-sm px-1">
-              <span>{{ t('demo.student3') }}</span>
-              <span class="text-success text-xs">12:01</span>
+            <div class="flex items-center justify-between px-1 text-sm">
+              <span class="text-default">{{ t('demo.student3') }}</span>
+              <span class="text-xs text-success">12:01</span>
             </div>
           </div>
         </div>
       </UPageCard>
     </UPageSection>
 
-    <!-- Detail: Attendance -->
+    <!-- Detail: attendance -->
     <UPageSection
-      :title="t('detail_attendance.title')"
-      :description="t('detail_attendance.description')"
       orientation="horizontal"
       reverse
+      :title="t('detail_attendance.title')"
+      :description="t('detail_attendance.description')"
     >
-      <UPageCard class="w-full" variant="outline" spotlight>
+      <UPageCard variant="outline" spotlight class="w-full">
         <div class="flex flex-col gap-3">
           <div class="flex items-center justify-between text-sm font-medium">
-            <span>{{ t('demo.attendanceTitle') }}</span>
+            <span class="text-highlighted">{{ t('demo.attendanceTitle') }}</span>
             <span class="text-muted">{{ t('demo.period') }}</span>
           </div>
 
           <div class="grid grid-cols-5 gap-1.5">
-            <div class="bg-success/20 text-success rounded p-1.5 flex items-center justify-center text-xs">
-              <UIcon name="i-lucide-check" class="size-3.5" />
-            </div>
-            <div class="bg-success/20 text-success rounded p-1.5 flex items-center justify-center text-xs">
-              <UIcon name="i-lucide-check" class="size-3.5" />
-            </div>
-            <div class="bg-warning/20 text-warning rounded p-1.5 flex items-center justify-center text-xs">
-              <UIcon name="i-lucide-clock" class="size-3.5" />
-            </div>
-            <div class="bg-success/20 text-success rounded p-1.5 flex items-center justify-center text-xs">
-              <UIcon name="i-lucide-check" class="size-3.5" />
-            </div>
-            <div class="bg-error/20 text-error rounded p-1.5 flex items-center justify-center text-xs">
-              <UIcon name="i-lucide-x" class="size-3.5" />
-            </div>
-
-            <div class="bg-success/20 text-success rounded p-1.5 flex items-center justify-center text-xs">
-              <UIcon name="i-lucide-check" class="size-3.5" />
-            </div>
-            <div class="bg-error/20 text-error rounded p-1.5 flex items-center justify-center text-xs">
-              <UIcon name="i-lucide-x" class="size-3.5" />
-            </div>
-            <div class="bg-success/20 text-success rounded p-1.5 flex items-center justify-center text-xs">
-              <UIcon name="i-lucide-check" class="size-3.5" />
-            </div>
-            <div class="bg-success/20 text-success rounded p-1.5 flex items-center justify-center text-xs">
-              <UIcon name="i-lucide-check" class="size-3.5" />
-            </div>
-            <div class="bg-success/20 text-success rounded p-1.5 flex items-center justify-center text-xs">
-              <UIcon name="i-lucide-check" class="size-3.5" />
-            </div>
-
-            <div class="bg-warning/20 text-warning rounded p-1.5 flex items-center justify-center text-xs">
-              <UIcon name="i-lucide-clock" class="size-3.5" />
-            </div>
-            <div class="bg-success/20 text-success rounded p-1.5 flex items-center justify-center text-xs">
-              <UIcon name="i-lucide-check" class="size-3.5" />
-            </div>
-            <div class="bg-success/20 text-success rounded p-1.5 flex items-center justify-center text-xs">
-              <UIcon name="i-lucide-check" class="size-3.5" />
-            </div>
-            <div class="bg-error/20 text-error rounded p-1.5 flex items-center justify-center text-xs">
-              <UIcon name="i-lucide-x" class="size-3.5" />
-            </div>
-            <div class="bg-success/20 text-success rounded p-1.5 flex items-center justify-center text-xs">
-              <UIcon name="i-lucide-check" class="size-3.5" />
+            <div
+              v-for="(cell, i) in attendanceCells"
+              :key="i"
+              class="flex items-center justify-center rounded p-1.5 text-xs"
+              :class="{
+                'bg-success/20 text-success': cell === 'ok',
+                'bg-warning/20 text-warning': cell === 'late',
+                'bg-error/20 text-error': cell === 'no',
+              }"
+            >
+              <UIcon
+                :name="cell === 'ok' ? 'i-lucide-check' : cell === 'late' ? 'i-lucide-clock' : 'i-lucide-x'"
+                class="size-3.5"
+              />
             </div>
           </div>
 
-          <div class="flex items-center gap-3 text-xs text-muted mt-1">
+          <div class="mt-1 flex items-center gap-3 text-xs text-muted">
             <div class="flex items-center gap-1">
               <div class="size-2.5 rounded-sm bg-success/20" />
               <span>{{ t('demo.present') }}</span>
@@ -581,11 +676,7 @@ const faqItems = computed(() => [
       :title="t('faq.title')"
       :description="t('faq.description')"
     >
-      <UAccordion
-        :items="faqItems"
-        type="multiple"
-        class="mt-8"
-      />
+      <UAccordion :items="faqItems" type="multiple" class="mt-8" />
     </UPageSection>
 
     <!-- CTA -->
@@ -605,3 +696,25 @@ const faqItems = computed(() => [
     </UPageSection>
   </NuxtLayout>
 </template>
+
+<style scoped>
+.landing-float {
+  animation: landing-float 6s ease-in-out infinite;
+}
+
+@keyframes landing-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-float {
+    animation: none;
+  }
+}
+</style>
