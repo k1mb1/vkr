@@ -16,13 +16,21 @@ const { data: lesson, pending: lessonPending, error: lessonError } = useApi(
 )
 
 const { data: results, pending: resultsPending, refresh: resultsRefresh } = useApi(
-  { key: `lesson-results:${lessonId.value}`, immediate: false, watch: [lessonId] },
+  {
+    key: computed(() => `lesson-results:${lessonId.value}:${permissionId.value}`),
+    immediate: false,
+    watch: [lessonId, permissionId],
+  },
   () => getResults({ query: { permissionId: permissionId.value, lessonId: lessonId.value } }),
 )
 
 // Сессии отметки — для чеклиста готовности (статус: не начата / идёт / проведена).
 const { data: sessionsData, refresh: sessionsRefresh } = useApi(
-  { key: `lesson-sessions:${lessonId.value}`, immediate: false },
+  {
+    key: computed(() => `lesson-sessions:${lessonId.value}:${permissionId.value}`),
+    immediate: false,
+    watch: [permissionId],
+  },
   () => getCheckInSessions({ query: { permissionId: permissionId.value } }),
 )
 

@@ -10,7 +10,11 @@ const subjectId = computed(() => String(route.params.uuid ?? ''))
 const { permissionId, pending: permissionPending } = usePermissions()
 
 const { data, pending: lessonsPending, error, refresh } = useApi(
-  { key: `lessons:${subjectId.value}`, immediate: false },
+  {
+    key: computed(() => `lessons:${subjectId.value}:${permissionId.value}`),
+    immediate: false,
+    watch: [permissionId],
+  },
   () => getLessons({ query: { permissionId: permissionId.value } }),
 )
 

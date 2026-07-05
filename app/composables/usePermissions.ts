@@ -14,7 +14,7 @@ export function usePermissions(subjectIdOverride?: MaybeRefOrGetter<string>) {
 
   const { data, status, error, pending, refresh, execute, clear } = useApi(
     {
-      key: `permission:${toValue(subjectId)}`,
+      key: computed(() => `permission:${subjectId.value}:${teacherId.value}`),
       watch: [subjectId, teacherId],
     },
     () => teacherId.value && subjectId.value

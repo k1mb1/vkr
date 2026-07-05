@@ -48,13 +48,21 @@ const policyLateMinutes = computed(() =>
 const { permission, permissionId, hasAllPermissions, pending: permissionPending } = usePermissions()
 
 const { data: lessonsData, pending: lessonsPending, refresh } = useApi(
-  { key: `check-in-lessons:${subjectId}`, immediate: false },
+  {
+    key: computed(() => `check-in-lessons:${subjectId}:${permissionId.value}`),
+    immediate: false,
+    watch: [permissionId],
+  },
   () => getLessons({ query: { permissionId: permissionId.value } }),
 )
 
 // Существующие сессии — чтобы не предлагать уже отмеченные (или идущие) проведения.
 const { data: sessionsData, refresh: refreshSessions } = useApi(
-  { key: `check-in-sessions:${subjectId}`, immediate: false },
+  {
+    key: computed(() => `check-in-sessions:${subjectId}:${permissionId.value}`),
+    immediate: false,
+    watch: [permissionId],
+  },
   () => getCheckInSessions({ query: { permissionId: permissionId.value } }),
 )
 

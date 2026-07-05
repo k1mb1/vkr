@@ -11,7 +11,7 @@ export function useSubjectNavigation() {
   })
 
   const { data } = useApi(
-    { key: 'subject-nav', watch: [request] },
+    { key: computed(() => `subject-nav:${teacherId.value}`), watch: [request] },
     () => teacherId.value ? getSubjectsPage({ query: request.value }) : Promise.resolve({ data: null }),
   )
 

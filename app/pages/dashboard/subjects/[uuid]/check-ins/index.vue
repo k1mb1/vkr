@@ -40,7 +40,11 @@ const scopeState = reactive<ScopeState>({
 })
 
 const { data, pending: sessionsPending, error, refresh } = useApi(
-  { key: `check-in-sessions:${subjectId.value}`, immediate: false },
+  {
+    key: computed(() => `check-in-sessions:${subjectId.value}:${permissionId.value}`),
+    immediate: false,
+    watch: [permissionId],
+  },
   () => getCheckInSessions({ query: { permissionId: permissionId.value } }),
 )
 

@@ -519,15 +519,16 @@ function tableStudent(s: Student) {
   }
 }
 
-function buildAttendanceTable(subjectId: string): AttendanceTableResponse {
+function buildAttendanceTable(subjectId: string, lessonId?: string): AttendanceTableResponse {
   const subj = SUBJECTS[subjectId]
   if (!subj)
     return emptyAttendanceTable()
 
+  const scopes = lessonId ? subj.scopes.filter(sc => sc.lessonId === lessonId) : subj.scopes
   const indexById = new Map(subj.students.map((s, i) => [s.id, i]))
   const attendances: AttendanceTableResponse['attendances'] = []
   let cid = 10_000
-  for (const scope of subj.scopes) {
+  for (const scope of scopes) {
     for (const sid of scope.studentIds) {
       const status = ATT_LETTER[subj.profileById.get(sid)?.att[scope.lessonIndex] ?? 'P']
       const override = subj.def.attComments?.[`${indexById.get(sid)}:${scope.lessonIndex}`]
@@ -546,7 +547,7 @@ function buildAttendanceTable(subjectId: string): AttendanceTableResponse {
     highlightPolicy: attendanceHighlightPolicy,
     audience: audienceOf(subjectId),
     students: subj.students.map(tableStudent),
-    lessons: subj.scopes.map(sc => ({
+    lessons: scopes.map(sc => ({
       id: sc.id,
       lessonId: sc.lessonId,
       startedAt: sc.startedAt,
@@ -583,13 +584,16 @@ function studentAttendanceCounts(subjectId: string): StudentAttendanceResponse[]
   })
 }
 
-function buildGradingTable(subjectId: string): GradingTableResponse {
+function buildGradingTable(subjectId: string, lessonId?: string): GradingTableResponse {
   const subj = SUBJECTS[subjectId]
   if (!subj)
     return emptyGradingTable()
 
-  const requiredAssignments = subj.assignments.filter(a => a.required)
-  const optionalAssignments = subj.assignments.filter(a => !a.required)
+  const lessons = lessonId ? subj.lessons.filter(l => l.id === lessonId) : subj.lessons
+  const scopes = lessonId ? subj.scopes.filter(sc => sc.lessonId === lessonId) : subj.scopes
+  const assignments = lessonId ? subj.assignments.filter(a => a.lessonId === lessonId) : subj.assignments
+  const requiredAssignments = assignments.filter(a => a.required)
+  const optionalAssignments = assignments.filter(a => !a.required)
 
   const grades: GradingTableResponse['grades'] = []
   let gid = 20_000
@@ -614,7 +618,7 @@ function buildGradingTable(subjectId: string): GradingTableResponse {
   // Проведения по занятиям (для видимости колонок по секциям и дат).
   interface GradeScope { id: string, groupId: string, allowedSubgroupId?: string, startedAt: string, allGroups: boolean }
   const scopesByLesson = new Map<string, GradeScope[]>()
-  for (const sc of subj.scopes) {
+  for (const sc of scopes) {
     const arr = scopesByLesson.get(sc.lessonId) ?? []
     arr.push({ id: sc.id, groupId: sc.groupId, ...(sc.allowedSubgroupId ? { allowedSubgroupId: sc.allowedSubgroupId } : {}), startedAt: sc.startedAt, allGroups: sc.allGroups })
     scopesByLesson.set(sc.lessonId, arr)
@@ -628,7 +632,7 @@ function buildGradingTable(subjectId: string): GradingTableResponse {
     attendance: studentAttendanceCounts(subjectId),
     audience: audienceOf(subjectId),
     students: subj.students.map(tableStudent),
-    lessons: subj.lessons.map(l => ({
+    lessons: lessons.map(l => ({
       id: l.id,
       type: l.type,
       orderIndex: l.orderIndex,
@@ -636,7 +640,7 @@ function buildGradingTable(subjectId: string): GradingTableResponse {
       active: l.active,
       scopes: scopesByLesson.get(l.id) ?? [],
     })),
-    assignments: subj.assignments,
+    assignments,
     grades,
   }
 }
@@ -765,11 +769,21 @@ const READ_ONLY: DemoResult = {
   body: { message: 'В демо-режиме доступен только просмотр. Изменения отключены.' },
 }
 
-function paged<T>(content: T[]): { content: T[], page: PageMetadata } {
+function paged<T>(content: T[], query: Record<string, unknown> = {}): { content: T[], page: PageMetadata } {
+  const size = Math.max(1, Number(query.size ?? 20) || 20)
+  const number = Math.max(0, Number(query.page ?? 0) || 0)
+  const total = content.length
+  const slice = content.slice(number * size, number * size + size)
   return {
-    content,
-    page: { size: 20, number: 0, totalElements: content.length, totalPages: 1 },
+    content: slice,
+    page: { size, number, totalElements: total, totalPages: Math.max(1, Math.ceil(total / size)) },
   }
+}
+
+function includesCi(haystack: string, needle: unknown): boolean {
+  if (needle == null || needle === '')
+    return true
+  return haystack.toLowerCase().includes(String(needle).toLowerCase())
 }
 
 function subjectFromPermission(query: Record<string, unknown>): string | null {
@@ -795,13 +809,17 @@ export function getDemoResponse(method: string, path: string, query: Record<stri
 
   // --- Справочники ---
   if (p === 'api/subjects') {
-    const subjects: SubjectPageResponse[] = SUBJECT_DEFS.map(d => ({ id: d.id, name: d.name, description: d.description, createdAt: CREATED, updatedAt: CREATED }))
-    return { body: paged(subjects) }
+    const subjects: SubjectPageResponse[] = SUBJECT_DEFS
+      .filter(d => includesCi(d.name, query.name))
+      .map(d => ({ id: d.id, name: d.name, description: d.description, createdAt: CREATED, updatedAt: CREATED }))
+    return { body: paged(subjects, query) }
   }
 
   if (p === 'api/groups') {
-    const rows: GroupPageResponse[] = ALL_GROUPS.map(g => ({ id: g.id, name: g.name, createdAt: CREATED, updatedAt: CREATED }))
-    return { body: paged(rows) }
+    const rows: GroupPageResponse[] = ALL_GROUPS
+      .filter(g => includesCi(g.name, query.name))
+      .map(g => ({ id: g.id, name: g.name, createdAt: CREATED, updatedAt: CREATED }))
+    return { body: paged(rows, query) }
   }
 
   if (p === 'api/groups/by-subject') {
@@ -829,7 +847,7 @@ export function getDemoResponse(method: string, path: string, query: Record<stri
   }
 
   if (p === 'api/teachers')
-    return { body: paged<TeacherResponse>([DEMO_TEACHER]) }
+    return { body: paged<TeacherResponse>([DEMO_TEACHER], query) }
 
   // --- Права ---
   if (p === 'api/teacher-subject-permissions/single')
@@ -860,25 +878,36 @@ export function getDemoResponse(method: string, path: string, query: Record<stri
   // --- Таблицы ---
   if (p === 'api/attendances') {
     const subjectId = subjectFromPermission(query)
-    return { body: subjectId ? buildAttendanceTable(subjectId) : emptyAttendanceTable() }
+    const lessonId = query.lessonId ? String(query.lessonId) : undefined
+    return { body: subjectId ? buildAttendanceTable(subjectId, lessonId) : emptyAttendanceTable() }
   }
 
   if (p === 'api/grades') {
     const subjectId = subjectFromPermission(query)
-    return { body: subjectId ? buildGradingTable(subjectId) : emptyGradingTable() }
+    const lessonId = query.lessonId ? String(query.lessonId) : undefined
+    return { body: subjectId ? buildGradingTable(subjectId, lessonId) : emptyGradingTable() }
   }
 
   if (p === 'api/results') {
     const subjectId = subjectFromPermission(query)
+    const lessonId = query.lessonId ? String(query.lessonId) : undefined
     if (!subjectId)
       return { body: { grading: emptyGradingTable(), attendance: emptyAttendanceTable() } }
-    return { body: { grading: buildGradingTable(subjectId), attendance: buildAttendanceTable(subjectId) } }
+    return { body: { grading: buildGradingTable(subjectId, lessonId), attendance: buildAttendanceTable(subjectId, lessonId) } }
   }
 
   // --- Отметка присутствия ---
   if (p === 'api/check-in-sessions') {
     const subjectId = subjectFromPermission(query)
-    return { body: subjectId ? buildCheckInSessions(subjectId) : [] }
+    if (!subjectId)
+      return { body: [] }
+    const lessonId = query.lessonId ? String(query.lessonId) : undefined
+    const lessonScopeId = query.lessonScopeId ? String(query.lessonScopeId) : undefined
+    const sessions = buildCheckInSessions(subjectId).filter(s =>
+      (!lessonId || s.lessonId === lessonId)
+      && (!lessonScopeId || s.lessonScopeId === lessonScopeId),
+    )
+    return { body: sessions }
   }
 
   const previewMatch = p.match(/^api\/check-in-sessions\/([^/]+)\/preview$/)

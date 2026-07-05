@@ -15,7 +15,11 @@ const { permissionId, hasAllPermissions, scopes } = usePermissions()
 const { exportLoading, downloadExcel } = useGradesExport()
 
 const { data, pending, error, refresh } = useApi(
-  { key: `grading-table:${subjectId.value}`, immediate: false },
+  {
+    key: computed(() => `grading-table:${subjectId.value}:${permissionId.value}`),
+    immediate: false,
+    watch: [permissionId],
+  },
   () => getGradingTable({ query: { permissionId: permissionId.value } }),
 )
 

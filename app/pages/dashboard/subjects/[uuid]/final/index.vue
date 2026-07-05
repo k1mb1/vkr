@@ -13,7 +13,11 @@ const subjectId = computed(() => String(route.params.uuid ?? ''))
 const { exportLoading: finalExportLoading, downloadExcel: downloadFinalExcel } = useFinalGradesExport()
 
 const { data: results, pending, error, refresh } = useApi(
-  { key: `final-results:${subjectId.value}`, immediate: false },
+  {
+    key: computed(() => `final-results:${subjectId.value}:${permissionId.value}`),
+    immediate: false,
+    watch: [permissionId],
+  },
   () => getResults({ query: { permissionId: permissionId.value } }),
 )
 

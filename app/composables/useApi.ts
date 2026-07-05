@@ -26,7 +26,7 @@ type WatchSources = Parameters<typeof useAsyncData>[2] extends infer O
   : never
 
 export interface UseApiOptions<T> {
-  key: string
+  key: MaybeRefOrGetter<string>
   /**
    * - `silent` (по умолчанию) — ошибка только в `error`, страница сама решает;
    * - `fatal` — showError → error.vue;
@@ -60,7 +60,7 @@ export function useApi<T>(
         return transform && payload !== null ? transform(payload) : payload
       }
       catch (raw) {
-        logApiError(key, raw)
+        logApiError(toValue(key), raw)
         throw raw
       }
     },

@@ -17,7 +17,11 @@ const { sortBy, sortItems } = useStudentSort()
 const { density } = useTableDensity()
 
 const { data, pending, error, refresh } = useApi(
-  { key: `attendance-table:${subjectId.value}`, immediate: false },
+  {
+    key: computed(() => `attendance-table:${subjectId.value}:${permissionId.value}`),
+    immediate: false,
+    watch: [permissionId],
+  },
   () => getAttendanceTable({ query: { permissionId: permissionId.value } }),
 )
 
