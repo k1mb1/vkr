@@ -140,84 +140,86 @@ const tableUi = computed(() => sectionedTableUi({ density: density.value, center
         </span>
       </div>
 
-      <USkeleton v-if="pending && !data" class="h-64 w-full" />
+      <div class="min-h-[60vh] flex flex-col gap-6">
+        <USkeleton v-if="pending && !data" class="h-[60vh] w-full" />
 
-      <UEmpty
-        v-else-if="allSectionsDeselected"
-        icon="i-lucide-filter-x"
-        title="Группы не выбраны"
-        description="Выберите хотя бы одну группу, чтобы увидеть итоговую таблицу."
-        variant="naked"
-        class="py-6"
-      />
+        <UEmpty
+          v-else-if="allSectionsDeselected"
+          icon="i-lucide-filter-x"
+          title="Группы не выбраны"
+          description="Выберите хотя бы одну группу, чтобы увидеть итоговую таблицу."
+          variant="naked"
+          class="py-6"
+        />
 
-      <UEmpty
-        v-else-if="!pending && sections.length === 0"
-        icon="i-lucide-clipboard-x"
-        title="Нет данных"
-        description="Нет студентов или занятий для отображения итогов."
-        variant="naked"
-        class="py-6"
-      >
-        <template v-if="hasAllPermissions" #actions>
-          <UButton
-            icon="i-lucide-plus"
-            label="Создать занятия"
-            color="primary"
-            :to="`/dashboard/subjects/${subjectId}/lessons/create`"
-          />
-        </template>
-      </UEmpty>
-
-      <template v-else>
-        <section
-          v-for="section in sections"
-          :key="section.key"
-          class="flex flex-col gap-3"
+        <UEmpty
+          v-else-if="!pending && sections.length === 0"
+          icon="i-lucide-clipboard-x"
+          title="Нет данных"
+          description="Нет студентов или занятий для отображения итогов."
+          variant="naked"
+          class="py-6"
         >
-          <!-- Section header -->
-          <div class="flex flex-wrap items-center gap-3">
-            <h3 class="text-sm font-semibold text-default">
-              {{ section.label }}
-            </h3>
-            <span class="text-xs text-muted">{{ section.rows.length }} студ.</span>
+          <template v-if="hasAllPermissions" #actions>
+            <UButton
+              icon="i-lucide-plus"
+              label="Создать занятия"
+              color="primary"
+              :to="`/dashboard/subjects/${subjectId}/lessons/create`"
+            />
+          </template>
+        </UEmpty>
 
-            <div class="flex items-center gap-3 ml-auto">
-              <span class="text-xs text-muted tabular-nums">
-                средний {{ section.avgTotal }} · макс {{ section.maxTotal }} · мин {{ section.minTotal }}
-              </span>
-              <UButton
-                icon="i-lucide-maximize-2"
-                color="neutral"
-                variant="ghost"
-                title="На весь экран"
-                @click="fullscreenSectionKey = section.key"
-              />
+        <template v-else>
+          <section
+            v-for="section in sections"
+            :key="section.key"
+            class="flex flex-col gap-3"
+          >
+            <!-- Section header -->
+            <div class="flex flex-wrap items-center gap-3">
+              <h3 class="text-sm font-semibold text-default">
+                {{ section.label }}
+              </h3>
+              <span class="text-xs text-muted">{{ section.rows.length }} студ.</span>
+
+              <div class="flex items-center gap-3 ml-auto">
+                <span class="text-xs text-muted tabular-nums">
+                  средний {{ section.avgTotal }} · макс {{ section.maxTotal }} · мин {{ section.minTotal }}
+                </span>
+                <UButton
+                  icon="i-lucide-maximize-2"
+                  color="neutral"
+                  variant="ghost"
+                  title="На весь экран"
+                  @click="fullscreenSectionKey = section.key"
+                />
+              </div>
             </div>
-          </div>
 
-          <!-- Table -->
-          <AppScrollHint>
-            <UTable
-              :data="section.rows"
-              :columns="buildColumns(section)"
-              :loading="pending && section.rows.length === 0"
-              loading-color="primary"
-              loading-animation="carousel"
-              sticky
-              class="rounded-lg border border-default"
-              :ui="tableUi"
-            >
-              <template #username-cell="{ row }">
-                <span
-                  :title="row.original.username"
-                  class="line-clamp-1 font-medium text-highlighted"
-                >{{ row.original.username }}</span>
-              </template>
-            </UTable>
-          </AppScrollHint>
-        </section>
-      </template>
+            <!-- Table -->
+            <AppScrollHint>
+              <UTable
+                :data="section.rows"
+                :columns="buildColumns(section)"
+                :loading="pending && section.rows.length === 0"
+                loading-color="primary"
+                loading-animation="carousel"
+                sticky
+                class="rounded-lg border border-default"
+                :ui="tableUi"
+              >
+                <template #username-cell="{ row }">
+                  <span
+                    :title="row.original.username"
+                    class="line-clamp-1 font-medium text-highlighted"
+                  >{{ row.original.username }}</span>
+                </template>
+              </UTable>
+            </AppScrollHint>
+          </section>
+        </template>
+      </div>
     </template>
 
     <UModal

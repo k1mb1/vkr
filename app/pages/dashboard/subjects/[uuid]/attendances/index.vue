@@ -45,11 +45,16 @@ const sectionOptions = computed(() =>
 const selectedSections = ref<string[]>([])
 
 watch(sectionOptions, (opts) => {
+  if (opts.length === 0)
+    return
   const valid = new Set(opts.map(o => o.value))
-  selectedSections.value = selectedSections.value.filter(v => valid.has(v))
-  if (selectedSections.value.length === 0 && opts.length > 0)
-    selectedSections.value = opts.map(o => o.value)
-}, { immediate: true })
+  const kept = selectedSections.value.filter(v => valid.has(v))
+  const next = kept.length === 0 ? opts.map(o => o.value) : kept
+  if (next.length !== selectedSections.value.length
+    || next.some((v, i) => v !== selectedSections.value[i])) {
+    selectedSections.value = next
+  }
+})
 
 const allSectionsDeselected = computed(() =>
   sectionOptions.value.length > 0 && selectedSections.value.length === 0,
@@ -58,9 +63,9 @@ const allSectionsDeselected = computed(() =>
 const filteredData = computed<AttendanceTableResponse | null>(() => {
   if (!data.value)
     return null
-  const lessons = typeFilter.value === 'ALL'
-    ? data.value.lessons
-    : (data.value.lessons ?? []).filter(l => l.type === typeFilter.value)
+  if (typeFilter.value === 'ALL')
+    return data.value
+  const lessons = (data.value.lessons ?? []).filter(l => l.type === typeFilter.value)
   return { ...data.value, lessons }
 })
 
@@ -163,54 +168,55 @@ useRefreshOnFocus(refresh, { enabled: () => !editMode.value && attendanceDirty.v
           class="w-44"
         />
 
-        <div v-if="canEdit" class="flex items-center gap-3 ml-auto">
+        <div v-if="canEdit" class="ml-auto flex items-center gap-3">
           <USwitch
             v-model="editMode"
             label="Редактирование"
           />
-          <template v-if="editMode || attendanceDirty > 0">
-            <UButton
-              v-if="attendanceDirty > 0"
-              v-bind="toolbarButton.reset"
-              label="Сбросить"
-              :disabled="attendanceSaving"
-              @click="resetAttendance"
-            />
-            <UButton
-              v-bind="toolbarButton.save"
-              :label="attendanceDirty > 0 ? `Сохранить (${attendanceDirty})` : 'Сохранить'"
-              :loading="attendanceSaving"
-              :disabled="attendanceDirty === 0"
-              @click="saveAttendance"
-            />
-          </template>
+          <UButton
+            v-show="editMode && attendanceDirty > 0"
+            v-bind="toolbarButton.reset"
+            label="Сбросить"
+            :disabled="attendanceSaving"
+            @click="resetAttendance"
+          />
+          <UButton
+            v-show="editMode"
+            v-bind="toolbarButton.save"
+            :label="attendanceDirty > 0 ? `Сохранить (${attendanceDirty})` : 'Сохранить'"
+            :loading="attendanceSaving"
+            :disabled="attendanceDirty === 0"
+            @click="saveAttendance"
+          />
         </div>
       </div>
 
-      <USkeleton v-if="pending && !data" class="h-64 w-full" />
+      <div class="min-h-[60vh]">
+        <USkeleton v-if="pending && !data" class="h-[60vh] w-full" />
 
-      <UEmpty
-        v-else-if="allSectionsDeselected"
-        icon="i-lucide-filter-x"
-        title="Группы не выбраны"
-        description="Выберите хотя бы одну группу в фильтре, чтобы увидеть таблицу."
-        variant="naked"
-        class="py-6"
-      />
+        <UEmpty
+          v-else-if="allSectionsDeselected"
+          icon="i-lucide-filter-x"
+          title="Группы не выбраны"
+          description="Выберите хотя бы одну группу в фильтре, чтобы увидеть таблицу."
+          variant="naked"
+          class="py-6"
+        />
 
-      <AttendanceSectionedTable
-        v-else
-        :data="filteredData"
-        :pending="pending"
-        :sections-filter="selectedSections"
-        :attendance-policy="attendancePolicy"
-        :sort-by="sortBy"
-        :density="density"
-        :editable="editMode && canEdit"
-        :pending-changes="attendancePendingView"
-        empty-description="Для отображения посещаемости нужны и студенты, и занятия."
-        @change="onAttendanceChange"
-      />
+        <AttendanceSectionedTable
+          v-else
+          :data="filteredData"
+          :pending="pending"
+          :sections-filter="selectedSections"
+          :attendance-policy="attendancePolicy"
+          :sort-by="sortBy"
+          :density="density"
+          :editable="editMode && canEdit"
+          :pending-changes="attendancePendingView"
+          empty-description="Для отображения посещаемости нужны и студенты, и занятия."
+          @change="onAttendanceChange"
+        />
+      </div>
     </div>
 
     <ConfirmModal

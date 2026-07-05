@@ -57,7 +57,9 @@ const cards = computed(() => {
       :description="error.message"
     />
 
-    <USkeleton v-else-if="pending" class="h-20" />
+    <UPageGrid v-else-if="pending">
+      <USkeleton v-for="i in 6" :key="i" class="h-28" />
+    </UPageGrid>
 
     <UEmpty
       v-else-if="!permission"

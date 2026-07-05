@@ -48,6 +48,16 @@ export default defineNuxtConfig({
   },
 
   routeRules: {
+    '/demo': { ssr: false },
+    '/logout': { ssr: false },
+    '/auth/callback': { ssr: false },
+    '/dashboard': { ssr: false },
+    '/dashboard/**': { ssr: false },
+    '/check-in/**': { headers: { 'Cache-Control': 'no-store' } },
+
+    '/_nuxt/**': { headers: { 'Cache-Control': 'public, max-age=31536000, immutable' } },
+    '/_fonts/**': { headers: { 'Cache-Control': 'public, max-age=31536000, immutable' } },
+
     '/auth/oidc': {
       security: {
         rateLimiter: { tokensPerInterval: 20, interval: 60_000, throwError: true },
@@ -139,12 +149,48 @@ export default defineNuxtConfig({
       include: [
         'valibot',
         '@internationalized/date',
-        '@vueuse/integrations/useQRCode',
-        'qrcode',
         '@vueuse/core',
-        'xlsx',
       ],
     },
+    build: {
+      target: 'es2022',
+      cssTarget: 'chrome110',
+      cssCodeSplit: true,
+      chunkSizeWarningLimit: 900,
+      sourcemap: env.NODE_ENV !== 'production',
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (!id.includes('node_modules'))
+              return
+            if (id.includes('/xlsx/'))
+              return 'vendor-xlsx'
+            if (id.includes('/qrcode/'))
+              return 'vendor-qrcode'
+            if (id.includes('/@tanstack/'))
+              return 'vendor-tanstack'
+            if (id.includes('/sortablejs/'))
+              return 'vendor-sortablejs'
+            if (id.includes('/valibot/'))
+              return 'vendor-valibot'
+            if (id.includes('/@internationalized/'))
+              return 'vendor-intl-date'
+          },
+        },
+      },
+    },
+    esbuild: {
+      drop: env.NODE_ENV === 'production' ? ['console', 'debugger'] : [],
+    },
+  },
+
+  nitro: {
+    compressPublicAssets: { gzip: true, brotli: true },
+    minify: true,
+  },
+
+  experimental: {
+    viewTransition: true,
   },
 
   compatibilityDate: '2025-01-15',
