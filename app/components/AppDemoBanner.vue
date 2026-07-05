@@ -5,8 +5,15 @@
 // включён демо-режим и активна демо-сессия.
 const { public: { demoMode } } = useRuntimeConfig()
 const { session } = useOidcAuth()
+const route = useRoute()
 
-const isDemo = computed(() => demoMode && (session.value as { demo?: boolean } | null)?.demo === true)
+// Показываем плашку только на верхнеуровневых страницах /dashboard и /dashboard/<раздел>,
+// но не глубже (например, /dashboard/subjects/[uuid]/... уже без плашки).
+const isDashboardRoute = computed(() => {
+  const segments = route.path.replace(/\/+$/, '').split('/').filter(Boolean)
+  return segments[0] === 'dashboard' && segments.length <= 2
+})
+const isDemo = computed(() => isDashboardRoute.value && demoMode && (session.value as { demo?: boolean } | null)?.demo === true)
 
 // Общее на всё приложение: закрыли — не показываем до перезагрузки.
 const dismissed = useState('demo-banner-dismissed', () => false)
