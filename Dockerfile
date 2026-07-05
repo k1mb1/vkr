@@ -1,12 +1,13 @@
 FROM node:22-alpine AS build
 WORKDIR /app
 
+# Nuxt/Nitro build is memory-hungry; the default Node heap (~2 GB) OOMs.
 ENV NODE_OPTIONS=--max-old-space-size=4096
 
 RUN corepack enable && corepack prepare pnpm@11.2.2 --activate
 
-COPY package.json pnpm-lock.yaml .npmrc* ./
-RUN pnpm install --frozen-lockfile
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc* ./
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
 COPY . .
 RUN NODE_ENV=production pnpm run build
