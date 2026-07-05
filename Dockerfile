@@ -7,9 +7,10 @@ ENV NODE_OPTIONS=--max-old-space-size=4096
 RUN corepack enable && corepack prepare pnpm@11.2.2 --activate
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc* ./
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
 COPY . .
+RUN pnpm exec nuxt prepare
 RUN NODE_ENV=production pnpm run build
 
 FROM node:22-alpine AS runner
