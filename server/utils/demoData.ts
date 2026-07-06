@@ -519,10 +519,66 @@ function finalPolicyFor(subjectId: string): FinalAssessmentPolicyResponse {
   }
 }
 
+// --- Фильтрация по неполным правам -----------------------------------------
+// На реальном бэке scope-фильтрация применяется на сервере; в демо повторяем
+// её здесь, чтобы UI видел ровно то, что положено данным правам.
+function isScopeAllowed(subjectId: string, sc: Scope): boolean {
+  const perm = SUBJECTS[subjectId]?.def.partialPermissionScopes
+  if (!perm)
+    return true
+  return perm.some((p) => {
+    if (p.groupId !== sc.groupId)
+      return false
+    if (p.allowedLessonType && p.allowedLessonType !== sc.type)
+      return false
+    // Право на конкретную подгруппу отсекает лекции (allowedSubgroupId у scope пусто)
+    // и практики других подгрупп.
+    if (p.allowedSubgroupId && sc.allowedSubgroupId !== p.allowedSubgroupId)
+      return false
+    return true
+  })
+}
+
+function allowedScopes(subjectId: string): Scope[] {
+  const subj = SUBJECTS[subjectId]
+  if (!subj)
+    return []
+  return subj.scopes.filter(sc => isScopeAllowed(subjectId, sc))
+}
+
+function allowedStudentIds(subjectId: string): Set<string> | null {
+  const subj = SUBJECTS[subjectId]
+  if (!subj?.def.partialPermissionScopes)
+    return null
+  const set = new Set<string>()
+  for (const sc of allowedScopes(subjectId)) {
+    for (const sid of sc.studentIds) set.add(sid)
+  }
+  return set
+}
+
+function allowedGroups(subjectId: string): DemoGroup[] {
+  const subj = SUBJECTS[subjectId]
+  if (!subj)
+    return []
+  const perm = subj.def.partialPermissionScopes
+  if (!perm)
+    return subj.def.groups
+  const ids = new Set(perm.map(p => p.groupId))
+  return subj.def.groups.filter(g => ids.has(g.id))
+}
+
 // --- Построители таблиц -----------------------------------------------------
 function audienceOf(subjectId: string): Array<{ groupId: string, groupName: string }> {
+  return allowedGroups(subjectId).map(g => ({ groupId: g.id, groupName: g.name }))
+}
+
+function allowedStudents(subjectId: string): Student[] {
   const subj = SUBJECTS[subjectId]
-  return (subj?.def.groups ?? []).map(g => ({ groupId: g.id, groupName: g.name }))
+  if (!subj)
+    return []
+  const set = allowedStudentIds(subjectId)
+  return set ? subj.students.filter(s => set.has(s.id)) : subj.students
 }
 
 function tableStudent(s: Student) {
@@ -541,12 +597,17 @@ function buildAttendanceTable(subjectId: string, lessonId?: string): AttendanceT
   if (!subj)
     return emptyAttendanceTable()
 
-  const scopes = lessonId ? subj.scopes.filter(sc => sc.lessonId === lessonId) : subj.scopes
+  const allScopes = allowedScopes(subjectId)
+  const scopes = lessonId ? allScopes.filter(sc => sc.lessonId === lessonId) : allScopes
+  const students = allowedStudents(subjectId)
+  const allowedSids = allowedStudentIds(subjectId)
   const indexById = new Map(subj.students.map((s, i) => [s.id, i]))
   const attendances: AttendanceTableResponse['attendances'] = []
   let cid = 10_000
   for (const scope of scopes) {
     for (const sid of scope.studentIds) {
+      if (allowedSids && !allowedSids.has(sid))
+        continue
       const status = ATT_LETTER[subj.profileById.get(sid)?.att[scope.lessonIndex] ?? 'P']
       const override = subj.def.attComments?.[`${indexById.get(sid)}:${scope.lessonIndex}`]
       const comment = override ?? (status === 'EXCUSED' ? 'Справка' : undefined)
@@ -563,7 +624,7 @@ function buildAttendanceTable(subjectId: string, lessonId?: string): AttendanceT
   return {
     highlightPolicy: attendanceHighlightPolicy,
     audience: audienceOf(subjectId),
-    students: subj.students.map(tableStudent),
+    students: students.map(tableStudent),
     lessons: scopes.map(sc => ({
       id: sc.id,
       lessonId: sc.lessonId,
@@ -585,7 +646,7 @@ function studentAttendanceCounts(subjectId: string): StudentAttendanceResponse[]
   const subj = SUBJECTS[subjectId]
   if (!subj)
     return []
-  return subj.students.map((s) => {
+  return allowedStudents(subjectId).map((s) => {
     const counts = { present: 0, late: 0, absent: 0, excused: 0 }
     for (const letter of subj.profileById.get(s.id)?.att ?? []) {
       const status = ATT_LETTER[letter]
@@ -606,11 +667,16 @@ function buildGradingTable(subjectId: string, lessonId?: string): GradingTableRe
   if (!subj)
     return emptyGradingTable()
 
-  const lessons = lessonId ? subj.lessons.filter(l => l.id === lessonId) : subj.lessons
-  const scopes = lessonId ? subj.scopes.filter(sc => sc.lessonId === lessonId) : subj.scopes
-  const assignments = lessonId ? subj.assignments.filter(a => a.lessonId === lessonId) : subj.assignments
+  const allScopes = allowedScopes(subjectId)
+  const scopes = lessonId ? allScopes.filter(sc => sc.lessonId === lessonId) : allScopes
+  const visibleLessonIds = new Set(allScopes.map(sc => sc.lessonId))
+  const lessons = (lessonId ? subj.lessons.filter(l => l.id === lessonId) : subj.lessons)
+    .filter(l => visibleLessonIds.has(l.id))
+  const assignments = subj.assignments.filter(a => !!a.lessonId && visibleLessonIds.has(a.lessonId) && (!lessonId || a.lessonId === lessonId))
   const requiredAssignments = assignments.filter(a => a.required)
   const optionalAssignments = assignments.filter(a => !a.required)
+  const students = allowedStudents(subjectId)
+  const indexById = new Map(subj.students.map((s, i) => [s.id, i]))
 
   const grades: GradingTableResponse['grades'] = []
   let gid = 20_000
@@ -626,7 +692,8 @@ function buildGradingTable(subjectId: string, lessonId?: string): GradingTableRe
       ...(comment ? { comment } : {}),
     })
   }
-  subj.students.forEach((s, si) => {
+  students.forEach((s) => {
+    const si = indexById.get(s.id) ?? 0
     const prof = subj.profileById.get(s.id)
     requiredAssignments.forEach((a, rank) => pushCell(s.id, a, prof?.req[rank] ?? 0, prof?.off?.[rank] ?? 0, subj.def.gradeComments?.[`${si}:${rank}`]))
     optionalAssignments.forEach(a => pushCell(s.id, a, prof?.opt ?? 0))
@@ -648,7 +715,7 @@ function buildGradingTable(subjectId: string, lessonId?: string): GradingTableRe
     finalAssessmentPolicy: finalPolicyFor(subjectId),
     attendance: studentAttendanceCounts(subjectId),
     audience: audienceOf(subjectId),
-    students: subj.students.map(tableStudent),
+    students: students.map(tableStudent),
     lessons: lessons.map(l => ({
       id: l.id,
       type: l.type,
@@ -669,7 +736,7 @@ function buildCheckInSessions(subjectId: string): CheckInSessionResponse[] {
   const subj = SUBJECTS[subjectId]
   if (!subj)
     return []
-  const practiceScopes = subj.scopes.filter(sc => sc.type === PRACTICE)
+  const practiceScopes = allowedScopes(subjectId).filter(sc => sc.type === PRACTICE)
   const now = Date.now()
   return practiceScopes.slice(0, CHECK_IN_STATES.length).map((sc, i) => {
     const state = CHECK_IN_STATES[i]!
@@ -745,7 +812,7 @@ function buildPermission(subjectId: string): TeacherSubjectPermissionResponse {
 function lessonResponse(l: Lesson): LessonResponse {
   const subj = SUBJECTS[l.subjectId]
   const assignments = (subj?.assignments ?? []).filter(a => a.lessonId === l.id)
-  const scopes = (subj?.scopes ?? []).filter(sc => sc.lessonId === l.id).map(sc => ({
+  const scopes = allowedScopes(l.subjectId).filter(sc => sc.lessonId === l.id).map(sc => ({
     id: sc.id,
     groupId: sc.groupId,
     groupName: sc.groupName,
@@ -853,7 +920,7 @@ export function getDemoResponse(method: string, path: string, query: Record<stri
 
   if (p === 'api/groups/by-subject') {
     const subjectId = String(query.subjectId ?? '')
-    const source = SUBJECTS[subjectId]?.def.groups ?? ALL_GROUPS
+    const source = SUBJECTS[subjectId] ? allowedGroups(subjectId) : ALL_GROUPS
     const groups: GroupWithSubgroupsResponse[] = source.map(g => ({ id: g.id, name: g.name, subgroups: g.subgroups }))
     return { body: groups }
   }
@@ -888,7 +955,11 @@ export function getDemoResponse(method: string, path: string, query: Record<stri
   // --- Занятия и задания ---
   if (p === 'api/lessons') {
     const subjectId = subjectFromPermission(query)
-    return { body: (subjectId ? SUBJECTS[subjectId]?.lessons ?? [] : []).map(lessonResponse) }
+    if (!subjectId)
+      return { body: [] }
+    const visibleLessonIds = new Set(allowedScopes(subjectId).map(sc => sc.lessonId))
+    const lessons = (SUBJECTS[subjectId]?.lessons ?? []).filter(l => visibleLessonIds.has(l.id))
+    return { body: lessons.map(lessonResponse) }
   }
 
   const lessonById = p.match(/^api\/lessons\/([^/]+)$/)
