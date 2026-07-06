@@ -15,7 +15,10 @@
  *  - «Базы данных» — режим SEPARATE (порог посещаемости даёт «Не аттестован»
  *    из-за пропусков), одна группа;
  *  - «Операционные системы» — несколько групп, лекции общие, практики разбиты по
- *    подгруппам (у каждой (группа, подгруппа) — своя колонка проведения).
+ *    подгруппам (у каждой (группа, подгруппа) — своя колонка проведения). У
+ *    демо-преподавателя здесь неполные права: доступ только к практикам
+ *    подгруппы 2 группы ИС-501 — демонстрирует ограничение по (группа,
+ *    подгруппа, тип занятия) и связанный редирект middleware `subject-permission`.
  *
  * ТИПИЗАЦИЯ: билдеры и фикстуры типизированы сгенерированными типами ответов из
  * `#hey-api`. При изменении схемы API (`pnpm gen:api`) несоответствия здесь
@@ -201,6 +204,14 @@ const finalBandIds = [uid(600), uid(601), uid(602)]
 
 interface BandDef { label: string, minPoints: number, minPercent: number, requiredTasks: number }
 
+/** Ограничение прав: конкретный scope (группа + опц. подгруппа + опц. тип). */
+interface PartialPermissionScope {
+  id: string
+  groupId: string
+  allowedSubgroupId?: string
+  allowedLessonType?: LessonType
+}
+
 // --- Определения предметов --------------------------------------------------
 interface SubjectDef {
   id: string
@@ -226,13 +237,15 @@ interface SubjectDef {
   attComments?: Record<string, string>
   /** Комментарии к ячейкам оценок по обязательным заданиям, ключ `studentIndex:rank`. */
   gradeComments?: Record<string, string>
+  /** Неполные права: если задано, `allPermissions=false` и выдаются эти scopes. */
+  partialPermissionScopes?: PartialPermissionScope[]
 }
 
 const SUBJECT_DEFS: SubjectDef[] = [
   {
     id: SUBJ1,
     name: 'Программирование',
-    description: 'Основы программирования, 3 семестр',
+    description: 'Одна группа. Итоговая оценка учитывает баллы и посещаемость вместе. Есть штрафы за просрочку и бонусы за досрочную сдачу, а на последней практике порог допуска зависит от уровня итоговой оценки',
     permId: PERM1,
     groups: [GROUP1],
     practiceSplit: false,
@@ -271,7 +284,7 @@ const SUBJECT_DEFS: SubjectDef[] = [
   {
     id: SUBJ2,
     name: 'Базы данных',
-    description: 'Реляционные БД и SQL',
+    description: 'Одна группа. Посещаемость проверяется отдельным порогом: даже с хорошими баллами можно получить «Не аттестован» из-за пропусков',
     permId: PERM2,
     groups: [GROUP2],
     practiceSplit: false,
@@ -301,7 +314,7 @@ const SUBJECT_DEFS: SubjectDef[] = [
   {
     id: SUBJ3,
     name: 'Операционные системы',
-    description: 'Две группы, практики разбиты по подгруппам',
+    description: 'Две группы: лекции проходят вместе, практики — по подгруппам, у каждой свой день и своя ведомость. У преподавателя ограниченный доступ: только практики подгруппы 2 группы ИС-501',
     permId: PERM3,
     groups: [GROUP3, GROUP4],
     practiceSplit: true,
@@ -321,6 +334,10 @@ const SUBJECT_DEFS: SubjectDef[] = [
     ],
     lessonBase: 240,
     assignmentBase: 440,
+    // Демонстрация неполных прав: только практики подгруппы 1 группы ИС-501.
+    partialPermissionScopes: [
+      { id: uid(50), groupId: G3, allowedSubgroupId: GROUP3.subgroups[1]!.id, allowedLessonType: PRACTICE },
+    ],
     // G3(sg1: Пётр, Ольга; sg2: Роман, София), G4(sg1: Тимур, Ульяна; sg2: Фёдор, Юлия)
     profiles: [
       { req: [10, 10], opt: 0, att: ['P', 'P', 'P', 'P'] },
@@ -701,13 +718,25 @@ function buildCheckInPreview(subjectId: string, sessionId: string): CheckInPrevi
 }
 
 function buildPermission(subjectId: string): TeacherSubjectPermissionResponse {
+  const def = SUBJECTS[subjectId]?.def
+  const partial = def?.partialPermissionScopes
+  const scopes: TeacherSubjectPermissionResponse['scopes'] = partial?.map((sc) => {
+    const g = def!.groups.find(x => x.id === sc.groupId)!
+    const sub = sc.allowedSubgroupId ? g.subgroups.find(sg => sg.id === sc.allowedSubgroupId) : undefined
+    return {
+      id: sc.id,
+      group: { id: g.id, name: g.name, subgroups: g.subgroups.map(sg => ({ id: sg.id, index: sg.index })) },
+      ...(sub ? { allowedSubgroup: { id: sub.id, index: sub.index } } : {}),
+      ...(sc.allowedLessonType ? { allowedLessonType: sc.allowedLessonType } : {}),
+    }
+  }) ?? []
   return {
     id: permIdFor(subjectId),
     teacherId: DEMO_TEACHER_ID,
     teacherName: DEMO_TEACHER.username,
     subjectId,
-    allPermissions: true,
-    scopes: [],
+    allPermissions: !partial,
+    scopes,
     createdAt: CREATED,
     updatedAt: CREATED,
   }
