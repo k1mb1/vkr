@@ -1,0 +1,45 @@
+{
+  "name": "Официальный каталог VKR",
+  "plugins": [
+    {
+      "id": "at-risk-students",
+      "version": "1.0.0",
+      "name": "Студенты в зоне риска",
+      "description": "Таблица студентов с низкой посещаемостью или баллом ниже половины максимума — кого стоит позвать на консультацию до аттестации.",
+      "author": "VKR",
+      "icon": "i-lucide-triangle-alert",
+      "category": "tables",
+      "hasCode": false,
+      "files": {
+        "manifest.json": "c2a8acb7a5e51c8fd080d1041b40e938121404a8cfabd4fd1080463982920404"
+      }
+    },
+    {
+      "id": "brs-rating",
+      "version": "1.0.0",
+      "name": "БРС: 100-балльная шкала и ECTS",
+      "description": "Пересчитывает итог в балльно-рейтинговую систему: 100 баллов, буква ECTS и традиционная отметка (отлично / хорошо / удовл. / неуд.).",
+      "author": "VKR",
+      "icon": "i-lucide-calculator",
+      "category": "grading",
+      "hasCode": false,
+      "files": {
+        "manifest.json": "8fdff5db0ca747a107cac12d80dedb1c235e674c5deaa8603d3cd1b56af5e867"
+      }
+    },
+    {
+      "id": "group-analytics",
+      "version": "1.0.0",
+      "name": "Аналитика по группам",
+      "description": "Сводка по каждой группе: средний и медианный балл, посещаемость, распределение по оценкам ECTS и число должников. Пример код-плагина на SDK.",
+      "author": "VKR",
+      "icon": "i-lucide-chart-column",
+      "category": "analytics",
+      "hasCode": true,
+      "files": {
+        "index.js": "aee5423aa491e0e190d7d452a53151f7464e006bdc0bd9cf3dcdd4f18427dafc",
+        "manifest.json": "2e85c989ee7db6e3c6befc550d6a5bc72e2a337898022f38b180b6e145b4b614"
+      }
+    }
+  ]
+}

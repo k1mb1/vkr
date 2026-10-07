@@ -1,0 +1,21 @@
+{
+  "id": "group-analytics",
+  "name": "Аналитика по группам",
+  "version": "1.0.0",
+  "description": "Сводка по каждой группе: средний и медианный балл, посещаемость, распределение по оценкам ECTS и число должников. Пример код-плагина на SDK.",
+  "author": "VKR",
+  "icon": "i-lucide-chart-column",
+  "category": "analytics",
+  "main": "index.js",
+  "contributes": {
+    "subjectPages": [
+      {
+        "id": "analytics",
+        "label": "Аналитика",
+        "description": "Распределение оценок и посещаемость по группам",
+        "icon": "i-lucide-chart-column",
+        "view": { "type": "component", "dataset": "students", "component": "GroupAnalytics" }
+      }
+    ]
+  }
+}

@@ -4,6 +4,7 @@ import type { BreadcrumbItem, NavigationMenuItem } from '@nuxt/ui'
 const route = useRoute()
 const { subjects } = useSubjectNavigation()
 const { hasAllPermissions } = usePermissions()
+const { subjectPages, subjectPagePath } = usePlugins()
 
 const uuid = computed(() => {
   const param = route.params.uuid
@@ -71,6 +72,10 @@ const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
     else if (route.path.includes('/final')) {
       items.push({ label: 'Итоговые оценки', to: `/dashboard/subjects/${uuid.value}/final` })
     }
+    else if (route.path.includes('/ext/')) {
+      const page = subjectPages.value.find(p => route.path === subjectPagePath(uuid.value!, p))
+      items.push({ label: page?.label ?? 'Плагин' })
+    }
   }
 
   return items
@@ -114,6 +119,11 @@ const toolbarItems = computed<NavigationMenuItem[][]>(() => uuid.value
         to: `/dashboard/subjects/${uuid.value}/final`,
         active: route.path.startsWith(`/dashboard/subjects/${uuid.value}/final`),
       },
+      // Разделы от плагинов маркетплейса.
+      ...subjectPages.value.map((p) => {
+        const to = subjectPagePath(uuid.value!, p)
+        return { label: p.label, icon: p.icon ?? 'i-lucide-puzzle', to, active: route.path === to }
+      }),
       ...(hasAllPermissions.value
         ? [{
             label: 'Настройки',

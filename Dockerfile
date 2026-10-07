@@ -24,6 +24,11 @@ RUN addgroup -S app && adduser -S app -G app
 
 COPY --from=build --chown=app:app /app/.output/ ./
 
+# Установленные плагины маркетплейса. Смонтируйте volume, чтобы они
+# переживали пересоздание контейнера.
+RUN mkdir -p /app/.data && chown app:app /app/.data
+VOLUME /app/.data
+
 USER app
 
 EXPOSE 3000

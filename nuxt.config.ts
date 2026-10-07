@@ -19,6 +19,11 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     proxyTimeoutMs: env.NUXT_PROXY_TIMEOUT_MS ? Number(env.NUXT_PROXY_TIMEOUT_MS) : 15000,
+    // Маркетплейс плагинов: дополнительные каталоги (через запятую, базовые URL
+    // со структурой index.json + packages/<id>/<version>/…) и кто может ставить
+    // плагины (email или sub через запятую; пусто — любой вошедший пользователь).
+    marketplaceUrls: env.NUXT_MARKETPLACE_URLS || '',
+    pluginAdmins: env.NUXT_PLUGIN_ADMINS || '',
     oauth: {
       oidc: {
         clientId: env.NUXT_OAUTH_OIDC_CLIENT_ID,
@@ -187,6 +192,15 @@ export default defineNuxtConfig({
   nitro: {
     compressPublicAssets: { gzip: true, brotli: true },
     minify: true,
+    // Встроенный каталог маркетплейса (marketplace/) — едет внутри сборки.
+    serverAssets: [{ baseName: 'marketplace', dir: resolve('marketplace') }],
+    // Установленные плагины: файлы пакетов и реестр. На проде — volume на .data.
+    storage: {
+      plugins: { driver: 'fs', base: './.data/plugins' },
+    },
+    devStorage: {
+      plugins: { driver: 'fs', base: './.data/plugins' },
+    },
   },
 
   experimental: {

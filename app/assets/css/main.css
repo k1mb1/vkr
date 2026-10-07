@@ -8,3 +8,19 @@
 :root {
   --ui-radius: 0.375rem;
 }
+
+/*
+ * Утилиты, гарантированные коду плагинов маркетплейса. Плагины грузятся уже
+ * после сборки, и Tailwind не видит их классы — поэтому базовый набор для
+ * раскладки и текста держим в CSS всегда. Список — часть контракта SDK.
+ */
+@source inline("{flex,inline-flex,grid,block,hidden,contents}");
+@source inline("{flex-col,flex-row,flex-wrap,flex-1,shrink-0,items-center,items-start,items-end,justify-between,justify-center,justify-end}");
+@source inline("{gap,p,px,py,m,mt,mb}-{0,0.5,1,1.5,2,3,4,6,8}");
+@source inline("{sm:,md:,lg:,xl:,}grid-cols-{1,2,3,4,5,6}");
+@source inline("{w,h}-{full,2,3,4,6,8,10,12} min-w-0 truncate overflow-hidden");
+@source inline("rounded{,-sm,-md,-lg,-full} border border-default bg-elevated bg-muted bg-default");
+@source inline("text-{xs,sm,base,lg,xl,2xl,3xl} font-{medium,semibold,bold} tabular-nums uppercase tracking-wide");
+@source inline("text-{default,muted,dimmed,highlighted,toned}");
+@source inline("{text,bg}-{primary,success,warning,error,info}");
+@source inline("bg-{primary,success,warning,error,info}/{10,20}");

@@ -1,0 +1,72 @@
+{
+  "id": "at-risk-students",
+  "name": "Студенты в зоне риска",
+  "version": "1.0.0",
+  "description": "Таблица студентов с низкой посещаемостью или баллом ниже половины максимума — кого стоит позвать на консультацию до аттестации.",
+  "author": "VKR",
+  "icon": "i-lucide-triangle-alert",
+  "category": "tables",
+  "contributes": {
+    "subjectPages": [
+      {
+        "id": "risk",
+        "label": "Зона риска",
+        "description": "Студенты с посещаемостью ниже 70% или баллом ниже 50%",
+        "icon": "i-lucide-triangle-alert",
+        "view": {
+          "type": "table",
+          "dataset": "students",
+          "filter": "attendancePercent < 70 || percent < 50",
+          "sort": { "column": "percent", "order": "asc" },
+          "emptyText": "Все студенты в норме — в зоне риска никого нет.",
+          "columns": [
+            { "id": "name", "label": "Студент", "value": "name" },
+            { "id": "group", "label": "Группа", "value": "group" },
+            {
+              "id": "attendance",
+              "label": "Посещаемость",
+              "value": "attendancePercent",
+              "format": "percent",
+              "align": "center",
+              "highlight": [
+                { "when": "attendancePercent < 50", "color": "error" },
+                { "when": "attendancePercent < 70", "color": "warning" }
+              ]
+            },
+            {
+              "id": "percent",
+              "label": "Балл, %",
+              "hint": "Итоговый балл от максимально возможного",
+              "value": "percent",
+              "format": "percent",
+              "align": "center",
+              "highlight": [
+                { "when": "percent < 30", "color": "error" },
+                { "when": "percent < 50", "color": "warning" }
+              ]
+            },
+            {
+              "id": "debts",
+              "label": "Долги",
+              "hint": "Незакрытые обязательные задания",
+              "value": "requiredTotal - requiredClosed",
+              "format": "number",
+              "align": "center",
+              "highlight": [{ "when": "requiredTotal - requiredClosed > 0", "color": "error" }]
+            },
+            {
+              "id": "reason",
+              "label": "Причина",
+              "value": "attendancePercent < 70 && percent < 50 ? \"Пропуски и баллы\" : attendancePercent < 70 ? \"Пропуски\" : \"Низкий балл\"",
+              "format": "badge",
+              "highlight": [
+                { "when": "attendancePercent < 70 && percent < 50", "color": "error" },
+                { "when": "true", "color": "warning" }
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

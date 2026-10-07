@@ -30,6 +30,13 @@ const DASHBOARD_PRIMARY_LINKS = [
     to: '/dashboard/groups',
     description: 'Управление группами и участниками.',
   },
+  {
+    key: 'marketplace',
+    label: 'Маркетплейс',
+    icon: 'i-lucide-store',
+    to: '/dashboard/marketplace',
+    description: 'Расширения: новые таблицы, шкалы оценивания и аналитика.',
+  },
 ] as const satisfies readonly DashboardPrimaryLink[]
 
 export function getDashboardPrimaryLinks(): DashboardPrimaryLink[] {

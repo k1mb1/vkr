@@ -1,0 +1,63 @@
+{
+  "id": "brs-rating",
+  "name": "БРС: 100-балльная шкала и ECTS",
+  "version": "1.0.0",
+  "description": "Пересчитывает итог в балльно-рейтинговую систему: 100 баллов, буква ECTS и традиционная отметка (отлично / хорошо / удовл. / неуд.).",
+  "author": "VKR",
+  "icon": "i-lucide-calculator",
+  "category": "grading",
+  "contributes": {
+    "subjectPages": [
+      {
+        "id": "brs",
+        "label": "БРС",
+        "description": "Рейтинг по 100-балльной шкале с оценкой ECTS",
+        "icon": "i-lucide-calculator",
+        "view": {
+          "type": "table",
+          "dataset": "students",
+          "sort": { "column": "score", "order": "desc" },
+          "columns": [
+            { "id": "rank", "label": "Место", "hint": "Место в своей группе по итоговому баллу", "value": "rank", "format": "number", "align": "center" },
+            { "id": "name", "label": "Студент", "value": "name" },
+            { "id": "group", "label": "Группа", "value": "group" },
+            { "id": "raw", "label": "Баллы", "hint": "Набрано из максимально возможного", "value": "concat(total, \" / \", maxTotal)", "align": "center" },
+            {
+              "id": "score",
+              "label": "БРС",
+              "hint": "Итог, приведённый к 100-балльной шкале",
+              "value": "round(percent)",
+              "format": "number",
+              "align": "center",
+              "highlight": [
+                { "when": "percent >= 86", "color": "success" },
+                { "when": "percent < 61", "color": "error" }
+              ]
+            },
+            {
+              "id": "ects",
+              "label": "ECTS",
+              "value": "percent >= 90 ? \"A\" : percent >= 82 ? \"B\" : percent >= 75 ? \"C\" : percent >= 68 ? \"D\" : percent >= 61 ? \"E\" : percent >= 41 ? \"FX\" : \"F\"",
+              "format": "badge",
+              "align": "center",
+              "highlight": [
+                { "when": "percent >= 82", "color": "success" },
+                { "when": "percent >= 61", "color": "warning" },
+                { "when": "true", "color": "error" }
+              ]
+            },
+            {
+              "id": "mark",
+              "label": "Отметка",
+              "value": "percent >= 86 ? \"отлично\" : percent >= 71 ? \"хорошо\" : percent >= 61 ? \"удовл.\" : \"неуд.\"",
+              "highlight": [
+                { "when": "percent >= 86", "color": "success" },
+                { "when": "percent < 61", "color": "error" }
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

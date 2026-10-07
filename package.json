@@ -13,7 +13,8 @@
     "gen:api": "openapi-ts",
     "predev": "openapi-ts",
     "prebuild": "openapi-ts",
-    "pretypecheck": "openapi-ts"
+    "pretypecheck": "openapi-ts",
+    "market:index": "node scripts/build-marketplace.mjs"
   },
   "dependencies": {
     "@antfu/eslint-config": "^9.0.0",

@@ -3,6 +3,7 @@ const route = useRoute()
 const subjectId = computed(() => String(route.params.uuid ?? ''))
 
 const { permission, pending, error } = usePermissions()
+const { subjectPages, subjectPagePath } = usePlugins()
 
 const cards = computed(() => {
   const baseCards = [
@@ -38,7 +39,14 @@ const cards = computed(() => {
     },
   ]
 
-  return baseCards
+  const pluginCards = subjectPages.value.map(p => ({
+    label: p.label,
+    description: p.description ?? p.pluginName,
+    icon: p.icon ?? 'i-lucide-puzzle',
+    to: subjectPagePath(subjectId.value, p),
+  }))
+
+  return [...baseCards, ...pluginCards]
 })
 </script>
 
